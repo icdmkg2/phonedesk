@@ -70,6 +70,8 @@ async function scan(port, forceOpen) {
       const m = line.trim().match(/^(\S+)\s+(device|unauthorized|offline|no permissions)\b(.*)$/);
       if (!m) continue;
       const [, serial, st, rest] = m;
+      // Wireless debugging lists one phone twice (ip:port and an mDNS name). Keep the ip:port one.
+      if (/_adb-tls-connect/.test(serial) && /^\s*\d+\.\d+\.\d+\.\d+:\d+\s+device/m.test(r.out)) continue;
       seen.add(serial);
       const model = friendly(((rest.match(/model:(\S+)/) || [])[1] || serial).replace(/_/g, ' '));
       // A serial like 10.0.0.5:5555 is a phone linked over Wi-Fi (network ADB), not a cable.
@@ -105,7 +107,13 @@ async function scan(port, forceOpen) {
       if (d.reversed && (!d.opened || forceOpen)) {
         d.opened = true;
         // Open PhoneDesk on the phone (also after the phone restarts). The browser reuses the tab.
-        await run(['-s', serial, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', wifiIp ? phoneUrl() : `http://localhost:${port}/phone`]);
+        // The PhoneDesk phone app does its own thing: just bring it up. Otherwise open the page in the browser.
+        const pk = await run(['-s', serial, 'shell', 'pm', 'list', 'packages', 'com.phonedesk.display']);
+        if (pk.ok && pk.out.includes('com.phonedesk.display')) {
+          await run(['-s', serial, 'shell', 'am', 'start', '-n', 'com.phonedesk.display/.MainActivity']);
+        } else {
+          await run(['-s', serial, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', wifiIp ? phoneUrl() : `http://localhost:${port}/phone`]);
+        }
       }
       // Every ~30s: read the battery and (re)apply "screen always on". Re-applying covers a phone
       // reboot. stayon true = the screen never sleeps by itself while PhoneDesk manages the phone.
