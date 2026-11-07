@@ -565,3 +565,10 @@ body[data-lf="script"] { --lf: "Dancing Script", "Segoe Script", "Brush Script M
 .kl.rtl .w.in, .kl.rtl.echo .w { background-position: 100% 0; }
 .kl.rtl .w.em { margin: 0 .04em; }
 .ly-line[dir="rtl"] { letter-spacing: 0; }
+
+/* lyrics timing buttons */
+.ly-nudge { display: none; position: absolute; left: 24px; bottom: 12px; z-index: 3; gap: 8px; }
+body.ly-open .ly-nudge, body.scr-lyrics .ly-nudge { display: flex; }
+.ly-nudge button { padding: 8px 14px; border-radius: 17px; background: rgba(127, 127, 127, .2); color: var(--fg); font-size: 13px; font-weight: 700; }
+.ly-nudge button:active { transform: scale(.94); }
+body.ly-kinetic:not(.ly-dark).ly-ready .ly-nudge button, body.ly-kinetic:not(.ly-dark).scr-lyrics .ly-nudge button { background: rgba(20, 30, 28, .1); color: #1a2523; }

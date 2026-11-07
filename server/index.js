@@ -458,6 +458,7 @@ function publicConfig() {
     lyricsMode: c.lyricsMode,
     lyricsFont: c.lyricsFont,
     lyricsLines: c.lyricsLines,
+    lyricsOffset: c.lyricsOffset,
     showBattery: c.showBattery,
     weather: c.weather,
     notifications: c.notifications,

@@ -33,6 +33,7 @@ const DEFAULTS = {
   nowStyle: 'immersive',
   lyricsMode: 'scroll',
   lyricsFont: 'serif',
+  lyricsOffset: 0,
   lyricsLines: 'off',
   screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
   shortcuts: [
@@ -86,6 +87,7 @@ function sanitize(c) {
   out.dimAfter = Math.max(0, Math.min(3600, +c.dimAfter || 0));
   out.nowStyle = c.nowStyle === 'classic' ? 'classic' : 'immersive';
   out.lyricsMode = ['scroll', 'kinetic', 'kinetic-dark'].includes(c.lyricsMode) ? c.lyricsMode : 'scroll';
+  out.lyricsOffset = Math.max(-2000, Math.min(2000, Math.round(+c.lyricsOffset || 0)));
   out.lyricsLines = ['off', 'curve', 'straight', 'glass'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';
   out.screens = Array.isArray(c.screens) ? c.screens.filter((s) => SCREENS.includes(s)) : DEFAULTS.screens.slice();

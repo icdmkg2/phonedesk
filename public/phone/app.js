@@ -151,7 +151,7 @@
         state.clockOffset = m.d.serverTime - Date.now();
         if (m.d.hosts) { store.set('hosts', m.d.hosts); hosts = uniq([activeHost, location.host].concat(m.d.hosts)); }
         break;
-      case 'media': state.media = m.d || { active: false }; renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); break;
+      case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); break;
       case 'volume': state.volume = m.d; renderVolume(); break;
       case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); break;
       case 'config': applyConfig(m.d); break;
@@ -198,12 +198,26 @@
   function isPlaying() { return state.media.active && state.media.status === 'Playing'; }
 
   // Where is the track *now*? The PC reports a position at a timestamp; extrapolate if playing.
+  // A smooth playback clock. Players report their position only every few seconds and the timestamps are a little
+  // off, so extrapolating straight from each report makes the song position jump back and forth. Instead keep our own
+  // running clock and nudge it toward each report; a real jump (seek, new song, play/pause) resets it at once.
+  var pc = { pos: 0, at: 0, playing: false, key: '' };
+  function pcPos(now) { return pc.pos + (pc.playing ? (now - pc.at) / 1000 : 0); }
+  function mediaClock(m) {
+    if (!m || !m.active) { pc.at = 0; return; }
+    var now = Date.now() + state.clockOffset, playing = m.status === 'Playing';
+    var key = (m.app || '') + '|' + (m.title || '') + '|' + (m.artist || '') + '|' + Math.round(m.duration || 0);
+    var lag = playing && m.updated ? Math.max(0, now - m.updated) / 1000 : 0;
+    var changed = key !== pc.key || playing !== pc.playing || !pc.at;
+    if (changed && lag > 3) lag = 0; // a stale timestamp right after play/resume: trust the position as of now
+    var rep = (m.position || 0) + lag, cur = pcPos(now);
+    if (changed || Math.abs(rep - cur) > 1.2) pc = { pos: rep, at: now, playing: playing, key: key };
+    else { pc.pos = cur + (rep - cur) * 0.4; pc.at = now; }
+  }
   function currentPos() {
     var m = state.media;
     if (!m.active || !m.duration) return 0;
-    var p = m.position || 0;
-    if (m.status === 'Playing' && m.updated) p += (Date.now() + state.clockOffset - m.updated) / 1000;
-    return Math.min(Math.max(0, p), m.duration);
+    return Math.min(Math.max(0, pcPos(Date.now() + state.clockOffset)), m.duration);
   }
 
   function renderMedia() {
@@ -647,7 +661,7 @@
     var sx = 0, sy = 0, st = 0, active = false;
     var root = $('screens');
     root.addEventListener('pointerdown', function (e) {
-      if (e.target.closest('.slider, .track, .ly-pill, .ly-close')) { active = false; return; }
+      if (e.target.closest('.slider, .track, .ly-pill, .ly-close, .ly-nudge')) { active = false; return; }
       var p = pt(e); active = true; sx = p.x; sy = p.y; st = Date.now();
     });
     root.addEventListener('pointerup', function (e) {
@@ -944,19 +958,43 @@
     if (!lyr) setLyrics(null);
   }
   // Where in the song are we? Binary search over the line start times.
+  // How long a line is actually sung: most of the gap to the next line, but not stretched over a long instrumental break.
+  function lySung(len, gap) {
+    var expected = Math.max(1.5, (len / 10) * 1.7);
+    return Math.max(0.8, Math.min(gap * 0.92, expected));
+  }
   function lyIndexAt(pos) {
     var L = lyr.lines, lo = 0, hi = L.length - 1, ans = -1;
     while (lo <= hi) { var mid = (lo + hi) >> 1; if (L[mid].t <= pos) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
     return ans;
   }
-  var LY_LEAD = 0.28; // light on a touch early, like the big players do
+  // Light a line a touch early, like the big players do; the dashboard slider shifts this per taste (later = positive).
+  var lyTrackOff = store.get('lyoff', {}) || {};
+  function lyTrackKey() { var m = state.media; return m && m.active ? (m.title || '') + '|' + (m.artist || '') : ''; }
+  function lyTotalOffset() { return (state.config.lyricsOffset || 0) + (lyTrackOff[lyTrackKey()] || 0); }
+  function lyLead() { return 0.25 - lyTotalOffset() / 1000; }
+  // The two buttons on the lyrics screen: shift this song's lyrics earlier or later (remembered per song on this phone).
+  function lyNudge(ms) {
+    var k = lyTrackKey();
+    if (!k) return;
+    lyTrackOff[k] = Math.max(-4000, Math.min(4000, (lyTrackOff[k] || 0) + ms));
+    var keys = Object.keys(lyTrackOff);
+    if (keys.length > 200) delete lyTrackOff[keys[0]];
+    store.set('lyoff', lyTrackOff);
+    var t = lyTotalOffset();
+    toast(t === 0 ? 'Lyrics: in sync' : 'Lyrics ' + (Math.abs(t) / 1000).toFixed(2) + ' s ' + (t > 0 ? 'later' : 'earlier'));
+    buzz();
+    lyrIndex = -2; kinIdx = -2; lyFillAt = 0;
+  }
+  $('ly-earlier').addEventListener('click', function () { lyNudge(-250); });
+  $('ly-later').addEventListener('click', function () { lyNudge(250); });
   var lyFillAt = 0;
   function lyricTick(force) {
     if (!lyr || !lyr.lines.length || !lyricsVisible()) return;
     var lines = $('ly-list').children, L = lyr.lines;
     if (document.body.classList.contains('ly-kinetic')) return kinTick(force);
     if (!lyr.synced) { if (force && lines[0]) $('ly-list').style.transform = 'translateY(0)'; return; }
-    var pos = currentPos() + LY_LEAD, idx = lyIndexAt(pos);
+    var pos = currentPos() + lyLead(), idx = lyIndexAt(pos);
     if (idx !== lyrIndex || force) {
       var from = Math.max(0, Math.min(lyrIndex, idx) - 3), to = Math.min(lines.length - 1, Math.max(lyrIndex, idx) + 3);
       if (force) { from = 0; to = lines.length - 1; }
@@ -982,7 +1020,7 @@
       if (force || now - lyFillAt > 45) {
         lyFillAt = now;
         var start = L[idx].t, gap = (L[idx + 1] ? L[idx + 1].t : start + 6) - start;
-        var sung = L[idx].text ? Math.min(gap, Math.max(1.1, L[idx].text.length * 0.085)) : gap;
+        var sung = L[idx].text ? lySung(L[idx].text.length, gap) : gap;
         var p = Math.max(0, Math.min(1, (pos - start) / sung));
         var ln = lines[idx];
         if (ln._w) {
@@ -1143,7 +1181,7 @@
     kinFxClear();
     if (!ln || !ln.text) return;
     var gap = (L[idx + 1] ? L[idx + 1].t : ln.t + 6) - ln.t, len = ln.text.length;
-    var sung = Math.min(gap, Math.max(1.1, len * 0.085)), cps = len / sung;
+    var cps = len / Math.min(gap, Math.max(1.1, len * 0.085)), sung = lySung(len, gap);
     var mood = cps > 14 ? 'hot' : cps < 8 ? 'calm' : 'mid';
     var words = ln.text.split(/\s+/);
     var rtl = isRtl(ln.text);
@@ -1212,7 +1250,7 @@
     kinEl = el;
   }
   function kinTick(force) {
-    var L = lyr.lines, pos = currentPos() + LY_LEAD, idx = lyIndexAt(pos);
+    var L = lyr.lines, pos = currentPos() + lyLead(), idx = lyIndexAt(pos);
     if (idx !== kinIdx || force) {
       if (force && idx === kinIdx && kinEl) { /* same line, just re-measure below */ }
       kinIdx = idx;
@@ -1383,7 +1421,7 @@
   $('nb').addEventListener('click', function (e) { e.stopPropagation(); nextNotification(); });
 
   /* ============================================================ boot */
-  if (/[?&]debug\b/.test(location.search)) window.__pd = { state: state, setLyrics: setLyrics, openLyrics: openLyrics, applyConfig: applyConfig, tick: lyricTick };
+  if (/[?&]debug\b/.test(location.search)) window.__pd = { state: state, setLyrics: setLyrics, openLyrics: openLyrics, applyConfig: applyConfig, tick: lyricTick, pos: currentPos, clock: mediaClock };
   renderDots();
   renderWeather();
   show(state.screen);

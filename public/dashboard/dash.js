@@ -493,6 +493,7 @@
     if (!c) return;
     $$('#ds-nstyle .theme').forEach((b) => { const on = b.dataset.v === (c.nowStyle || 'immersive'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-lystyle .theme').forEach((b) => { const on = b.dataset.v === (c.lyricsMode || 'scroll'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    if (document.activeElement !== $('ds-lyoffset')) { $('ds-lyoffset').value = c.lyricsOffset || 0; setText($('ds-lyoffset-n'), ((c.lyricsOffset || 0) > 0 ? '+' : '') + (c.lyricsOffset || 0) + ' ms'); }
     $$('#ds-lylines button').forEach((b) => { const on = b.dataset.v === (c.lyricsLines || 'off'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-lyfont button').forEach((b) => { const on = b.dataset.v === (c.lyricsFont || 'serif'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-themes .theme').forEach((b) => { b.classList.toggle('on', b.dataset.v === c.theme); b.setAttribute('aria-pressed', String(b.dataset.v === c.theme)); });
@@ -537,6 +538,8 @@
   }
   $('ds-art').addEventListener('change', (e) => saveConfig({ artLookup: e.target.checked }));
   $('ds-nstyle').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ nowStyle: b.dataset.v }); });
+  $('ds-lyoffset').addEventListener('input', (e) => setText($('ds-lyoffset-n'), (+e.target.value > 0 ? '+' : '') + e.target.value + ' ms'));
+  $('ds-lyoffset').addEventListener('change', (e) => saveConfig({ lyricsOffset: +e.target.value }));
   $('ds-lylines').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) saveConfig({ lyricsLines: b.dataset.v }); });
   $('ds-lyfont').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) saveConfig({ lyricsFont: b.dataset.v }); });
   $('ds-lystyle').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ lyricsMode: b.dataset.v }); });
