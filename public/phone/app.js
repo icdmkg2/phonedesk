@@ -913,7 +913,18 @@
     d.lines.forEach(function (l) {
       var div = document.createElement('div');
       div.className = 'ly-line' + (l.text ? '' : ' gap');
-      if (l.text) { var sp = document.createElement('span'); sp.className = 'lw'; sp.textContent = l.text; div.appendChild(sp); }
+      if (l.text) {
+        var words = l.text.split(/\s+/), total = 0, acc = 0, spans = [], wf = [];
+        words.forEach(function (w) { total += w.length + 1; });
+        words.forEach(function (w, k) {
+          var sp = document.createElement('span');
+          sp.className = 'w'; sp.textContent = w;
+          div.appendChild(sp);
+          if (k < words.length - 1) div.appendChild(document.createTextNode(' '));
+          spans.push(sp); wf.push(acc / total); acc += w.length + 1;
+        });
+        div._w = spans; div._wf = wf; div._cur = -2;
+      }
       else div.innerHTML = '<i></i><i></i><i></i>';
       frag.appendChild(div);
     });
@@ -947,8 +958,11 @@
       for (var i = from; i <= to; i++) {
         var d = i - idx, cls = 'ly-line' + (L[i].text ? '' : ' gap');
         if (d === 0) cls += ' on'; else if (d < 0) cls += d === -1 ? ' past near1' : ' past'; else cls += d === 1 ? ' near1' : d === 2 ? ' near2' : '';
-        if (lines[i].className !== cls) lines[i].className = cls;
-        if (d !== 0) lines[i].style.removeProperty('--p');
+        if (lines[i].className !== cls) {
+          var becameActive = d === 0 && lines[i].className.indexOf(' on') < 0;
+          lines[i].className = cls;
+          if (becameActive && lines[i]._w) { lines[i]._cur = -2; for (var k = 0; k < lines[i]._w.length; k++) lines[i]._w[k].classList.remove('lit'); }
+        }
       }
       lyrIndex = idx;
       var cur = lines[Math.max(0, idx)], view = $('ly-view');
@@ -965,7 +979,15 @@
         var start = L[idx].t, gap = (L[idx + 1] ? L[idx + 1].t : start + 6) - start;
         var sung = L[idx].text ? Math.min(gap, Math.max(1.1, L[idx].text.length * 0.085)) : gap;
         var p = Math.max(0, Math.min(1, (pos - start) / sung));
-        lines[idx].style.setProperty('--p', (p * 100).toFixed(1) + '%');
+        var ln = lines[idx];
+        if (ln._w) {
+          var cw = -1;
+          for (var q = 0; q < ln._wf.length; q++) { if (p >= ln._wf[q]) cw = q; else break; }
+          if (cw !== ln._cur) {
+            for (var r = 0; r < ln._w.length; r++) ln._w[r].classList.toggle('lit', r <= cw);
+            ln._cur = cw;
+          }
+        }
       }
     }
   }
