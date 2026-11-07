@@ -454,6 +454,7 @@ function publicConfig() {
     accent: c.accent,
     screens: c.screens,
     dimAfter: c.dimAfter,
+    nowStyle: c.nowStyle,
     showBattery: c.showBattery,
     weather: c.weather,
     notifications: c.notifications,

@@ -30,6 +30,7 @@ const DEFAULTS = {
   theme: 'dark',
   accent: 'auto',
   dimAfter: 0,
+  nowStyle: 'immersive',
   screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
   shortcuts: [
     { id: 'mute-mic', label: 'Mute mic', type: 'keys', value: 'ctrl+shift+m', icon: 'mic', color: '#e5484d' },
@@ -80,6 +81,7 @@ function sanitize(c) {
   out.theme = ['dark', 'black', 'light'].includes(c.theme) ? c.theme : 'dark';
   out.accent = typeof c.accent === 'string' && /^(auto|#[0-9a-f]{6})$/i.test(c.accent) ? c.accent : 'auto';
   out.dimAfter = Math.max(0, Math.min(3600, +c.dimAfter || 0));
+  out.nowStyle = c.nowStyle === 'classic' ? 'classic' : 'immersive';
   out.screens = Array.isArray(c.screens) ? c.screens.filter((s) => SCREENS.includes(s)) : DEFAULTS.screens.slice();
   if (!out.screens.length) out.screens = ['media'];
   // Screens added in a newer version show up once for existing users (after Now playing).

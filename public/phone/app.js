@@ -41,7 +41,7 @@
     media: { active: false },
     volume: { level: 0, muted: false },
     stats: null,
-    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0 },
+    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive' },
     clockOffset: 0, // PC time - phone time (ms)
     screen: store.get('screen', 'media'),
   };
@@ -589,7 +589,13 @@
   }
 
   /* ============================================================ screens + navigation */
-  function screens() { return state.config.screens && state.config.screens.length ? state.config.screens : ['media']; }
+  function imm() { return state.config.nowStyle !== 'classic'; }
+  // In the immersive style lyrics are a sheet you pull up over Now playing, not a screen of their own.
+  function screens() {
+    var l = state.config.screens && state.config.screens.length ? state.config.screens : ['media'];
+    if (imm()) l = l.filter(function (s) { return s !== 'lyrics'; });
+    return l.length ? l : ['media'];
+  }
 
   function show(name) {
     var list = screens();
@@ -597,6 +603,8 @@
     var from = list.indexOf(state.screen), to = list.indexOf(name);
     $('screens').setAttribute('data-dir', from < 0 || from === to ? 'none' : (to > from ? 'next' : 'prev'));
     state.screen = name;
+    closeLyrics(true);
+    document.body.classList.toggle('scr-media', name === 'media');
     store.set('screen', name);
     var secs = document.querySelectorAll('.screen');
     for (var i = 0; i < secs.length; i++) toggle(secs[i], 'on', secs[i].getAttribute('data-screen') === name);
@@ -607,7 +615,7 @@
   }
 
   function renderAll() {
-    if (state.screen === 'media') { renderMedia(); drawVolume(state.volume.level, state.volume.muted); }
+    if (state.screen === 'media') { renderMedia(); drawVolume(state.volume.level, state.volume.muted); npLast = ''; renderNpTop(); }
     else if (state.screen === 'mixer') renderMixer(true);
     else if (state.screen === 'lyrics') { renderLyricsHead(); lyricTick(true); }
     else if (state.screen === 'clock') { lastClock = ''; renderClock(); renderClockMini(); }
@@ -638,21 +646,31 @@
     var sx = 0, sy = 0, st = 0, active = false;
     var root = $('screens');
     root.addEventListener('pointerdown', function (e) {
-      if (e.target.closest('.slider, .track')) { active = false; return; }
+      if (e.target.closest('.slider, .track, .ly-pill, .ly-close')) { active = false; return; }
       var p = pt(e); active = true; sx = p.x; sy = p.y; st = Date.now();
     });
     root.addEventListener('pointerup', function (e) {
       if (!active) return;
       active = false;
       var p = pt(e), dx = p.x - sx, dy = p.y - sy;
-      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4 && Date.now() - st < 700) step(dx < 0 ? 1 : -1);
+      if (Date.now() - st > 800) return;
+      var lyOpen = document.body.classList.contains('ly-open');
+      if (Math.abs(dy) > 55 && Math.abs(dy) > Math.abs(dx) * 1.4 && imm()) {
+        if (lyOpen && dy > 0) closeLyrics();
+        else if (!lyOpen && dy < 0 && state.screen === 'media') openLyrics();
+        return;
+      }
+      if (lyOpen) return;
+      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) step(dx < 0 ? 1 : -1);
     });
     root.addEventListener('pointercancel', function () { active = false; });
   })();
 
   function applyConfig(c) {
-    var prevShortcuts = JSON.stringify(state.config.shortcuts), prevScreens = JSON.stringify(state.config.screens);
+    var prevShortcuts = JSON.stringify(state.config.shortcuts), prevScreens = JSON.stringify(state.config.screens) + state.config.nowStyle;
     state.config = c;
+    document.body.classList.toggle('ns-imm', c.nowStyle !== 'classic');
+    if (c.nowStyle === 'classic') closeLyrics(true);
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
     var meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', c.theme === 'light' ? '#f4f5f7' : c.theme === 'black' ? '#000000' : '#0e0f12');
@@ -660,7 +678,7 @@
     applyAccent(el.art.classList.contains('ok') ? el.art : null);
     if (JSON.stringify(c.shortcuts) !== prevShortcuts) renderPad();
     renderBattery();
-    if (JSON.stringify(c.screens) !== prevScreens || !$('dots').children.length) { renderDots(); show(state.screen); }
+    if (JSON.stringify(c.screens) + c.nowStyle !== prevScreens || !$('dots').children.length) { renderDots(); show(state.screen); }
     else renderAll();
     armDim();
   }
@@ -891,7 +909,7 @@
     if (!lyr) setLyrics(null);
   }
   function lyricTick(force) {
-    if (!lyr || !lyr.lines.length || state.screen !== 'lyrics') return;
+    if (!lyr || !lyr.lines.length || (state.screen !== 'lyrics' && !document.body.classList.contains('ly-open'))) return;
     var lines = $('ly-list').children, idx = 0;
     if (lyr.synced) {
       var pos = currentPos() + 0.25;
@@ -907,7 +925,38 @@
     var y = cur.offsetTop - view.clientHeight / 2 + cur.offsetHeight / 2;
     $('ly-list').style.transform = 'translateY(' + (-Math.max(0, y)) + 'px)';
   }
-  setInterval(function () { if (state.screen === 'lyrics' && document.visibilityState === 'visible') lyricTick(false); }, 250);
+  setInterval(function () { if ((state.screen === 'lyrics' || document.body.classList.contains('ly-open')) && document.visibilityState === 'visible') lyricTick(false); }, 250);
+
+  // The lyrics sheet (immersive style): pull up on Now playing, pull down or tap the arrow to close.
+  var lyCloseT = null;
+  function openLyrics() {
+    var b = document.body;
+    if (b.classList.contains('ly-open')) return;
+    clearTimeout(lyCloseT); b.classList.remove('ly-closing');
+    b.classList.add('ly-open');
+    renderLyricsHead(); lyricTick(true);
+    buzz();
+  }
+  function closeLyrics(now) {
+    var b = document.body;
+    if (!b.classList.contains('ly-open')) return;
+    b.classList.remove('ly-open');
+    if (now) { b.classList.remove('ly-closing'); return; }
+    b.classList.add('ly-closing');
+    clearTimeout(lyCloseT);
+    lyCloseT = setTimeout(function () { b.classList.remove('ly-closing'); }, 230);
+  }
+  $('ly-pill').addEventListener('click', openLyrics);
+  $('ly-close').addEventListener('click', function () { closeLyrics(); });
+
+  // Time (and weather) in the corner of the immersive Now playing screen.
+  var npLast = '';
+  function renderNpTop() {
+    if (!imm() || state.screen !== 'media') return;
+    var html = clockHtml(new Date(Date.now() + state.clockOffset));
+    if (html !== npLast) { npLast = html; $('np-time').innerHTML = html; }
+  }
+  setInterval(function () { if (document.visibilityState === 'visible') renderNpTop(); }, 1000);
 
   /* ============================================================ weather */
   var WX = {
@@ -940,7 +989,7 @@
     // Outside the PC connection, only show weather that's a few hours old at most.
     var fresh = w && state.config.weather !== false && Date.now() - w.at < 6 * 3600 * 1000;
     var html = fresh ? wxIcon(w.code, w.day) + '<b>' + w.temp + '°' + '</b><span>' + escHtml(w.city || '') + '</span><small>H ' + w.hi + '° · L ' + w.lo + '°</small>' : '';
-    ['c-wx', 'o-wx'].forEach(function (id) {
+    ['c-wx', 'o-wx', 'np-wx'].forEach(function (id) {
       var el = $(id);
       el.hidden = !fresh;
       if (el.getAttribute('data-h') !== html) { el.setAttribute('data-h', html); el.innerHTML = html; }
