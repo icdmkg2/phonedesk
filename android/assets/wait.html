@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{height:100%;margin:0;background:#0e0f12;color:#f2f3f5;font-family:system-ui,sans-serif}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 24px}
+h1{font-size:22px;margin:0;font-weight:700}
+p{margin:0;color:#a3a8b3;font-size:14px;max-width:420px}
+i{width:22px;height:22px;border-radius:50%;border:3px solid #2a2e36;border-top-color:#5b8cff;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+details{color:#6b717d;font-size:13px}
+summary{cursor:pointer;padding:6px}
+input{background:#17191e;border:1px solid #2a2e36;border-radius:8px;color:#f2f3f5;padding:8px 10px;font-size:14px;width:170px}
+button{background:#5b8cff;border:0;border-radius:8px;color:#fff;padding:8px 14px;font-size:14px;font-weight:600;margin-left:6px}
+</style></head><body>
+<i></i>
+<h1>PhoneDesk</h1>
+<p id="s">Looking for PhoneDesk on your network…</p>
+<details><summary>Enter the PC's address</summary>
+<input id="a" placeholder="192.168.1.20" inputmode="url" autocapitalize="off" autocorrect="off"><button id="g">Connect</button></details>
+<script>
+function setStatus(t){document.getElementById('s').textContent=t}
+document.getElementById('g').onclick=function(){var v=document.getElementById('a').value;if(window.PhoneDeskApp)PhoneDeskApp.setAddress(v);setStatus('Trying '+v+'…')};
+</script></body></html>

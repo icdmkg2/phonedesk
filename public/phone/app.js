@@ -771,7 +771,7 @@
   // Fully Kiosk Browser (and similar kiosk apps) expose the battery through their own JavaScript interface.
   function kioskBattery() {
     try {
-      var f = window.fully;
+      var f = window.fully || window.PhoneDeskApp;
       if (!f || !f.getBatteryLevel) return;
       var lvl = +f.getBatteryLevel();
       if (!(lvl >= 0)) return;
@@ -782,7 +782,7 @@
   if (!navigator.getBattery) { kioskBattery(); setInterval(kioskBattery, 30000); }
   // One-off facts for the PC's log, so a missing battery can be diagnosed.
   setTimeout(function () {
-    var f = window.fully, d = { secure: !!window.isSecureContext, batteryApi: !!navigator.getBattery, fully: typeof f, level: null, err: '' };
+    var f = window.fully || window.PhoneDeskApp, d = { secure: !!window.isSecureContext, batteryApi: !!navigator.getBattery, fully: typeof f, level: null, err: '' };
     try { if (f && f.getBatteryLevel) d.level = f.getBatteryLevel(); else if (f) d.keys = Object.keys(f).slice(0, 8).join(','); } catch (e) { d.err = String(e && e.message || e); }
     send({ t: 'diag', d: d });
   }, 4000);

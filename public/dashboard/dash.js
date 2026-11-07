@@ -232,6 +232,7 @@
 
     $$('.name-url').forEach((el) => setText(el, nameUrl().replace(/^http:\/\//, '')));
     $$('.name-url-full').forEach((el) => setText(el, nameUrl()));
+    $$('.apk-url').forEach((el) => setText(el, nameUrl() + '/phone/PhoneDesk.apk'));
     const qr = '/api/qr?text=' + encodeURIComponent(nameUrl() + '/phone');
     $$('.qr-img').forEach((img) => { if (img.getAttribute('src') !== qr) img.src = qr; });
 

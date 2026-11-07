@@ -3,3 +3,4 @@ data/
 tools/
 dist/
 build/.cache/
+android/out/
