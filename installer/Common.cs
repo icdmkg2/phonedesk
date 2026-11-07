@@ -12,7 +12,7 @@ using Microsoft.Win32;
 static class Pd
 {
     public const string Name = "PhoneDesk";
-    public const string Version = "1.4.9";
+    public const string Version = "1.5.1";
     public const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\PhoneDesk";
     public const string FirewallRule = "PhoneDesk";

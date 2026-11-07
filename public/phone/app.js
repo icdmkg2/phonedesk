@@ -41,7 +41,7 @@
     media: { active: false },
     volume: { level: 0, muted: false },
     stats: null,
-    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive', lyricsMode: 'scroll' },
+    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive', lyricsMode: 'scroll', lyricsFont: 'serif' },
     clockOffset: 0, // PC time - phone time (ms)
     screen: store.get('screen', 'media'),
   };
@@ -997,15 +997,49 @@
   }
   /* ---- Kinetic lyrics (Lyric Speaker style): one big line at a time, words appear as they're sung,
      and the motion follows the mood of the line (slow and soft, or quick and punchy). ---- */
-  var kinIdx = -2, kinEl = null, kinGone = false, kinEcho = null, kinFlip = false;
+  var kinIdx = -2, kinEl = null, kinGone = false, kinEcho = null, kinFlip = false, kinSig = '';
   function syncKinetic() {
-    var on = state.config.lyricsMode === 'kinetic' && !!lyr && !!lyr.synced && !!lyr.lines && lyr.lines.length > 0;
+    var mode = state.config.lyricsMode || 'scroll', font = state.config.lyricsFont || 'serif';
+    var on = mode.indexOf('kinetic') === 0 && !!lyr && !!lyr.synced && !!lyr.lines && lyr.lines.length > 0;
     var had = document.body.classList.contains('ly-kinetic');
     toggle(document.body, 'ly-kinetic', on);
-    if (on !== had || !on) { kinIdx = -2; kinEl = null; kinEcho = null; $('ly-kin').textContent = ''; lyrIndex = -2; }
+    toggle(document.body, 'ly-dark', on && mode === 'kinetic-dark');
+    document.body.setAttribute('data-lf', font);
+    var sig = mode + '|' + font;
+    if (on !== had || !on || sig !== kinSig) { kinSig = sig; kinIdx = -2; kinEl = null; kinEcho = null; $('ly-kin').textContent = ''; lyrIndex = -2; }
   }
-  function kinHash(s) { var h = 7; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
+  function kinRnd(a, b) { return a + Math.random() * (b - a); }
+  function kinPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function kinDrop(el, ms) { if (!el) return; el.classList.add('out'); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, ms); }
+
+  // Measure the laid-out (and tilted) text and make sure it is entirely on the screen: shrink it if it is too big,
+  // then slide it back inside if it pokes out.
+  function kinFit(el, stage, fs) {
+    var sw = stage.clientWidth, sh = stage.clientHeight, mx = sw * 0.05, my = sh * 0.07;
+    el.style.transition = 'none';
+    var box = function () {
+      var sr = stage.getBoundingClientRect(), rows = el.children, l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+      for (var i = 0; i < rows.length; i++) {
+        var q = rows[i].getBoundingClientRect();
+        l = Math.min(l, q.left - sr.left); t = Math.min(t, q.top - sr.top); r = Math.max(r, q.right - sr.left); b = Math.max(b, q.bottom - sr.top);
+      }
+      return { l: l, t: t, r: r, b: b, w: r - l, h: b - t };
+    };
+    for (var it = 0; it < 6; it++) {
+      var bx = box(), aw = sw - 2 * mx, ah = sh - 2 * my;
+      if (bx.w <= aw + 1 && bx.h <= ah + 1) break;
+      fs *= Math.min(aw / bx.w, ah / bx.h) * 0.96;
+      el.style.fontSize = fs.toFixed(1) + 'px';
+    }
+    var f = box(), dx = 0, dy = 0;
+    if (f.l < mx) dx = mx - f.l; else if (f.r > sw - mx) dx = (sw - mx) - f.r;
+    if (f.t < my) dy = my - f.t; else if (f.b > sh - my) dy = (sh - my) - f.b;
+    el.style.setProperty('--nx', dx.toFixed(1) + 'px');
+    el.style.setProperty('--ny', dy.toFixed(1) + 'px');
+    void el.offsetWidth;
+    el.style.transition = '';
+  }
+
   function kinShow(idx) {
     var L = lyr.lines, ln = L[idx], stage = $('ly-kin');
     // The line that was showing shrinks into a faint echo; the echo before it goes.
@@ -1024,30 +1058,39 @@
     var gap = (L[idx + 1] ? L[idx + 1].t : ln.t + 6) - ln.t, len = ln.text.length;
     var sung = Math.min(gap, Math.max(1.1, len * 0.085)), cps = len / sung;
     var mood = cps > 14 ? 'hot' : cps < 8 ? 'calm' : 'mid';
-    var hsh = kinHash(ln.text);
     var words = ln.text.split(/\s+/);
-    // Break into short ragged rows of 1 to 3 words
-    var rows = [], k = 0, pat = [2, 3, 2, 1, 3, 2];
-    var pi = hsh % pat.length;
+
+    // Random ragged rows of 1 to 3 words (never a lone word at the end)
+    var rows = [], k = 0;
     while (k < words.length) {
-      var n = pat[pi++ % pat.length];
-      if (words.length - k - n === 1) n++; // never leave one word alone at the end
+      var n = kinPick([1, 2, 2, 2, 3, 3]);
+      if (words.length - k - n === 1) n++;
       rows.push(words.slice(k, k + n)); k += n;
     }
-    // The longest word is the emphasis
-    var emIdx = -1, emLen = 4;
-    words.forEach(function (x, q) { var c = x.replace(/[^\p{L}\p{N}]/gu, '').length; if (c > emLen) { emLen = c; emIdx = q; } });
+    // One or two emphasis words, chosen among the longer ones
+    var cand = [];
+    words.forEach(function (x, q) { var c = x.replace(/[^\p{L}\p{N}]/gu, '').length; if (c >= 4) cand.push({ q: q, c: c }); });
+    cand.sort(function (a, b) { return b.c - a.c + (Math.random() - 0.5) * 2; });
+    var ems = {};
+    if (cand.length) ems[cand[0].q] = kinRnd(1.4, 1.95);
+    if (cand.length > 2 && Math.random() < 0.25) ems[cand[1].q] = kinRnd(1.25, 1.55);
+
+    var vertical = words.length <= 3 && len <= 16 && Math.random() < 0.09;
+    var tilt = vertical ? -90 : (Math.random() < 0.22 ? 0 : kinRnd(-9, 9));
+    var align = Math.floor(Math.random() * 3);
     var w = stage.clientWidth || 600, h = stage.clientHeight || 260;
     var maxChars = 1;
     rows.forEach(function (r) { maxChars = Math.max(maxChars, r.join(' ').length); });
-    var fs = Math.min((w * 0.74) / (maxChars * 0.52 + (emIdx >= 0 ? 2 : 0)), (h * 0.66) / (rows.length * 1.18 + (emIdx >= 0 ? 0.5 : 0)));
-    fs = Math.max(h * 0.09, Math.min(h * (mood === 'hot' ? 0.2 : 0.21), fs));
+    var fs = Math.min((w * 0.74) / (maxChars * 0.52 + 2), (h * 0.66) / (rows.length * 1.18 + 0.5));
+    fs = Math.max(h * 0.09, Math.min(h * (mood === 'hot' ? 0.2 : 0.21), fs)) * kinRnd(0.9, 1.1);
+
     var el = document.createElement('div');
-    var align = hsh % 3, tilt = [0, -4, 3, -6, 5, -2, 0, 4][(hsh >> 3) % 8];
-    el.className = 'kl m-' + mood + ' a-' + align;
+    el.className = 'kl m-' + mood + ' a-' + align + (Math.random() < 0.14 ? ' it' : '');
     el.style.fontSize = fs.toFixed(1) + 'px';
-    el.style.setProperty('--tilt', tilt + 'deg');
-    el.style.setProperty('--shift', (((hsh >> 5) % 9) - 4) * 3 + '%');
+    el.style.fontWeight = kinPick(mood === 'hot' ? [700, 800] : [500, 600, 600, 700]);
+    el.style.setProperty('--tilt', tilt.toFixed(1) + 'deg');
+    el.style.setProperty('--shift', kinRnd(-12, 12).toFixed(1) + '%');
+    el.style.setProperty('--vy', kinRnd(-9, 9).toFixed(1) + '%');
     var spans = [], wf = [], acc = 0, total = 0, wi = 0;
     words.forEach(function (x) { total += x.length + 1; });
     rows.forEach(function (r) {
@@ -1055,8 +1098,15 @@
       row.className = 'kr';
       r.forEach(function (x, q) {
         var sp = document.createElement('span');
-        sp.className = 'w' + (wi === emIdx ? ' em' : '');
+        sp.className = 'w' + (ems[wi] ? ' em' : '');
         sp.textContent = x;
+        if (ems[wi]) sp.style.fontSize = ems[wi].toFixed(2) + 'em';
+        else if (Math.random() < 0.35) sp.style.fontSize = kinRnd(0.88, 1.12).toFixed(2) + 'em';
+        // each word slides in from its own random side, and its fill takes as long as the word takes to sing
+        var dir = kinPick([[0, 0.3], [0, -0.3], [-0.35, 0], [0.35, 0], [0, 0.15]]);
+        sp.style.setProperty('--ex', dir[0] + 'em');
+        sp.style.setProperty('--ey', dir[1] + 'em');
+        sp.style.setProperty('--fd', Math.max(0.28, Math.min(1.3, sung * (x.length + 1) / total)).toFixed(2) + 's');
         row.appendChild(sp);
         if (q < r.length - 1) row.appendChild(document.createTextNode(' '));
         spans.push(sp); wf.push(acc / total); acc += x.length + 1; wi++;
@@ -1065,6 +1115,7 @@
     });
     el._w = spans; el._wf = wf; el._cur = -2; el._sung = sung;
     stage.appendChild(el);
+    kinFit(el, stage, fs);
     kinEl = el;
   }
   function kinTick(force) {
@@ -1110,13 +1161,14 @@
     if (b.classList.contains('ly-open')) return;
     clearTimeout(lyCloseT); b.classList.remove('ly-closing');
     b.classList.add('ly-open');
+    setTimeout(function () { if (b.classList.contains('ly-open')) b.classList.add('ly-ready'); }, 300);
     renderLyricsHead(); lyricTick(true); lyStart();
     buzz();
   }
   function closeLyrics(now) {
     var b = document.body;
     if (!b.classList.contains('ly-open')) return;
-    b.classList.remove('ly-open');
+    b.classList.remove('ly-open', 'ly-ready');
     if (now) { b.classList.remove('ly-closing'); return; }
     b.classList.add('ly-closing');
     clearTimeout(lyCloseT);
@@ -1232,7 +1284,7 @@
   $('nb').addEventListener('click', function (e) { e.stopPropagation(); nextNotification(); });
 
   /* ============================================================ boot */
-  if (/[?&]debug\b/.test(location.search)) window.__pd = { state: state, setLyrics: setLyrics, openLyrics: openLyrics, applyConfig: applyConfig };
+  if (/[?&]debug\b/.test(location.search)) window.__pd = { state: state, setLyrics: setLyrics, openLyrics: openLyrics, applyConfig: applyConfig, tick: lyricTick };
   renderDots();
   renderWeather();
   show(state.screen);

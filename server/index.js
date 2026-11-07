@@ -456,6 +456,7 @@ function publicConfig() {
     dimAfter: c.dimAfter,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
+    lyricsFont: c.lyricsFont,
     showBattery: c.showBattery,
     weather: c.weather,
     notifications: c.notifications,
