@@ -538,3 +538,13 @@ body.ly-kinetic.ly-dark #s-lyrics .ly-head { color: rgba(255, 255, 255, .45); }
 .kt.in { opacity: .8; }
 .kslash { position: absolute; background: var(--ink); opacity: .92; transform: translateX(0) skewX(-22deg);
   transition: transform var(--sd, 1s) linear, opacity .5s ease; will-change: transform; }
+
+/* ---------------------------------------------------------------- kinetic: linked lines (thread between lyrics) */
+.kfx .tg { fill: none; stroke: var(--ghost); stroke-width: 1.4; stroke-linecap: round; }
+.kfx .ti { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1;
+  transition: stroke-dashoffset .9s cubic-bezier(.3, .7, .2, 1); }
+.kfx.draw .ti { stroke-dashoffset: 0; }
+.kfx .tn { fill: var(--ink); }
+.kfx .tn.later { opacity: 0; transition: opacity .3s .7s; }
+.kfx.draw .tn.later { opacity: 1; }
+.kfx.fade { opacity: 0; transition: opacity 1.4s ease; }
