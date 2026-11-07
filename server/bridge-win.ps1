@@ -68,6 +68,12 @@ public static class PdIcon {
   static extern void SHCreateItemFromParsingName(string path, IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItemImageFactory item);
   [DllImport("gdi32.dll")] static extern int GetObject(IntPtr h, int size, ref BITMAP bm);
   [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr h);
+  [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)] static extern int SHLoadIndirectString(string src, System.Text.StringBuilder outBuf, int cch, IntPtr reserved);
+
+  public static string Resource(string indirect) {
+    var sb = new System.Text.StringBuilder(512);
+    return SHLoadIndirectString(indirect, sb, sb.Capacity, IntPtr.Zero) == 0 ? sb.ToString() : "";
+  }
 
   public static byte[] Png(string path, int size) {
     Bitmap bmp = null;
@@ -179,7 +185,12 @@ function Find-AppInfo([string]$aumid) {
       if (-not $pkg) { return $null }
       [xml]$man = Get-Content -LiteralPath (Join-Path $pkg.InstallLocation 'AppxManifest.xml') -Raw
       $display = "" + $man.Package.Properties.DisplayName
-      if ($display -like 'ms-resource:*') { $display = '' }
+      if ($display -like 'ms-resource:*') {
+        # Localized name: ask Windows to resolve the package resource ("Snipping Tool", not "ScreenSketch").
+        $res = $display.Substring(12)
+        if ($res -notlike '//*') { $res = "//$($pkg.Name)/Resources/$($res.TrimStart('/'))" }
+        $display = [PdIcon]::Resource('@{' + $pkg.PackageFullName + '?ms-resource:' + $res + '}')
+      }
       $logo = Join-Path $pkg.InstallLocation ("" + $man.Package.Properties.Logo)
       $dir = Split-Path $logo; $stem = [IO.Path]::GetFileNameWithoutExtension($logo); $ext = [IO.Path]::GetExtension($logo)
       $best = Get-ChildItem -LiteralPath $dir -Filter "$stem*$ext" -ErrorAction SilentlyContinue | Sort-Object Length -Descending | Select-Object -First 1
@@ -187,7 +198,8 @@ function Find-AppInfo([string]$aumid) {
       if (-not $file) { return $null }
       return @{ png = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file)); name = $display; game = $false }
     }
-    $proc = $aumid -replace '\.exe$', ''
+    # Ids can be a bare exe name, or a known-folder path like {GUID}\folder\app.exe: use the file name.
+    $proc = [IO.Path]::GetFileNameWithoutExtension($aumid)
     $key = $proc.ToLower()
     if ($KnownAumid.ContainsKey($key)) { $proc = $KnownAumid[$key] }
     $p = Get-Process -Name $proc -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
@@ -216,6 +228,10 @@ function Invoke-Cmd([string]$line) {
     'volume' { [PdAudio]::SetVolume([float]::Parse($arg, [Globalization.CultureInfo]::InvariantCulture)); $script:forceVol = $true; return }
     'mute' { [PdAudio]::SetMute(-not [PdAudio]::GetMute()); $script:forceVol = $true; return }
     'keys' { Send-Combo $arg; return }
+    'appvol' { $a = $arg.Split(' '); [PdMixer]::Set([uint32]$a[0], [float]::Parse($a[1], [Globalization.CultureInfo]::InvariantCulture), -1); $script:forceMixer = $true; return }
+    'appmute' { [PdMixer]::Set([uint32]$arg, -1, 2); $script:forceMixer = $true; return }
+    'icon' { Send-AppIcon $arg; return }
+    'mixer' { $script:forceMixer = $true; $script:mixerForced = $true; return }
     'ignore' { $script:Ignored = @($arg.ToLower().Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }); $script:forceMedia = $true; return }
   }
   $s = Get-Session
@@ -258,6 +274,171 @@ function Read-Art($props) {
   } catch { return $null }
 }
 
+# ---------------------------------------------------------------- per-app volume + GPU sensors
+Add-Type -Language CSharp -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+// Per-app volume: Windows' audio sessions on the default output device (what the Volume Mixer shows).
+public static class PdMixer {
+  [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IMMDeviceEnumerator { int NotUsed(); [PreserveSig] int GetDefaultAudioEndpoint(int flow, int role, out IMMDevice dev); }
+  [Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IMMDevice { [PreserveSig] int Activate(ref Guid iid, int ctx, IntPtr p, [MarshalAs(UnmanagedType.IUnknown)] out object o); }
+  [Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioSessionManager2 { int A(); int B(); [PreserveSig] int GetSessionEnumerator(out IAudioSessionEnumerator e); }
+  [Guid("E2F5BB11-0570-40CA-ACDD-3AA01277DEE8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioSessionEnumerator { [PreserveSig] int GetCount(out int n); [PreserveSig] int GetSession(int i, out IAudioSessionControl2 s); }
+  [Guid("bfb7ff88-7239-4fc9-8fa2-07c950be9c6d"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioSessionControl2 {
+    [PreserveSig] int GetState(out int state);
+    int GetDisplayName(); int SetDisplayName(); int GetIconPath(); int SetIconPath(); int GetGroupingParam(); int SetGroupingParam();
+    int RegisterAudioSessionNotification(); int UnregisterAudioSessionNotification();
+    int GetSessionIdentifier(); int GetSessionInstanceIdentifier();
+    [PreserveSig] int GetProcessId(out uint pid);
+    [PreserveSig] int IsSystemSoundsSession();
+  }
+  [Guid("87CE5498-68D6-44E5-9215-6DA47EF883D8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface ISimpleAudioVolume {
+    [PreserveSig] int SetMasterVolume(float v, ref Guid ctx); [PreserveSig] int GetMasterVolume(out float v);
+    [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool m, ref Guid ctx); [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool m);
+  }
+  [Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioMeterInformation { [PreserveSig] int GetPeakValue(out float peak); }
+
+  public class Entry { public uint pid; public float level; public bool muted; public float peak; public bool system; }
+
+  static List<IAudioSessionControl2> Sessions() {
+    var list = new List<IAudioSessionControl2>();
+    // Created by CLSID (not a [ComImport] class) so it can't clash with the master-volume code's type.
+    var en = (IMMDeviceEnumerator)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")));
+    IMMDevice dev;
+    if (en.GetDefaultAudioEndpoint(0, 1, out dev) != 0) return list;
+    Guid iid = typeof(IAudioSessionManager2).GUID;
+    object o;
+    if (dev.Activate(ref iid, 23, IntPtr.Zero, out o) != 0) return list;
+    var mgr = (IAudioSessionManager2)o;
+    IAudioSessionEnumerator e;
+    if (mgr.GetSessionEnumerator(out e) != 0) return list;
+    int n; e.GetCount(out n);
+    for (int i = 0; i < n; i++) { IAudioSessionControl2 s; if (e.GetSession(i, out s) == 0 && s != null) list.Add(s); }
+    return list;
+  }
+
+  public static Entry[] List() {
+    var byPid = new Dictionary<uint, Entry>();
+    foreach (var s in Sessions()) {
+      try {
+        int state; s.GetState(out state);
+        if (state == 2) continue; // expired
+        uint pid; s.GetProcessId(out pid);
+        bool sys = s.IsSystemSoundsSession() == 0;
+        var vol = (ISimpleAudioVolume)s; var meter = (IAudioMeterInformation)s;
+        float lv; vol.GetMasterVolume(out lv); bool mu; vol.GetMute(out mu); float pk; meter.GetPeakValue(out pk);
+        Entry ex;
+        if (byPid.TryGetValue(pid, out ex)) { ex.peak = Math.Max(ex.peak, pk); continue; }
+        byPid[pid] = new Entry { pid = pid, level = lv, muted = mu, peak = pk, system = sys };
+      } catch { }
+      finally { Marshal.ReleaseComObject(s); }
+    }
+    return new List<Entry>(byPid.Values).ToArray();
+  }
+
+  public static void Set(uint pid, float level, int mute) {
+    Guid ctx = Guid.Empty;
+    foreach (var s in Sessions()) {
+      try {
+        uint p; s.GetProcessId(out p);
+        if (p != pid) continue;
+        var vol = (ISimpleAudioVolume)s;
+        if (level >= 0) vol.SetMasterVolume(Math.Max(0f, Math.Min(1f, level)), ref ctx);
+        if (mute >= 0) { bool cur; vol.GetMute(out cur); vol.SetMute(mute == 2 ? !cur : mute == 1, ref ctx); }
+      } catch { }
+      finally { Marshal.ReleaseComObject(s); }
+    }
+  }
+}
+
+// AMD GPU sensors through the driver's own ADL library (no admin needed).
+public static class PdGpu {
+  delegate IntPtr Alloc(int size);
+  static readonly Alloc alloc = (s) => Marshal.AllocHGlobal(s);
+  [StructLayout(LayoutKind.Sequential)] struct Sensor { public int supported; public int value; }
+  [StructLayout(LayoutKind.Sequential)] struct PMLog { public int size; [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256)] public Sensor[] sensors; }
+  [DllImport("atiadlxx.dll")] static extern int ADL2_Main_Control_Create(Alloc cb, int connected, out IntPtr ctx);
+  [DllImport("atiadlxx.dll")] static extern int ADL2_Adapter_NumberOfAdapters_Get(IntPtr ctx, out int n);
+  [DllImport("atiadlxx.dll")] static extern int ADL2_New_QueryPMLogData_Get(IntPtr ctx, int idx, ref PMLog data);
+  [DllImport("atiadlxx.dll")] static extern int ADL2_Adapter_DedicatedVRAMUsage_Get(IntPtr ctx, int idx, out int mb);
+
+  static IntPtr ctx = IntPtr.Zero;
+  static int adapter = -1;
+  static bool failed;
+
+  // [load %, edge temp, hotspot temp, fan rpm, power W, vram used MB] or null
+  public static int[] Read() {
+    if (failed) return null;
+    try {
+      if (ctx == IntPtr.Zero) {
+        if (ADL2_Main_Control_Create(alloc, 1, out ctx) != 0) { failed = true; return null; }
+        int n; ADL2_Adapter_NumberOfAdapters_Get(ctx, out n);
+        for (int i = 0; i < n && adapter < 0; i++) {
+          var t = new PMLog(); t.sensors = new Sensor[256];
+          if (ADL2_New_QueryPMLogData_Get(ctx, i, ref t) == 0 && t.sensors[8].supported != 0) adapter = i;
+        }
+        if (adapter < 0) { failed = true; return null; }
+      }
+      var d = new PMLog(); d.sensors = new Sensor[256];
+      if (ADL2_New_QueryPMLogData_Get(ctx, adapter, ref d) != 0) return null;
+      int vram = -1; try { ADL2_Adapter_DedicatedVRAMUsage_Get(ctx, adapter, out vram); } catch { }
+      Func<int, int> v = (k) => d.sensors[k].supported != 0 ? d.sensors[k].value : -1;
+      // ADL sensor ids: 19 GFX activity, 8 edge temp, 27 hotspot temp, 14 fan rpm, 23 ASIC power
+      return new int[] { v(19), v(8), v(27), v(14), v(23), vram };
+    } catch (DllNotFoundException) { failed = true; return null; }
+    catch { return null; }
+  }
+}
+'@
+
+$ProcInfo = @{}
+function Get-ProcInfo([uint32]$procId) {
+  if ($procId -eq 0) { return @{ name = 'System sounds'; key = '' } }
+  if ($ProcInfo.ContainsKey($procId)) { return $ProcInfo[$procId] }
+  $info = @{ name = "App $procId"; key = '' }
+  try {
+    $p = Get-Process -Id $procId -ErrorAction Stop
+    $info.key = $p.ProcessName + '.exe'
+    $desc = ''
+    if ($p.Path) { try { $desc = ("" + [Diagnostics.FileVersionInfo]::GetVersionInfo($p.Path).FileDescription).Trim() } catch { } }
+    $info.name = if ($desc -and $desc.Length -le 28) { $desc } else { $p.ProcessName }
+  } catch { }
+  $ProcInfo[$procId] = $info
+  return $info
+}
+
+$lastMixerKey = ''
+function Send-Mixer([bool]$force) {
+  $items = @()
+  foreach ($e in [PdMixer]::List()) {
+    $pi2 = Get-ProcInfo $e.pid
+    if ($pi2.key) { Send-AppIcon $pi2.key }
+    $items += @{ pid = [int]$e.pid; name = $pi2.name; app = $pi2.key; level = [math]::Round($e.level, 2); muted = $e.muted; active = ($e.peak -gt 0.0005); system = $e.system }
+  }
+  $items = @($items | Sort-Object @{ e = { $_.system } }, @{ e = { -not $_.active } }, @{ e = { $_.name } })
+  $key = ($items | ForEach-Object { "$($_.pid):$($_.level):$($_.muted):$($_.active)" }) -join ','
+  if ($force -or $key -ne $script:lastMixerKey) { Emit @{ t = 'mixer'; items = $items }; $script:lastMixerKey = $key }
+}
+
+$nvsmi = (Get-Command nvidia-smi -ErrorAction SilentlyContinue).Source
+function Send-Gpu {
+  $g = [PdGpu]::Read()
+  if ($g) { Emit @{ t = 'gpu'; load = $g[0]; temp = $g[1]; hotspot = $g[2]; fan = $g[3]; power = $g[4]; vram = $g[5] }; return }
+  if ($nvsmi) {
+    $o = & $nvsmi --query-gpu=utilization.gpu,temperature.gpu,fan.speed,power.draw,memory.used --format=csv,noheader,nounits 2>$null | Select-Object -First 1
+    if ($o) { $v = $o.Split(',') | ForEach-Object { $_.Trim() }; Emit @{ t = 'gpu'; load = [int]$v[0]; temp = [int]$v[1]; hotspot = -1; fan = -1; fanPct = [int]$v[2]; power = [int][double]$v[3]; vram = [int]$v[4] } }
+  }
+}
+
 [void][Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
 $AsStreamForRead = [System.IO.WindowsRuntimeStreamExtensions].GetMethod('AsStreamForRead', [Type[]]@([Windows.Storage.Streams.IInputStream]))
 
@@ -268,6 +449,8 @@ $artTrack = ''
 $artTries = 0
 $script:forceMedia = $true
 $script:forceVol = $true
+$script:forceMixer = $true
+$script:mixerForced = $true
 # [Console]::In.ReadLineAsync is secretly synchronous on .NET Framework; use a raw stream reader instead.
 $stdin = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), [System.Text.Encoding]::UTF8)
 $readTask = $stdin.ReadLineAsync()
@@ -348,6 +531,14 @@ while ($true) {
     if ($volKey -ne $lastVolKey -or $script:forceVol) { Emit @{ t = 'volume'; level = $v; muted = $m }; $lastVolKey = $volKey }
   } catch { if ($tick % 40 -eq 0) { Log "volume read failed: $($_.Exception.Message)" } }
   $script:forceVol = $false
+
+  # --- per-app volume, every ~1s (or right after a change) ---
+  if ($script:forceMixer -or ($tick % 4 -eq 0)) {
+    try { Send-Mixer ([bool]$script:mixerForced) } catch { if ($tick % 120 -eq 0) { Log "mixer failed: $($_.Exception.Message)" } }
+    $script:forceMixer = $false; $script:mixerForced = $false
+  }
+  # --- GPU sensors, every ~2s ---
+  if ($tick % 8 -eq 1) { try { Send-Gpu } catch { } }
 
   $tick++
   Start-Sleep -Milliseconds 250

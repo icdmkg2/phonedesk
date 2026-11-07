@@ -8,8 +8,8 @@
 
   if (new URLSearchParams(location.search).has('app')) document.body.classList.add('in-app');
 
-  const SCREEN_NAMES = { media: 'Now playing', clock: 'Clock', stats: 'PC stats', shortcuts: 'Shortcuts' };
-  const SCREEN_DESC = { media: 'art, controls, volume', clock: 'big time + track', stats: 'CPU, memory', shortcuts: 'your buttons' };
+  const SCREEN_NAMES = { media: 'Now playing', lyrics: 'Lyrics', mixer: 'Volume mixer', clock: 'Clock', stats: 'PC stats', shortcuts: 'Shortcuts' };
+  const SCREEN_DESC = { media: 'art, controls, volume', lyrics: 'synced to the song', mixer: 'volume per app', clock: 'time, weather, track', stats: 'CPU, memory, GPU', shortcuts: 'your buttons' };
   const ALL_SCREENS = Object.keys(SCREEN_NAMES);
   const ICONS = ['bolt', 'mic', 'desktop', 'lock', 'camera', 'music', 'play', 'chart', 'folder', 'globe', 'game', 'code', 'chat', 'power', 'vol', 'next'];
   const COLORS = ['#E5484D', '#F76B15', '#F5A524', '#2FBF71', '#12A594', '#5B8CFF', '#A47CF3', '#F472B6'];
@@ -81,7 +81,12 @@
       else if (m.t === 'media') { state.media = m.d || { active: false }; renderMedia(); renderMirrors(); }
       else if (m.t === 'volume') { state.volume = m.d; renderVolume(); }
       else if (m.t === 'stats') { state.stats = m.d; renderPc(); }
-      else if (m.t === 'clients') { refresh(); loadActivity(); }
+      else if (m.t === 'clients') { refresh(); loadActivity(); onboardPoll(); }
+      else if (m.t === 'mixer') { state.mixer = m.d || []; if (state.previewScreen === 'mixer' || (selectedPhone() || {}).screen === 'mixer') renderMirrors(); }
+      else if (m.t === 'lyrics') { state.lyrics = m.d; renderMirrors(); }
+      else if (m.t === 'weather') { state.weather = m.d; renderMirrors(); renderWeatherNow(); }
+      else if (m.t === 'update') { state.update = m.d; renderUpdate(); }
+      else if (m.t === 'spotifyStatus') loadSpotify();
     };
   }
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
@@ -153,7 +158,20 @@
     const m = state.media, now = new Date(Date.now() + state.offset);
     if (screen === 'offline' || screen === 'clock') {
       const track = screen === 'clock' && m.active ? `<div class="d" style="margin-top:2cqw">${esc(m.title || '')}</div>` : '';
-      return `<div class="${cls} mini-clock" style="${style}"><div class="t">${clockText(now)}</div><div class="d">${esc(now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))}</div>${track}${screen === 'offline' ? '<div class="s">PC disconnected · reconnecting…</div>' : ''}</div>`;
+      const w = state.weather && cfg.weather !== false ? `<div class="mini-wx"><b>${state.weather.temp}°</b><span>${esc(state.weather.city || '')}</span></div>` : '';
+      return `<div class="${cls} mini-clock" style="${style}"><div class="t">${clockText(now)}</div><div class="d">${esc(now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))}</div>${w}${track}${screen === 'offline' ? '<div class="s">PC disconnected · reconnecting…</div>' : ''}</div>`;
+    }
+    if (screen === 'lyrics') {
+      const l = state.lyrics;
+      if (!l || !l.lines || !l.lines.length) return `<div class="${cls}"><div class="mini-empty">${m.active ? (l ? 'No lyrics for this song' : 'Looking for lyrics…') : 'Play a song on your PC'}</div></div>`;
+      let i = 0;
+      if (l.synced) { const pos = curPos(); l.lines.forEach((x, k) => { if (x.t <= pos) i = k; }); }
+      const pick = [i - 1, i, i + 1, i + 2].filter((k) => k >= 0 && k < l.lines.length);
+      return `<div class="${cls} mini-lyrics" style="${style}">${pick.map((k) => `<div class="${k === i ? 'on' : ''}">${esc(l.lines[k].text || '♪')}</div>`).join('')}</div>`;
+    }
+    if (screen === 'mixer') {
+      const rows = [{ name: 'PC volume', level: state.volume.level, icon: '' }].concat((state.mixer || []).slice(0, 4));
+      return `<div class="${cls} mini-mixer" style="${style}">${rows.map((r) => `<div class="r">${r.icon ? `<img src="${esc(r.icon)}" alt="">` : '<svg><use href="#i-vol"/></svg>'}<span>${esc(r.name)}</span><i><b style="width:${Math.round(r.level * 100)}%"></b></i></div>`).join('')}</div>`;
     }
     if (screen === 'stats') {
       const s = state.stats || { cpu: 0, memUsed: 0, memTotal: 1 };
@@ -283,6 +301,13 @@
     setText($('pc-mem'), mem + '%');
     $('pc-cpu-m').style.width = s.cpu + '%';
     $('pc-mem-m').style.width = mem + '%';
+    const g = s.gpu;
+    $('pc-gpu-box').hidden = !g || g.load < 0;
+    if (g && g.load >= 0) {
+      setText($('pc-gpu'), g.load + '%');
+      setText($('pc-gpu-t'), g.temp > 0 ? '· ' + g.temp + '°C' + (g.hotspot > 0 ? ' (hotspot ' + g.hotspot + '°C)' : '') : '');
+      $('pc-gpu-m').style.width = g.load + '%';
+    }
     if (state.previewScreen === 'stats' || (selectedPhone() || {}).screen === 'stats') renderMirrors();
   }
 
@@ -481,11 +506,27 @@
         `<span class="switch"><input type="checkbox" ${on ? 'checked' : ''} ${on && c.screens.length === 1 ? 'disabled' : ''} aria-label="Show ${SCREEN_NAMES[s]}"><span></span></span></li>`;
     }).join('');
     $('ds-batt').checked = c.showBattery !== false;
+    $('ds-wx').checked = c.weather !== false;
+    $('ds-wx-row').hidden = c.weather === false;
+    if (document.activeElement !== $('ds-wx-city')) $('ds-wx-city').value = c.weatherCity || '';
+    $$('#ds-wx-unit button').forEach((b) => b.classList.toggle('on', b.dataset.v === (c.weatherUnit || 'c')));
+    $('ds-nt').checked = c.notifications !== false;
+    $('ds-nt-priv').checked = !!c.notifyPrivate;
+    $('ds-nt-priv').closest('label').hidden = c.notifications === false;
     $('ds-art').checked = c.artLookup !== false;
     $$('#ds-pills button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.previewScreen));
     setText($('ds-prev-label'), state.previewScreen === 'offline' ? 'When the PC is off' : SCREEN_NAMES[state.previewScreen]);
   }
   $('ds-batt').addEventListener('change', (e) => saveConfig({ showBattery: e.target.checked }));
+  $('ds-wx').addEventListener('change', (e) => saveConfig({ weather: e.target.checked }));
+  $('ds-wx-city').addEventListener('change', (e) => saveConfig({ weatherCity: e.target.value.trim() }).then(() => toast('Weather updated')));
+  $('ds-wx-unit').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) saveConfig({ weatherUnit: b.dataset.v }); });
+  $('ds-nt').addEventListener('change', (e) => saveConfig({ notifications: e.target.checked }));
+  $('ds-nt-priv').addEventListener('change', (e) => saveConfig({ notifyPrivate: e.target.checked }));
+  function renderWeatherNow() {
+    const w = state.weather;
+    setText($('ds-wx-now'), w ? `Now: ${w.temp}°${w.unit} in ${w.city}` : '');
+  }
   $('ds-art').addEventListener('change', (e) => saveConfig({ artLookup: e.target.checked }));
   $('ds-themes').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ theme: b.dataset.v }); });
   $('ds-accent').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) saveConfig({ accent: b.dataset.a }); });
@@ -573,11 +614,138 @@
     if (a) { $('autostart').checked = a.enabled; toast(a.enabled ? 'PhoneDesk will start with Windows' : 'PhoneDesk won\'t start with Windows'); }
   });
 
+  /* ------------------------------------------------------------ Spotify */
+  async function loadSpotify() {
+    const sp = await api('spotify').catch(() => null);
+    if (!sp) return;
+    setText($('sp-redirect'), sp.redirect);
+    if (document.activeElement !== $('sp-id')) $('sp-id').value = sp.clientId || '';
+    $('sp-setup').hidden = sp.connected;
+    $('sp-connect').hidden = sp.connected;
+    $('sp-disconnect').hidden = !sp.connected;
+    const b = $('sp-badge');
+    setText(b, sp.connected ? 'Connected' : 'Not connected');
+    b.className = 'badge' + (sp.connected ? ' usb' : '');
+    setText($('sp-state'), sp.connected ? (sp.now ? 'Now: ' + sp.now.title : 'Play something on Spotify') : '');
+  }
+  $('sp-copy').addEventListener('click', () => copy($('sp-redirect').textContent));
+  $('sp-id').addEventListener('change', (e) => saveConfig({ spotifyClientId: e.target.value.trim() }));
+  $('sp-connect').addEventListener('click', async () => {
+    const id = $('sp-id').value.trim();
+    if (!/^[a-f0-9]{32}$/i.test(id)) return toast('Paste the Client ID from your Spotify app first');
+    await saveConfig({ spotifyClientId: id });
+    // Opens in your normal browser (the app window sends other sites there).
+    window.open('/api/spotify/login', '_blank');
+    toast('Finish signing in to Spotify in your browser');
+    setText($('sp-state'), 'Waiting for Spotify…');
+  });
+  $('sp-disconnect').addEventListener('click', async () => { await api('spotify/disconnect', {}); loadSpotify(); });
+
+  /* ------------------------------------------------------------ updates */
+  function renderUpdate() {
+    const u = state.update || {};
+    const badge = $('up-badge'), text = $('up-text');
+    $('up-install').hidden = u.state !== 'ready';
+    $('up-check').disabled = u.state === 'source' || u.state === 'checking' || u.state === 'downloading';
+    const ver = state.status ? 'v' + state.status.version : '';
+    const map = {
+      source: ['Dev', 'Running from source code, so it updates with git instead.'],
+      off: ['Off', 'No release source set. Add a GitHub repository below to get updates.'],
+      idle: [ver, 'Updates are checked a minute after start and every 6 hours.'],
+      checking: ['Checking', 'Looking for a newer version…'],
+      latest: [ver, 'You have the latest version.'],
+      downloading: ['Downloading', `Downloading PhoneDesk ${u.version || ''}…`],
+      ready: ['Update ready', `PhoneDesk ${u.version} is downloaded and checked. Installing takes a few seconds; PhoneDesk restarts by itself.`],
+      installing: ['Installing', 'Installing the update. PhoneDesk will restart.'],
+      error: ['Problem', 'Couldn\'t update: ' + (u.error || 'unknown error')],
+    };
+    const [b, t] = map[u.state] || [ver, ''];
+    setText(badge, b);
+    badge.className = 'badge' + (u.state === 'ready' ? ' usb' : u.state === 'error' ? ' warn' : '');
+    setText(text, t);
+  }
+  $('up-check').addEventListener('click', async () => { state.update = await api('update/check', {}).catch((e) => ({ state: 'error', error: e.message })); renderUpdate(); });
+  $('up-install').addEventListener('click', async () => { await api('update/install', {}).catch((e) => toast(e.message)); });
+  $('up-auto').addEventListener('change', (e) => saveConfig({ autoUpdate: e.target.checked }));
+  $('up-repo').addEventListener('change', (e) => saveConfig({ updateRepo: e.target.value.trim() }).then(async () => {
+    state.update = await api('update/check', {}).catch(() => state.update); renderUpdate();
+  }));
+  function renderUpdateSettings() {
+    const c = state.config;
+    $('up-auto').checked = c.autoUpdate !== false;
+    if (document.activeElement !== $('up-repo')) $('up-repo').value = c.updateRepo || '';
+  }
+
+  /* ------------------------------------------------------------ first-run setup */
+  let obStep = 0, fwState = null;
+  function openOnboarding() {
+    obStep = 0;
+    $('onboard').hidden = false;
+    $('ob-wx').checked = state.config.weather !== false;
+    $('ob-wx-city').value = state.config.weatherCity || '';
+    $('ob-nt').checked = state.config.notifications !== false;
+    renderOnboarding();
+  }
+  function renderOnboarding() {
+    $$('.ob-step').forEach((s) => { s.hidden = +s.dataset.step !== obStep; });
+    $$('#ob-dots i').forEach((d, i) => d.classList.toggle('on', i <= obStep));
+    $('ob-back').hidden = obStep === 0;
+    $('ob-next').textContent = obStep === 0 ? 'Get started' : obStep === 3 ? 'Finish' : 'Next';
+    $('ob-as-row').hidden = $('autostart-row').hidden;
+    if (obStep === 1) onboardPoll();
+    if (obStep === 2) checkFirewall();
+  }
+  function onboardPoll() {
+    if ($('onboard').hidden || obStep !== 1 || !state.status) return;
+    const p = state.status.clients[0];
+    const el = $('ob-phone');
+    el.className = 'ob-status' + (p ? ' ok' : '');
+    el.innerHTML = p ? `✓&nbsp; ${esc(p.device)} is connected over ${esc(p.via)}` : '<span class="spin"></span>Waiting for your phone…';
+    if (p) $('ob-next').textContent = 'Next';
+  }
+  async function checkFirewall() {
+    const el = $('ob-fw');
+    el.className = 'ob-status'; el.innerHTML = '<span class="spin"></span>Checking…';
+    $('ob-fw-fix').hidden = true; $('ob-fw-hint').hidden = true;
+    const wifiPhone = state.status && state.status.clients.some((c) => c.via === 'Wi-Fi');
+    fwState = await api('firewall').catch(() => null);
+    if (wifiPhone || (fwState && fwState.ok)) {
+      el.className = 'ob-status ok';
+      el.textContent = wifiPhone ? '✓  A phone is already connected over Wi-Fi. All good.' : '✓  Phones on your Wi-Fi can reach PhoneDesk.';
+    } else {
+      el.className = 'ob-status bad';
+      el.textContent = fwState && fwState.block ? 'Windows Firewall is blocking PhoneDesk on Wi-Fi.' : 'PhoneDesk isn\'t allowed through Windows Firewall yet.';
+      $('ob-fw-fix').hidden = false; $('ob-fw-hint').hidden = false;
+    }
+  }
+  $('ob-fw-fix').addEventListener('click', async () => {
+    $('ob-fw').innerHTML = '<span class="spin"></span>Waiting for Windows…';
+    await api('firewall/fix', {}).catch(() => null);
+    checkFirewall();
+  });
+  async function finishOnboarding() {
+    const patch = { onboarded: true, weather: $('ob-wx').checked, weatherCity: $('ob-wx-city').value.trim(), notifications: $('ob-nt').checked };
+    await saveConfig(patch);
+    if (!$('ob-as-row').hidden) await api('autostart', { enabled: $('ob-as').checked }).then(loadAutostart).catch(() => {});
+    $('onboard').hidden = true;
+    toast('You\'re all set');
+  }
+  $('ob-next').addEventListener('click', () => { if (obStep === 3) finishOnboarding(); else { obStep++; renderOnboarding(); } });
+  $('ob-back').addEventListener('click', () => { obStep = Math.max(0, obStep - 1); renderOnboarding(); });
+  $('ob-skip').addEventListener('click', async () => { await saveConfig({ onboarded: true }); $('onboard').hidden = true; });
+  $('cn-onboard').addEventListener('click', openOnboarding);
+
   /* ------------------------------------------------------------ boot */
   go((location.hash.slice(1) || 'overview'));
   connect();
   refresh();
-  loadConfig().catch(() => toast('Couldn\'t load settings'));
+  loadConfig().then(() => {
+    renderUpdateSettings();
+    if (!state.config.onboarded) openOnboarding();
+  }).catch(() => toast('Couldn\'t load settings'));
+  loadSpotify();
+  api('update').then((u) => { state.update = u; renderUpdate(); }).catch(() => {});
+  api('weather').then((w) => { state.weather = w && w.city ? w : null; renderWeatherNow(); }).catch(() => {});
   loadActivity();
   loadAutostart();
   setInterval(() => { if (!document.hidden) refresh(); }, 3000);

@@ -68,5 +68,9 @@ $setup = Join-Path $dist "PhoneDesk-Setup-$version.exe"
 if ($LASTEXITCODE -ne 0) { throw 'compiling setup failed' }
 Remove-Item $zip
 
+# Checksum for GitHub releases: auto-update refuses an installer without a matching SHA-256.
+$sha = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLower()
+Set-Content -Encoding ascii -NoNewline -Path "$setup.sha256" -Value "$sha  $(Split-Path -Leaf $setup)"
+
 $mb = [math]::Round((Get-Item $setup).Length / 1MB, 1)
 Write-Host "Done: $setup ($mb MB)"

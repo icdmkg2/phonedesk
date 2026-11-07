@@ -6,7 +6,7 @@ It's a lighter take on the DeskThing idea.
 
 ## Install
 
-Run **`PhoneDesk-Setup-1.2.0.exe`**. It installs for your Windows account only and needs no admin rights. Node.js comes bundled, so you don't need to install it.
+Run **`PhoneDesk-Setup-1.3.0.exe`**. It installs for your Windows account only and needs no admin rights. Node.js comes bundled, so you don't need to install it.
 
 - PhoneDesk opens as its **own window** (it uses the Edge WebView2 engine that comes with Windows 11). Closing the window keeps PhoneDesk running in the **tray**, near the clock; click the tray icon to bring it back, right-click it for the menu.
 - The window has: **Overview** (a live preview of what the phone shows, its connection, latency and battery), **Shortcuts** (edit the buttons by clicking them on a phone-shaped grid, record keys by pressing them), **Phone display** (theme, accent, clock, dimming, screens, battery icon, album-art lookup), **Connection** and **Activity**.
@@ -65,6 +65,30 @@ Other things that keep it fast on old phones:
 - No blur, backdrop filters or large shadows.
 - Volume drags are throttled, and play/pause flips the icon instantly before the PC confirms.
 
+## Phone screens
+
+Swipe between them; pick and order them in *Phone display*.
+
+- **Now playing:** album art, the playing app's icon, controls, volume. With Spotify connected: ♥ and *up next*.
+- **Lyrics:** synced lyrics from [LRCLIB](https://lrclib.net), highlighted line by line.
+- **Volume mixer:** a slider and mute button per app (Spotify, the browser, Discord, games…), like Windows' Volume Mixer.
+- **Clock:** big time and date, weather (Open-Meteo; your city or an approximate location), the current song.
+- **PC stats:** CPU, memory, volume, and GPU load/temperature/power (AMD through the driver, NVIDIA through `nvidia-smi`). CPU temperature and FPS need admin access in Windows, so they're not shown.
+- **Shortcuts:** your buttons.
+
+PC notifications (Discord, WhatsApp, mail…) pop up on the phone for a few seconds. *Private* mode shows only which app.
+
+## Spotify (optional)
+
+Spotify only lets registered apps read your queue and library, so this needs a free developer app (two minutes):
+open *Connection → Spotify* in PhoneDesk and follow the three steps there. Sign-in uses PKCE, so no secret is stored.
+
+## Updates
+
+PhoneDesk can update itself from a GitHub repository's releases. Set *Connection → Updates → Release source* to `owner/repo`.
+Each release needs the `PhoneDesk-Setup-x.y.z.exe` that `build\build.ps1` makes; GitHub adds a SHA-256 digest automatically
+(or upload the `.sha256` file next to it). PhoneDesk refuses downloads whose checksum doesn't match.
+
 ## Phone on a charger (no cable to the PC)
 
 - **Screen always on:** once the phone has been plugged in by USB with PhoneDesk running, Android's *Stay awake* setting is switched on. It stays on afterwards, so the screen never sleeps while the phone is charging.
@@ -90,6 +114,12 @@ server/bridge.js       Restarts the bridge if it crashes or hangs
 server/adb.js          USB auto-connect (adb reverse)
 server/mdns.js         Answers "phonedesk.local" on the local network
 server/artwork.js      Finds album art online when the app gives none
+server/lyrics.js       Synced lyrics (LRCLIB)
+server/weather.js      Weather (Open-Meteo)
+server/spotify.js      Spotify up next + like (Web API, PKCE)
+server/notify.js       Reads new Windows notifications
+server/updater.js      Auto-update from GitHub Releases
+server/firewall.js     Wi-Fi firewall check for first-run setup
 installer/Window.cs    The PhoneDesk window (WebView2)
 installer/Tray.cs      PhoneDesk.exe: tray app, server supervisor, uninstaller
 installer/Setup.cs     PhoneDesk-Setup.exe

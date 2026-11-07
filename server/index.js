@@ -17,6 +17,12 @@ const stats = require('./stats');
 const mdns = require('./mdns');
 const autostart = require('./autostart');
 const artwork = require('./artwork');
+const lyrics = require('./lyrics');
+const weather = require('./weather');
+const spotify = require('./spotify');
+const notify = require('./notify');
+const updater = require('./updater');
+const firewall = require('./firewall');
 
 const { ROOT } = require('./paths');
 const PUBLIC = path.join(ROOT, 'public');
@@ -31,6 +37,10 @@ const state = {
   media: { active: false },
   volume: { level: 0, muted: false },
   art: null, // { id, type, buf }
+  mixer: [],
+  gpu: null,
+  lyrics: null,
+  mediaRaw: '', // the playing app's Windows id (e.g. Spotify.exe)
 };
 
 // ---------------------------------------------------------------- bridge (media + volume)
@@ -39,7 +49,21 @@ bridge.on('message', (m) => {
   if (m.t === 'media') {
     // A new track: drop the old picture right away instead of showing it on the next song.
     const key = m.active ? [m.app, m.title, m.artist].join('|') : '';
-    if (key !== trackKey) { trackKey = key; state.art = null; }
+    if (key !== trackKey) {
+      trackKey = key;
+      state.art = null;
+      state.lyrics = null;
+      broadcast({ t: 'lyrics', d: null });
+      if (m.active) {
+        const wanted = key;
+        lyrics.find(m).then((l) => {
+          if (trackKey !== wanted) return;
+          state.lyrics = l ? Object.assign({ key: wanted }, l) : { key: wanted, none: true, lines: [] };
+          broadcast({ t: 'lyrics', d: state.lyrics });
+        });
+        if (/spotify/i.test(m.app || '')) spotify.kick(config.get());
+      }
+    }
     if (typeof m.art === 'string') {
       if (m.art) setArt(Buffer.from(m.art, 'base64'));
       else {
@@ -61,6 +85,7 @@ bridge.on('message', (m) => {
     // Keep the art id stable across position updates of the same track.
     m.art = state.art ? '/art/' + state.art.id : '';
     const rawApp = m.app;
+    state.mediaRaw = m.active ? rawApp : '';
     const ic = appIcons.get(rawApp);
     m.appIcon = ic ? '/appicon/' + ic.id : '';
     m.game = !!(ic && ic.game);
@@ -74,10 +99,16 @@ bridge.on('message', (m) => {
     if (buf.length) {
       const id = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 12);
       appIcons.set(m.app, { id, buf, name: String(m.name || '').trim(), game: !!m.game });
+      if (state.mixer.some((x) => x.app === m.app)) broadcastMixer();
     }
   } else if (m.t === 'volume') {
     state.volume = { level: m.level, muted: m.muted };
     broadcast({ t: 'volume', d: state.volume });
+  } else if (m.t === 'mixer') {
+    state.mixer = Array.isArray(m.items) ? m.items : [];
+    broadcastMixer();
+  } else if (m.t === 'gpu') {
+    state.gpu = { load: m.load, temp: m.temp, hotspot: m.hotspot, fan: m.fan, power: m.power, vram: m.vram };
   } else if (m.t === 'log') {
     log.warn('[bridge] ' + m.msg);
   } else if (m.t === 'ready') {
@@ -88,6 +119,34 @@ bridge.on('message', (m) => {
 
 let trackKey = '';
 const appIcons = new Map(); // app id -> { id, buf, name, game }
+
+function iconUrl(app) { const ic = appIcons.get(app); return ic ? '/appicon/' + ic.id : ''; }
+function mixerView() {
+  return state.mixer.map((x) => ({ pid: x.pid, name: x.name, level: x.level, muted: x.muted, active: x.active, system: x.system, icon: iconUrl(x.app) }));
+}
+function broadcastMixer() { broadcast({ t: 'mixer', d: mixerView() }); }
+
+// ---------------------------------------------------------------- notifications
+const pendingIcons = new Map();
+function onNotification(n) {
+  const c = config.get();
+  if (/phonedesk/i.test(n.app) || c.notifyIgnore.some((x) => x && n.app.toLowerCase().includes(x.toLowerCase()))) return;
+  const deliver = () => {
+    const ic = appIcons.get(n.app);
+    const msg = {
+      id: n.id,
+      app: ic && ic.name ? ic.name : n.appName,
+      icon: ic ? '/appicon/' + ic.id : '',
+      title: c.notifyPrivate ? '' : n.title,
+      body: c.notifyPrivate ? '' : n.body,
+    };
+    broadcast({ t: 'notify', d: msg }, 'phone');
+  };
+  if (appIcons.has(n.app)) return deliver();
+  // Ask the bridge for this app's icon and name, then send (with or without it) shortly after.
+  bridge.send('icon ' + n.app);
+  setTimeout(deliver, 1200);
+}
 
 const BROWSERS = /chrome|msedge|firefox|308046b0af4a39cb|6f193ccc56814779|opera|brave|vivaldi|zen/i;
 // What a browser tab is playing, judged by the tab title.
@@ -253,6 +312,7 @@ async function handleApi(req, res, url) {
       broadcast({ t: 'config', d: publicConfig() });
       if (next.autoUsb !== before.autoUsb) adb.setAuto(next.autoUsb, next.port);
       if (next.ignoreApps.join(',') !== before.ignoreApps.join(',')) bridge.send('ignore ' + next.ignoreApps.join(','));
+      if (next.weather !== before.weather || next.weatherCity !== before.weatherCity || next.weatherUnit !== before.weatherUnit) weather.reload(next);
       return send(res, 200, next);
     }
     if (p === '/api/logs' && req.method === 'GET') return send(res, 200, log.recent());
@@ -288,6 +348,22 @@ async function handleApi(req, res, url) {
       return send(res, 200, { ok: true });
     }
     if (p === '/api/activity' && req.method === 'GET') return send(res, 200, log.activity());
+    if (p === '/api/spotify' && req.method === 'GET') {
+      return send(res, 200, { clientId: config.get().spotifyClientId, connected: spotify.connected(), redirect: spotifyRedirect(), now: spotify.latest() });
+    }
+    if (p === '/api/spotify/login' && req.method === 'GET') {
+      const id = config.get().spotifyClientId;
+      if (!id) return send(res, 400, { error: 'Add your Spotify Client ID first' });
+      res.writeHead(302, { Location: spotify.loginUrl(id, spotifyRedirect()) });
+      return res.end();
+    }
+    if (p === '/api/spotify/disconnect' && req.method === 'POST') { spotify.disconnect(); return send(res, 200, { ok: true }); }
+    if (p === '/api/weather' && req.method === 'GET') return send(res, 200, weather.latest() || {});
+    if (p === '/api/update' && req.method === 'GET') return send(res, 200, updater.status());
+    if (p === '/api/update/check' && req.method === 'POST') return send(res, 200, await updater.check(config.get(), VERSION));
+    if (p === '/api/update/install' && req.method === 'POST') { updater.install(); return send(res, 200, { ok: true }); }
+    if (p === '/api/firewall' && req.method === 'GET') return send(res, 200, await firewall.check());
+    if (p === '/api/firewall/fix' && req.method === 'POST') return send(res, 200, await firewall.fix());
     if (p === '/api/autostart') {
       if (req.method === 'POST') { const body = await readBody(req); await autostart.set(!!body.enabled); }
       return send(res, 200, await autostart.get());
@@ -311,6 +387,15 @@ function app(req, res) {
   const p = url.pathname;
 
   if (p.startsWith('/api/')) return void handleApi(req, res, url);
+
+  if (p === '/spotify/callback') {
+    if (!isLocal(req)) return send(res, 403, 'forbidden', 'text/plain');
+    const page = (title, text) => `<!doctype html><meta charset="utf-8"><title>PhoneDesk</title><body style="font:16px system-ui;background:#0b0c0f;color:#edeff3;display:grid;place-items:center;height:100vh;margin:0"><div style="text-align:center"><h1 style="font-size:22px">${title}</h1><p style="color:#9aa1ae">${text}</p></div>`;
+    spotify.callback(url.searchParams)
+      .then(() => { send(res, 200, page('Spotify is connected', 'You can close this tab and go back to PhoneDesk.'), 'text/html; charset=utf-8'); broadcast({ t: 'spotifyStatus' }, 'dashboard'); })
+      .catch((e) => send(res, 400, page('Spotify didn\'t connect', String(e.message).replace(/</g, '&lt;')), 'text/html; charset=utf-8'));
+    return;
+  }
 
   if (p.startsWith('/appicon/')) {
     const id = p.slice(9);
@@ -370,6 +455,8 @@ function publicConfig() {
     screens: c.screens,
     dimAfter: c.dimAfter,
     showBattery: c.showBattery,
+    weather: c.weather,
+    notifications: c.notifications,
   };
 }
 
@@ -413,7 +500,12 @@ wss.on('connection', (ws, req) => {
   sendTo(ws, { t: 'config', d: publicConfig() });
   sendTo(ws, { t: 'media', d: state.media });
   sendTo(ws, { t: 'volume', d: state.volume });
-  sendTo(ws, { t: 'stats', d: stats.latest() });
+  sendTo(ws, { t: 'stats', d: Object.assign({}, stats.latest(), { gpu: state.gpu }) });
+  sendTo(ws, { t: 'mixer', d: mixerView() });
+  sendTo(ws, { t: 'lyrics', d: state.lyrics });
+  sendTo(ws, { t: 'weather', d: weather.latest() });
+  sendTo(ws, { t: 'spotify', d: spotify.latest() });
+  if (role === 'dashboard') sendTo(ws, { t: 'update', d: updater.status() });
 
   ws.on('pong', () => {
     client.alive = true;
@@ -449,6 +541,11 @@ function handleClientMessage(client, m) {
       if (Number.isFinite(+m.v)) bridge.send('volume ' + Math.min(1, Math.max(0, +m.v)).toFixed(3));
       return;
     case 'mute': return bridge.send('mute');
+    case 'appvol':
+      if (Number.isInteger(+m.pid) && Number.isFinite(+m.v)) bridge.send(`appvol ${+m.pid} ${Math.min(1, Math.max(0, +m.v)).toFixed(3)}`);
+      return;
+    case 'appmute': if (Number.isInteger(+m.pid)) bridge.send('appmute ' + +m.pid); return;
+    case 'like': spotify.toggleLike(config.get()).catch((e) => log.warn('spotify like: ' + e.message)); return;
     case 'shortcut': return runShortcut(String(m.id || ''));
     case 'screen': client.info.screen = String(m.v || '').slice(0, 20); return;
     case 'battery':
@@ -481,7 +578,14 @@ setInterval(() => {
 }, 10000).unref();
 
 // PC stats: only computed while someone is listening.
-stats.start((s) => broadcast({ t: 'stats', d: s }), () => clients.size > 0);
+stats.start((s) => broadcast({ t: 'stats', d: Object.assign({}, s, { gpu: state.gpu }) }), () => clients.size > 0);
+
+// Extras that run on their own schedule.
+function spotifyRedirect() { return `http://127.0.0.1:${config.get().port}/spotify/callback`; }
+weather.start(() => config.get(), (w) => broadcast({ t: 'weather', d: w }));
+spotify.start(() => config.get(), () => /spotify/i.test(state.mediaRaw), (s) => broadcast({ t: 'spotify', d: s }));
+notify.start(() => config.get().notifications && clients.size > 0, onNotification);
+updater.start(() => config.get(), VERSION, (s) => broadcast({ t: 'update', d: s }, 'dashboard'));
 
 // ---------------------------------------------------------------- start
 const port = config.get().port;

@@ -59,6 +59,7 @@
           <div class="app"><span class="app-ic" id="m-app-ic"></span><span id="m-app"></span></div>
           <div class="title" id="m-title">Nothing playing</div>
           <div class="artist" id="m-artist">Play something on your PC</div>
+          <div class="upnext" id="m-next" hidden><span>Up next</span><b id="m-next-t"></b></div>
         </div>
         <div class="progress">
           <div class="track" id="m-track"><div class="fill" id="m-fill"></div></div>
@@ -70,6 +71,7 @@
           <button class="btn play" id="b-play" aria-label="Play or pause"><svg><use id="b-play-ic" href="#i-play"/></svg></button>
           <button class="btn" id="b-next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
           <button class="btn sm" id="b-repeat" aria-label="Repeat"><svg><use href="#i-repeat"/></svg><i class="one">1</i></button>
+          <button class="btn sm like" id="b-like" aria-label="Save to Liked Songs" hidden><svg viewBox="0 0 24 24"><path id="b-like-p" d="M12 20.3 4.6 13a4.7 4.7 0 0 1 6.6-6.7l.8.8.8-.8a4.7 4.7 0 0 1 6.6 6.7z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg></button>
         </div>
         <div class="volume">
           <button class="btn xs" id="b-mute" aria-label="Mute"><svg><use id="b-mute-ic" href="#i-vol"/></svg></button>
@@ -80,11 +82,26 @@
     </div>
   </section>
 
+  <!-- ======================= LYRICS ======================= -->
+  <section class="screen" id="s-lyrics" data-screen="lyrics">
+    <div class="lyrics">
+      <div class="ly-head"><span class="ly-ic" id="ly-ic"></span><span id="ly-song"></span></div>
+      <div class="ly-view" id="ly-view"><div class="ly-list" id="ly-list"></div></div>
+      <div class="ly-msg" id="ly-msg">Play a song on your PC</div>
+    </div>
+  </section>
+
+  <!-- ======================= MIXER ======================= -->
+  <section class="screen" id="s-mixer" data-screen="mixer">
+    <div class="mixer" id="mixer"></div>
+  </section>
+
   <!-- ======================= CLOCK ======================= -->
   <section class="screen" id="s-clock" data-screen="clock">
     <div class="clock" id="clock">
       <div class="time" id="c-time">--:--</div>
       <div class="date" id="c-date"></div>
+      <div class="wx" id="c-wx" hidden></div>
       <div class="mini" id="c-mini"><svg><use href="#i-note"/></svg><span id="c-mini-t"></span></div>
     </div>
   </section>
@@ -112,6 +129,12 @@
           <div class="bar"><div class="fill" id="st-vol-f"></div></div>
           <div class="sub" id="st-up"></div>
         </div>
+        <div class="card" id="st-gpu-card" hidden>
+          <div class="label">GPU</div>
+          <div class="big"><span id="st-gpu">0</span><small>%</small><span class="temp" id="st-gpu-t"></span></div>
+          <div class="bar"><div class="fill" id="st-gpu-f"></div></div>
+          <div class="sub" id="st-gpu-s"></div>
+        </div>
       </div>
       <canvas id="st-graph" class="graph"></canvas>
     </div>
@@ -134,10 +157,12 @@
   <div class="clock" id="o-clock">
     <div class="time" id="o-time">--:--</div>
     <div class="date" id="o-date"></div>
+    <div class="wx" id="o-wx" hidden></div>
   </div>
   <div class="o-status"><i class="pulse"></i><span id="o-sub">Reconnecting to your PC…</span></div>
 </div>
 <div id="dim" class="dim" hidden></div>
+<div id="nb" class="nbanner" hidden><span class="nb-ic" id="nb-ic"></span><div class="nb-text"><div class="nb-app" id="nb-app"></div><div class="nb-title" id="nb-title"></div><div class="nb-body" id="nb-body"></div></div></div>
 <div id="identify" class="identify" hidden><div class="identify-name" id="identify-name"></div><div class="identify-sub">Connected to PhoneDesk</div></div>
 <div id="toast" class="toast"></div>
 </div>

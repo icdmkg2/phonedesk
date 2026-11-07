@@ -14,13 +14,23 @@ const DEFAULTS = {
   artLookup: true,
   showBattery: true,
   ignoreApps: ['discord'],
+  weather: true,
+  weatherCity: '',
+  weatherUnit: 'c',
+  notifications: true,
+  notifyPrivate: false,
+  notifyIgnore: [],
+  spotifyClientId: '',
+  updateRepo: '',
+  autoUpdate: true,
+  onboarded: false,
   name: 'phonedesk',
   autoUsb: true,
   clock24: true,
   theme: 'dark',
   accent: 'auto',
   dimAfter: 0,
-  screens: ['media', 'clock', 'stats', 'shortcuts'],
+  screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
   shortcuts: [
     { id: 'mute-mic', label: 'Mute mic', type: 'keys', value: 'ctrl+shift+m', icon: 'mic', color: '#e5484d' },
     { id: 'desktop', label: 'Show desktop', type: 'keys', value: 'win+d', icon: 'desktop', color: '#3e63dd' },
@@ -33,7 +43,7 @@ const DEFAULTS = {
   ],
 };
 
-const SCREENS = ['media', 'clock', 'stats', 'shortcuts'];
+const SCREENS = ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'];
 const TYPES = ['keys', 'url', 'app'];
 
 let current = load();
@@ -41,6 +51,8 @@ let current = load();
 function load() {
   try {
     const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    // An existing install has already been set up: don't show first-run setup again.
+    if (raw.onboarded === undefined) raw.onboarded = true;
     return sanitize({ ...DEFAULTS, ...raw });
   } catch (e) {
     if (e.code !== 'ENOENT') {
@@ -70,6 +82,25 @@ function sanitize(c) {
   out.dimAfter = Math.max(0, Math.min(3600, +c.dimAfter || 0));
   out.screens = Array.isArray(c.screens) ? c.screens.filter((s) => SCREENS.includes(s)) : DEFAULTS.screens.slice();
   if (!out.screens.length) out.screens = ['media'];
+  // Screens added in a newer version show up once for existing users (after Now playing).
+  out.knownScreens = Array.isArray(c.knownScreens) ? c.knownScreens.filter((s) => SCREENS.includes(s)) : ['media', 'clock', 'stats', 'shortcuts'];
+  let insertAt = Math.min(1, out.screens.length);
+  for (const s of SCREENS) {
+    if (!out.knownScreens.includes(s)) {
+      out.knownScreens.push(s);
+      if (!out.screens.includes(s)) out.screens.splice(insertAt++, 0, s);
+    }
+  }
+  out.weather = c.weather !== false;
+  out.weatherCity = String(c.weatherCity || '').slice(0, 80);
+  out.weatherUnit = c.weatherUnit === 'f' ? 'f' : 'c';
+  out.notifications = c.notifications !== false;
+  out.notifyPrivate = c.notifyPrivate === true;
+  out.notifyIgnore = (Array.isArray(c.notifyIgnore) ? c.notifyIgnore : []).map((s) => String(s).slice(0, 120)).slice(0, 50);
+  out.spotifyClientId = /^[a-f0-9]{32}$/i.test(c.spotifyClientId || '') ? c.spotifyClientId : '';
+  out.updateRepo = /^[\w.-]+\/[\w.-]+$/.test(c.updateRepo || '') ? c.updateRepo : '';
+  out.autoUpdate = c.autoUpdate !== false;
+  out.onboarded = c.onboarded === true;
   out.shortcuts = (Array.isArray(c.shortcuts) ? c.shortcuts : []).slice(0, 24).map((s) => ({
     id: typeof s.id === 'string' && s.id ? s.id.slice(0, 40) : crypto.randomBytes(4).toString('hex'),
     label: String(s.label || 'Shortcut').slice(0, 40),

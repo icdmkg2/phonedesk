@@ -296,3 +296,35 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   .nav { width: auto; }
   .view { padding: 20px 16px 32px; }
 }
+
+/* ---------------------------------------------------------------- first-run setup */
+.onboard { position: fixed; inset: 0; z-index: 30; background: rgba(5, 6, 8, .82); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.onboard[hidden] { display: none; }
+.ob-card { width: min(640px, 100%); max-height: 100%; overflow: auto; background: var(--panel); border: 1px solid #2A2E38; border-radius: 20px; padding: 28px 32px 22px; display: flex; flex-direction: column; gap: 20px; }
+.ob-steps { display: flex; gap: 6px; }
+.ob-steps i { height: 4px; flex: 1; border-radius: 2px; background: var(--line2); }
+.ob-steps i.on { background: var(--accent); }
+.ob-step { display: flex; flex-direction: column; gap: 14px; min-height: 230px; }
+.ob-step[hidden] { display: none; }
+.ob-step h1 { font-family: var(--display); font-size: 26px; font-weight: 600; }
+.ob-step p { color: var(--fg2); }
+.ob-step input[type=text] { width: 100%; }
+.ob-status { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--sunk); border: 1px solid var(--line); font-weight: 500; }
+.ob-status.ok { border-color: #1E5A3A; color: var(--ok-text); }
+.ob-status.bad { border-color: #5A4316; color: var(--warn); }
+.spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line2); border-top-color: var(--accent); animation: spin .9s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ob-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 16px; }
+
+/* ---------------------------------------------------------------- mini previews of the new screens */
+.mini-lyrics { flex-direction: column; align-items: center; justify-content: center; gap: 2cqw; width: 100%; text-align: center; padding: 4cqw; }
+.mini-lyrics div { font-size: 3.4cqw; font-weight: 700; opacity: .4; }
+.mini-lyrics div.on { opacity: 1; font-size: 4.2cqw; }
+.mini-mixer { flex-direction: column; justify-content: center; gap: 2.4cqw; width: 100%; padding: 4cqw 6cqw; }
+.mini-mixer .r { display: flex; align-items: center; gap: 2.4cqw; font-size: 2.4cqw; font-weight: 600; }
+.mini-mixer .r img, .mini-mixer .r svg { width: 3.6cqw; height: 3.6cqw; }
+.mini-mixer .r span { width: 22cqw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mini-mixer .r i { flex: 1; height: .9cqw; border-radius: 1cqw; background: rgba(127,127,127,.3); position: relative; overflow: hidden; }
+.mini-mixer .r i b { position: absolute; left: 0; top: 0; bottom: 0; background: currentColor; }
+.mini-wx { display: flex; align-items: center; gap: 1.2cqw; font-size: 2.4cqw; opacity: .8; margin-top: 1cqw; }
+.mini-wx svg { width: 3.6cqw; height: 3.6cqw; }

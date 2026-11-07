@@ -136,6 +136,7 @@
           <div class="pc">
             <div><div class="small muted">CPU</div><div class="num" id="pc-cpu">–</div><div class="meter"><i id="pc-cpu-m"></i></div></div>
             <div><div class="small muted">Memory</div><div class="num" id="pc-mem">–</div><div class="meter"><i id="pc-mem-m"></i></div></div>
+            <div id="pc-gpu-box" hidden><div class="small muted">GPU <span id="pc-gpu-t"></span></div><div class="num" id="pc-gpu">–</div><div class="meter"><i id="pc-gpu-m"></i></div></div>
           </div>
         </section>
 
@@ -211,6 +212,16 @@
             <h3>Extras</h3>
             <label class="toggle-row"><span>Show the phone's battery in the corner</span><span class="switch"><input type="checkbox" id="ds-batt"><span></span></span></label>
             <div class="sep"></div>
+            <label class="toggle-row"><span>Weather on the clock</span><span class="switch"><input type="checkbox" id="ds-wx"><span></span></span></label>
+            <div class="row" id="ds-wx-row" style="gap:10px">
+              <input type="text" id="ds-wx-city" placeholder="City (blank = automatic)" maxlength="80" style="flex:1;min-width:160px">
+              <div class="seg" id="ds-wx-unit"><button data-v="c">°C</button><button data-v="f">°F</button></div>
+            </div>
+            <span class="hint" id="ds-wx-now"></span>
+            <div class="sep"></div>
+            <label class="toggle-row"><span>Show PC notifications on the phone</span><span class="switch"><input type="checkbox" id="ds-nt"><span></span></span></label>
+            <label class="toggle-row"><span>Private: show only which app, not the message</span><span class="switch"><input type="checkbox" id="ds-nt-priv"><span></span></span></label>
+            <div class="sep"></div>
             <label class="toggle-row"><span>Find missing album art online<br><span class="hint">When an app (like YouTube) gives no picture, look the song up in the iTunes catalog. Only the song and artist name are sent.</span></span><span class="switch"><input type="checkbox" id="ds-art"><span></span></span></label>
           </section>
           <section class="card" aria-label="Screens">
@@ -263,11 +274,32 @@
           </ol>
           <p class="small muted">Already set up once: the screen stays on whenever the phone is charging (Developer options → Stay awake).</p>
         </section>
+        <section class="card" aria-label="Spotify">
+          <div class="card-head"><h3>Spotify</h3><span class="badge" id="sp-badge">Not connected</span></div>
+          <p class="small muted">Shows what's up next and adds a ♥ button on the phone to save songs to your Liked Songs.</p>
+          <div id="sp-setup">
+            <ol class="small" style="margin:0 0 10px;padding-left:18px;color:var(--fg2);display:flex;flex-direction:column;gap:6px">
+              <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>, sign in and choose <b>Create app</b> (any name).</li>
+              <li>Under <b>Redirect URIs</b> add <span class="mono" id="sp-redirect">http://127.0.0.1:8765/spotify/callback</span> <button class="btn sm ghost" id="sp-copy">Copy</button>, tick <b>Web API</b>, and save.</li>
+              <li>Paste the app's <b>Client ID</b> here:</li>
+            </ol>
+            <div class="row"><input type="text" id="sp-id" placeholder="Client ID (32 letters and numbers)" maxlength="32" style="flex:1;min-width:200px" class="mono"></div>
+          </div>
+          <div class="row"><button class="btn primary" id="sp-connect">Connect Spotify</button><button class="btn" id="sp-disconnect" hidden>Disconnect</button><span class="small muted" id="sp-state"></span></div>
+        </section>
+        <section class="card" aria-label="Updates">
+          <div class="card-head"><h3>Updates</h3><span class="badge" id="up-badge">–</span></div>
+          <p class="small muted" id="up-text">Checking…</p>
+          <div class="row"><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div>
+          <label class="toggle-row">Check for updates automatically<span class="switch"><input type="checkbox" id="up-auto"><span></span></span></label>
+          <label class="field">Release source (GitHub owner/repository)<input type="text" id="up-repo" placeholder="owner/phonedesk" maxlength="100" class="mono"><span class="hint">PhoneDesk updates from this repository's latest GitHub release. Leave blank to turn updates off.</span></label>
+        </section>
         <section class="card" aria-label="Advanced">
           <h3>Advanced</h3>
           <label class="field">Port<input type="number" id="cn-port" min="1024" max="65535" style="width:140px"><span class="hint">Takes effect after you restart PhoneDesk.</span></label>
           <label class="field">Name on the network<input type="text" id="cn-name" maxlength="40" style="width:220px"><span class="hint">Phones open <span class="mono" id="cn-name-ex">phonedesk.local</span>. Change it if you have two PCs. Restart to apply.</span></label>
           <div class="row"><button class="btn" id="cn-bridge">Restart media bridge</button><span class="small muted" id="cn-bridge-info"></span></div>
+          <div class="row"><button class="btn" id="cn-onboard">Run first-time setup again</button></div>
         </section>
       </div>
     </section>
@@ -279,6 +311,53 @@
       <details id="ac-tech"><summary>Technical log</summary><pre class="logs" id="ac-logs" style="margin-top:12px"></pre></details>
     </section>
   </main>
+</div>
+
+<div class="onboard" id="onboard" hidden role="dialog" aria-modal="true" aria-labelledby="ob-title">
+  <div class="ob-card">
+    <div class="ob-steps" id="ob-dots"><i></i><i></i><i></i><i></i></div>
+
+    <section class="ob-step" data-step="0">
+      <img src="/favicon.svg" alt="" width="56" height="56">
+      <h1 id="ob-title">Welcome to PhoneDesk</h1>
+      <p>Your phone becomes a small display for this PC: what's playing, a clock, PC stats, shortcut buttons, volume and more. Setup takes about a minute.</p>
+    </section>
+
+    <section class="ob-step" data-step="1" hidden>
+      <h1>Connect your phone</h1>
+      <div class="addr">
+        <div class="qr lg"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
+        <div class="addr-body">
+          <p>On your phone, open this in the browser, or scan the code:</p>
+          <div class="big name-url">phonedesk.local</div>
+          <p class="small muted">Same Wi-Fi as this PC. Or plug it in by USB with USB debugging on.</p>
+        </div>
+      </div>
+      <div class="ob-status" id="ob-phone"><span class="spin"></span>Waiting for your phone…</div>
+    </section>
+
+    <section class="ob-step" data-step="2" hidden>
+      <h1>Wi-Fi check</h1>
+      <p>Windows Firewall has to let phones on your Wi-Fi reach PhoneDesk.</p>
+      <div class="ob-status" id="ob-fw"><span class="spin"></span>Checking…</div>
+      <button class="btn primary" id="ob-fw-fix" hidden>Allow phones on Wi-Fi</button>
+      <p class="small muted" id="ob-fw-hint" hidden>Windows will ask for permission once.</p>
+    </section>
+
+    <section class="ob-step" data-step="3" hidden>
+      <h1>A few choices</h1>
+      <label class="toggle-row"><span>Weather on the phone's clock</span><span class="switch"><input type="checkbox" id="ob-wx" checked><span></span></span></label>
+      <input type="text" id="ob-wx-city" placeholder="City (blank = automatic)" maxlength="80">
+      <label class="toggle-row"><span>Show PC notifications on the phone</span><span class="switch"><input type="checkbox" id="ob-nt" checked><span></span></span></label>
+      <label class="toggle-row" id="ob-as-row"><span>Start PhoneDesk with Windows</span><span class="switch"><input type="checkbox" id="ob-as" checked><span></span></span></label>
+      <p class="small muted">Use Spotify? Connect it later under Connection to get “up next” and a ♥ button.</p>
+    </section>
+
+    <div class="ob-foot">
+      <button class="btn ghost" id="ob-skip">Skip setup</button>
+      <div class="row"><button class="btn" id="ob-back" hidden>Back</button><button class="btn primary" id="ob-next">Get started</button></div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status"></div>

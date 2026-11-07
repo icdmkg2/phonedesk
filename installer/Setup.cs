@@ -13,8 +13,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("PhoneDesk Setup")]
 [assembly: AssemblyProduct("PhoneDesk")]
 [assembly: AssemblyDescription("PhoneDesk Setup")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 static class SetupProgram
 {
@@ -25,8 +25,15 @@ static class SetupProgram
         Application.SetCompatibleTextRenderingDefault(false);
         if (Array.IndexOf(args, "/silent") >= 0)
         {
-            // Unattended install: defaults, no firewall prompt, no launch.
-            Installer.Install(Pd.DefaultInstallDir, true, false, false, null);
+            // Unattended install (also used by auto-update): keeps the existing start-with-Windows
+            // choice, no firewall prompt. /launch starts PhoneDesk again afterwards.
+            string dir = Pd.DefaultInstallDir;
+            bool upgrading = File.Exists(Path.Combine(dir, "PhoneDesk.exe"));
+            Installer.Install(dir, upgrading ? Pd.StartsWithWindows : true, File.Exists(Pd.DesktopLink), false, null);
+            if (Array.IndexOf(args, "/launch") >= 0)
+            {
+                try { Process.Start(Path.Combine(dir, "PhoneDesk.exe")); } catch { }
+            }
             return;
         }
         Application.Run(new SetupForm());

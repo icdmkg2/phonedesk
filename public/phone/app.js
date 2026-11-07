@@ -151,7 +151,7 @@
         state.clockOffset = m.d.serverTime - Date.now();
         if (m.d.hosts) { store.set('hosts', m.d.hosts); hosts = uniq([activeHost, location.host].concat(m.d.hosts)); }
         break;
-      case 'media': state.media = m.d || { active: false }; renderMedia(); renderClockMini(); break;
+      case 'media': state.media = m.d || { active: false }; renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); break;
       case 'volume': state.volume = m.d; renderVolume(); break;
       case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); break;
       case 'config': applyConfig(m.d); break;
@@ -159,6 +159,11 @@
       case 'show': if (screens().indexOf(m.v) >= 0) show(m.v); break;
       case 'identify': identify(m.d && m.d.name); break;
       case 'battery': serverBattery = m.d; renderBattery(); break;
+      case 'mixer': state.mixer = m.d || []; if (state.screen === 'mixer') renderMixer(); break;
+      case 'lyrics': setLyrics(m.d); break;
+      case 'weather': setWeather(m.d); break;
+      case 'spotify': state.spotify = m.d; renderSpotify(); break;
+      case 'notify': queueNotification(m.d); break;
     }
   }
 
@@ -225,6 +230,7 @@
     renderProgress();
   }
 
+  var VIDEO_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="4.5" width="21" height="15" rx="4.5" fill="#FF0033"/><path d="M10 9v6l5.2-3z" fill="#fff"/></svg>';
   // The playing app's own icon (Spotify, a game...) or a video icon for YouTube in a browser.
   var lastAppIcon = null;
   function setAppIcon(src) {
@@ -333,6 +339,7 @@
     if (vol.dragging || Date.now() < vol.holdUntil) return;
     drawVolume(state.volume.level, state.volume.muted);
     if (state.screen === 'stats') renderStats();
+    if (state.screen === 'mixer') renderMixer();
   }
   (function () {
     var rect = null, lastSent = 0, pending = null, timer = null;
@@ -442,7 +449,7 @@
     if ($('offline').hidden) return;
     var d = new Date(Date.now() + state.clockOffset);
     var html = clockHtml(d);
-    if (html !== offlineLast) { offlineLast = html; $('o-time').innerHTML = html; $('o-date').textContent = dateText(d); }
+    if (html !== offlineLast) { offlineLast = html; $('o-time').innerHTML = html; $('o-date').textContent = dateText(d); renderWeather(); }
     if (d.getMinutes() !== offlineShift) { offlineShift = d.getMinutes(); nudge($('o-clock')); }
   }
   setInterval(function () { if (document.visibilityState === 'visible') renderOfflineClock(); }, 1000);
@@ -495,6 +502,18 @@
     setText($('st-mem-s'), gb(s.memUsed) + ' / ' + gb(s.memTotal) + ' GB');
     setText($('st-vol'), state.volume.muted ? '0' : String(v));
     $('st-vol-f').style.transform = 'scaleX(' + (state.volume.muted ? 0 : v / 100) + ')';
+    var g = s.gpu;
+    $('st-gpu-card').hidden = !g || g.load < 0;
+    if (g && g.load >= 0) {
+      setText($('st-gpu'), String(g.load));
+      $('st-gpu-f').style.transform = 'scaleX(' + g.load / 100 + ')';
+      setText($('st-gpu-t'), g.temp > 0 ? g.temp + '°C' : '');
+      var bits = [];
+      if (g.hotspot > 0) bits.push('hotspot ' + g.hotspot + '°C');
+      if (g.power > 0) bits.push(g.power + ' W');
+      if (g.vram > 0) bits.push((g.vram / 1024).toFixed(1) + ' GB VRAM');
+      setText($('st-gpu-s'), bits.join(' · '));
+    }
     var up = s.uptime, d = Math.floor(up / 86400), h = Math.floor((up % 86400) / 3600), mi = Math.floor((up % 3600) / 60);
     setText($('st-up'), 'PC up ' + (d ? d + 'd ' : '') + h + 'h ' + mi + 'm');
     drawGraph();
@@ -548,6 +567,8 @@
 
   function renderAll() {
     if (state.screen === 'media') { renderMedia(); drawVolume(state.volume.level, state.volume.muted); }
+    else if (state.screen === 'mixer') renderMixer(true);
+    else if (state.screen === 'lyrics') { renderLyricsHead(); lyricTick(true); }
     else if (state.screen === 'clock') { lastClock = ''; renderClock(); renderClockMini(); }
     else if (state.screen === 'stats') renderStats();
   }
@@ -700,8 +721,236 @@
     identify.t = setTimeout(function () { el.hidden = true; }, 2200);
   }
 
+  /* ============================================================ sliders (mixer) */
+  // A drag slider that works whether or not the app is rotated. onChange(value 0..1, done)
+  function bindSlider(el, onChange) {
+    var rect = null, dragging = false;
+    function at(e) { return Math.min(1, Math.max(0, (pt(e).x - rect.left) / rect.width)); }
+    el.addEventListener('pointerdown', function (e) {
+      dragging = true; rect = appRect(el); el.setPointerCapture(e.pointerId); el.classList.add('drag');
+      el._dragging = true; onChange(at(e), false);
+    });
+    el.addEventListener('pointermove', function (e) { if (dragging) onChange(at(e), false); });
+    function end(e) {
+      if (!dragging) return;
+      dragging = false; el.classList.remove('drag');
+      onChange(at(e), true);
+      setTimeout(function () { el._dragging = false; }, 600);
+    }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+  function drawSlider(el, level) {
+    if (el._dragging) return;
+    el.querySelector('.fill').style.transform = 'scaleX(' + level + ')';
+    el.querySelector('.knob').style.transform = 'translateX(' + Math.round(level * (el.clientWidth || 1)) + 'px)';
+  }
+  function throttle(fn, ms) {
+    var last = 0, timer = null, args = null;
+    return function () {
+      args = arguments;
+      var now = Date.now();
+      if (now - last >= ms) { last = now; fn.apply(null, args); }
+      else if (!timer) timer = setTimeout(function () { timer = null; last = Date.now(); fn.apply(null, args); }, ms - (now - last));
+    };
+  }
+
+  /* ============================================================ mixer screen */
+  state.mixer = [];
+  var mixerKey = '', mixerRows = {};
+  var SPEAKER = '<svg><use href="#i-vol"/></svg>';
+  function mixerRowHtml(id, name, cls) {
+    return '<div class="mx-row ' + cls + '" data-id="' + id + '"><button class="mx-ic" aria-label="Mute ' + name.replace(/"/g, '') + '"></button>' +
+      '<span class="mx-name"></span><div class="slider"><div class="fill"></div><div class="knob"></div></div><span class="mx-num"></span></div>';
+  }
+  function renderMixer(force) {
+    var box = $('mixer');
+    var fit = Math.max(2, Math.floor(((parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ah')) || 360) - 70) / 56));
+    var apps = state.mixer.slice(0, fit - 1);
+    var key = apps.map(function (a) { return a.pid; }).join(',') + '|' + (state.mixer.length - apps.length);
+    if (force || key !== mixerKey) {
+      mixerKey = key;
+      var html = mixerRowHtml('master', 'PC volume', 'master');
+      apps.forEach(function (a) { html += mixerRowHtml(a.pid, a.name, ''); });
+      if (state.mixer.length > apps.length) html += '<div class="mx-more">+' + (state.mixer.length - apps.length) + ' more apps playing sound</div>';
+      box.innerHTML = html;
+      mixerRows = {};
+      Array.prototype.forEach.call(box.querySelectorAll('.mx-row'), function (row) {
+        var id = row.getAttribute('data-id');
+        mixerRows[id] = row;
+        var slider = row.querySelector('.slider');
+        var push = throttle(function (v) {
+          if (id === 'master') send({ t: 'volume', v: v }); else send({ t: 'appvol', pid: +id, v: v });
+        }, 70);
+        bindSlider(slider, function (v, done) {
+          slider.querySelector('.fill').style.transform = 'scaleX(' + v + ')';
+          slider.querySelector('.knob').style.transform = 'translateX(' + Math.round(v * slider.clientWidth) + 'px)';
+          setText(row.querySelector('.mx-num'), String(Math.round(v * 100)));
+          push(v);
+          if (done && id !== 'master') { var a = findApp(+id); if (a) a.level = v; }
+        });
+        row.querySelector('.mx-ic').addEventListener('click', function () {
+          buzz();
+          if (id === 'master') send({ t: 'mute' }); else send({ t: 'appmute', pid: +id });
+        });
+      });
+    }
+    // values
+    paintRow(mixerRows.master, 'PC volume', state.volume.level, state.volume.muted, SPEAKER, false);
+    apps.forEach(function (a) {
+      var ic = a.icon ? '<img src="' + pcUrl(a.icon) + '" alt="">' : SPEAKER;
+      paintRow(mixerRows[a.pid], a.name, a.level, a.muted, ic, a.active);
+    });
+  }
+  function findApp(pid) { for (var i = 0; i < state.mixer.length; i++) if (state.mixer[i].pid === pid) return state.mixer[i]; return null; }
+  function paintRow(row, name, level, muted, iconHtml, live) {
+    if (!row) return;
+    var ic = row.querySelector('.mx-ic');
+    if (ic.getAttribute('data-ic') !== iconHtml) { ic.setAttribute('data-ic', iconHtml); ic.innerHTML = muted ? '<svg><use href="#i-mute"/></svg>' : iconHtml; }
+    if (muted && ic.innerHTML.indexOf('i-mute') < 0) ic.innerHTML = '<svg><use href="#i-mute"/></svg>';
+    if (!muted && ic.innerHTML.indexOf('i-mute') >= 0) ic.innerHTML = iconHtml;
+    toggle(ic, 'live', !!live && !muted);
+    toggle(row, 'muted', !!muted);
+    setText(row.querySelector('.mx-name'), name);
+    var slider = row.querySelector('.slider');
+    if (!slider._dragging) { drawSlider(slider, level); setText(row.querySelector('.mx-num'), String(Math.round(level * 100))); }
+  }
+
+  /* ============================================================ lyrics screen */
+  var lyr = null, lyrIndex = -2;
+  function setLyrics(d) {
+    lyr = d;
+    lyrIndex = -2;
+    var list = $('ly-list');
+    list.style.transform = 'translateY(0)';
+    if (!d || !d.lines || !d.lines.length) {
+      list.innerHTML = '';
+      $('ly-msg').hidden = false;
+      setText($('ly-msg'), !state.media.active ? 'Play a song on your PC' : !d ? 'Looking for lyrics…' : d.instrumental ? 'Instrumental' : 'No lyrics found for this song');
+      return;
+    }
+    $('ly-msg').hidden = true;
+    var frag = document.createDocumentFragment();
+    d.lines.forEach(function (l) {
+      var div = document.createElement('div');
+      div.className = 'ly-line' + (l.text ? '' : ' gap');
+      div.textContent = l.text || '♪';
+      frag.appendChild(div);
+    });
+    list.textContent = '';
+    list.appendChild(frag);
+    lyricTick(true);
+  }
+  function renderLyricsHead() {
+    var m = state.media;
+    setText($('ly-song'), m.active ? (m.title || '') + (m.artist ? ' — ' + m.artist : '') : '');
+    var ic = m.active ? (m.site === 'youtube' ? VIDEO_ICON : m.appIcon ? '<img src="' + pcUrl(m.appIcon) + '" alt="">' : '') : '';
+    if ($('ly-ic').getAttribute('data-ic') !== ic) { $('ly-ic').setAttribute('data-ic', ic); $('ly-ic').innerHTML = ic; }
+    if (!lyr) setLyrics(null);
+  }
+  function lyricTick(force) {
+    if (!lyr || !lyr.lines.length || state.screen !== 'lyrics') return;
+    var lines = $('ly-list').children, idx = 0;
+    if (lyr.synced) {
+      var pos = currentPos() + 0.25;
+      idx = -1;
+      for (var i = 0; i < lyr.lines.length; i++) { if (lyr.lines[i].t <= pos) idx = i; else break; }
+    }
+    if (idx === lyrIndex && !force) return;
+    if (lines[lyrIndex]) lines[lyrIndex].classList.remove('on');
+    lyrIndex = idx;
+    var view = $('ly-view'), cur = lines[Math.max(0, idx)];
+    if (!cur) return;
+    if (idx >= 0 && lyr.synced) cur.classList.add('on');
+    var y = cur.offsetTop - view.clientHeight / 2 + cur.offsetHeight / 2;
+    $('ly-list').style.transform = 'translateY(' + (-Math.max(0, y)) + 'px)';
+  }
+  setInterval(function () { if (state.screen === 'lyrics' && document.visibilityState === 'visible') lyricTick(false); }, 250);
+
+  /* ============================================================ weather */
+  var WX = {
+    sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" fill="#FFC53D"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#FFC53D" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    moon: '<svg viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" fill="#C9CED8"/></svg>',
+    partly: '<svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.6" fill="#FFC53D"/><path d="M9 2.5v1.6M2.5 9h1.6M4.4 4.4l1.1 1.1M13.6 4.4l-1.1 1.1" stroke="#FFC53D" stroke-width="1.6" stroke-linecap="round"/><path d="M8 19.5h9.5a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.4 1.5A2.8 2.8 0 0 0 8 19.5z" fill="#DADDE3"/></svg>',
+    cloud: '<svg viewBox="0 0 24 24"><path d="M6.5 18.5h11a4 4 0 0 0 0-8 5.6 5.6 0 0 0-10.7 1.6 3.2 3.2 0 0 0-.3 6.4z" fill="#C9CED8"/></svg>',
+    fog: '<svg viewBox="0 0 24 24"><path d="M4 9h16M3 13h18M5 17h14" stroke="#C9CED8" stroke-width="2" stroke-linecap="round"/></svg>',
+    rain: '<svg viewBox="0 0 24 24"><path d="M6.5 14.5h11a4 4 0 0 0 0-8 5.6 5.6 0 0 0-10.7 1.6 3.2 3.2 0 0 0-.3 6.4z" fill="#C9CED8"/><path d="M8 17.5l-1 2.5M12 17.5l-1 2.5M16 17.5l-1 2.5" stroke="#5B8CFF" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    snow: '<svg viewBox="0 0 24 24"><path d="M6.5 14.5h11a4 4 0 0 0 0-8 5.6 5.6 0 0 0-10.7 1.6 3.2 3.2 0 0 0-.3 6.4z" fill="#C9CED8"/><circle cx="8" cy="19" r="1.2" fill="#fff"/><circle cx="12" cy="20" r="1.2" fill="#fff"/><circle cx="16" cy="19" r="1.2" fill="#fff"/></svg>',
+    storm: '<svg viewBox="0 0 24 24"><path d="M6.5 14.5h11a4 4 0 0 0 0-8 5.6 5.6 0 0 0-10.7 1.6 3.2 3.2 0 0 0-.3 6.4z" fill="#9AA1AE"/><path d="M12.5 15 10 19h2.5l-1 3.5 3.5-5h-2.5l1-2.5z" fill="#FFC53D"/></svg>',
+  };
+  function wxIcon(code, day) {
+    if (code === 0) return day ? WX.sun : WX.moon;
+    if (code <= 2) return day ? WX.partly : WX.cloud;
+    if (code === 3) return WX.cloud;
+    if (code === 45 || code === 48) return WX.fog;
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return WX.snow;
+    if (code >= 95) return WX.storm;
+    return WX.rain;
+  }
+  var weather = store.get('weather', null);
+  function setWeather(w) {
+    weather = w;
+    store.set('weather', w);
+    renderWeather();
+  }
+  function renderWeather() {
+    var w = weather;
+    // Outside the PC connection, only show weather that's a few hours old at most.
+    var fresh = w && state.config.weather !== false && Date.now() - w.at < 6 * 3600 * 1000;
+    var html = fresh ? wxIcon(w.code, w.day) + '<b>' + w.temp + '°' + '</b><span>' + escHtml(w.city || '') + '</span><small>H ' + w.hi + '° · L ' + w.lo + '°</small>' : '';
+    ['c-wx', 'o-wx'].forEach(function (id) {
+      var el = $(id);
+      el.hidden = !fresh;
+      if (el.getAttribute('data-h') !== html) { el.setAttribute('data-h', html); el.innerHTML = html; }
+    });
+  }
+  function escHtml(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ============================================================ Spotify extras */
+  state.spotify = null;
+  function renderSpotify() {
+    var sp = state.spotify, m = state.media;
+    var onSpotify = sp && m.active && /spotify/i.test(m.app || '');
+    $('b-like').hidden = !onSpotify || sp.liked == null;
+    toggle($('b-like'), 'on', !!(onSpotify && sp.liked));
+    var nxt = onSpotify && sp.next;
+    $('m-next').hidden = !nxt;
+    if (nxt) setText($('m-next-t'), nxt.title + (nxt.artist ? ' — ' + nxt.artist : ''));
+  }
+  $('b-like').addEventListener('click', function () {
+    buzz();
+    if (state.spotify) { state.spotify.liked = !state.spotify.liked; renderSpotify(); }
+    send({ t: 'like' });
+  });
+
+  /* ============================================================ notification banners */
+  var nQueue = [], nShowing = false, nTimer = null;
+  var BELL = '<svg viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+  function queueNotification(n) {
+    if (!n || state.config.notifications === false) return;
+    nQueue.push(n);
+    if (nQueue.length > 5) nQueue.shift();
+    if (!nShowing) nextNotification();
+  }
+  function nextNotification() {
+    var n = nQueue.shift(), el = $('nb');
+    if (!n) { nShowing = false; el.hidden = true; return; }
+    nShowing = true;
+    $('nb-ic').innerHTML = n.icon ? '<img src="' + pcUrl(n.icon) + '" alt="">' : BELL;
+    setText($('nb-app'), n.app || '');
+    setText($('nb-title'), n.title || (n.body ? '' : 'New notification'));
+    setText($('nb-body'), n.body || '');
+    el.hidden = false;
+    el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+    buzz();
+    clearTimeout(nTimer);
+    nTimer = setTimeout(nextNotification, 6000);
+  }
+  $('nb').addEventListener('click', function (e) { e.stopPropagation(); clearTimeout(nTimer); nextNotification(); });
+
   /* ============================================================ boot */
   renderDots();
+  renderWeather();
   show(state.screen);
   renderPad();
   connect();
