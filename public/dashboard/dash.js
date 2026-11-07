@@ -231,6 +231,7 @@
       : `Your phone is connected and showing ${SCREEN_NAMES[p.screen] || 'PhoneDesk'}.`);
 
     $$('.name-url').forEach((el) => setText(el, nameUrl().replace(/^http:\/\//, '')));
+    $$('.name-url-full').forEach((el) => setText(el, nameUrl()));
     const qr = '/api/qr?text=' + encodeURIComponent(nameUrl() + '/phone');
     $$('.qr-img').forEach((img) => { if (img.getAttribute('src') !== qr) img.src = qr; });
 
@@ -247,6 +248,7 @@
     setText($('ov-name'), p.device);
     setText($('ov-rtt'), p.rtt != null ? p.rtt + ' ms' : '–');
     setText($('ov-screen'), SCREEN_NAMES[p.screen] || '–');
+    $('ov-batt-help').hidden = !!p.battery;
     setText($('ov-batt'), p.battery ? p.battery.level + '%' + (p.battery.charging ? ' ⚡' : '') : '–');
     $('ov-batt').title = p.battery ? '' : 'Battery level is only shared over USB';
     renderMirrors();
@@ -257,7 +259,8 @@
   const switchMenu = $('ov-switch-menu');
   $('ov-switch').addEventListener('click', (e) => {
     e.stopPropagation();
-    const list = state.config ? state.config.screens : ALL_SCREENS;
+    let list = state.config ? state.config.screens : ALL_SCREENS;
+    if (state.config && state.config.nowStyle !== 'classic') list = list.filter((s) => s !== 'lyrics'); // a pull-up sheet in the Immersive style
     switchMenu.innerHTML = list.map((s) => `<button data-s="${s}">${SCREEN_NAMES[s]}</button>`).join('');
     switchMenu.hidden = !switchMenu.hidden;
     $('ov-switch').setAttribute('aria-expanded', String(!switchMenu.hidden));
