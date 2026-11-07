@@ -614,3 +614,18 @@ body.ns-imm .app { top: 10px; height: 28px; padding: 0 12px 0 8px; box-sizing: b
 body.ns-imm .app-ic img, body.ns-imm .app-ic svg { width: 16px; height: 16px; }
 body.ns-imm .np-top { top: 10px; gap: 8px; }
 body.ns-imm .np-time, body.ns-imm .np-top .wx { height: 28px; box-sizing: border-box; display: flex; align-items: center; padding-top: 0; padding-bottom: 0; line-height: 1; }
+
+/* ---------------------------------------------------------------- Hebrew fonts (SIL Open Font License, Google Fonts)
+   Hebrew-only subsets: they apply to Hebrew letters and leave Latin text on the fonts it already uses. */
+@font-face { font-family: "PD Hebrew Sans"; src: url("fonts/heebo-hebrew.woff2") format("woff2"); font-weight: 300 900; font-display: swap;
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: "PD Hebrew Serif"; src: url("fonts/frankruhl-hebrew.woff2") format("woff2"); font-weight: 300 900; font-display: swap;
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: "PD Hebrew Round"; src: url("fonts/rubik-hebrew.woff2") format("woff2"); font-weight: 300 900; font-display: swap;
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+body { font-family: "PD Hebrew Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+body { --lf: "PD Hebrew Serif", "Noto Serif", Georgia, "Times New Roman", serif; }
+body[data-lf="sans"] { --lf: "PD Hebrew Sans", Inter, Roboto, "Segoe UI", system-ui, sans-serif; }
+body[data-lf="condensed"] { --lf: "PD Hebrew Sans", "Roboto Condensed", "sans-serif-condensed", "Arial Narrow", "Segoe UI", sans-serif; }
+body[data-lf="mono"] { --lf: "PD Hebrew Round", "Roboto Mono", "Droid Sans Mono", Consolas, monospace; }
+body[data-lf="script"] { --lf: "PD Hebrew Round", "Dancing Script", "Segoe Script", "Brush Script MT", cursive; }
