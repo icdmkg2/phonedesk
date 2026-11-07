@@ -67,6 +67,10 @@ public static class PdIcon {
   [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
   static extern void SHCreateItemFromParsingName(string path, IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItemImageFactory item);
   [DllImport("gdi32.dll")] static extern int GetObject(IntPtr h, int size, ref BITMAP bm);
+  [StructLayout(LayoutKind.Sequential)] struct BIH { public int biSize, biWidth, biHeight; public short biPlanes, biBitCount; public int biCompression, biSizeImage, biXPels, biYPels, biClrUsed, biClrImportant; }
+  [DllImport("gdi32.dll")] static extern int GetDIBits(IntPtr hdc, IntPtr hbm, uint start, uint lines, byte[] bits, ref BIH bi, uint usage);
+  [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr h);
+  [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr h, IntPtr dc);
   [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr h);
   [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)] static extern int SHLoadIndirectString(string src, System.Text.StringBuilder outBuf, int cch, IntPtr reserved);
 
@@ -86,14 +90,21 @@ public static class PdIcon {
         try {
           BITMAP bm = new BITMAP();
           GetObject(hbm, Marshal.SizeOf(typeof(BITMAP)), ref bm);
-          if (bm.bmBitsPixel == 32 && bm.bmBits != IntPtr.Zero) {
-            // A bottom-up DIB with premultiplied alpha: read it from the last row upward.
-            IntPtr last = new IntPtr(bm.bmBits.ToInt64() + (long)bm.bmWidthBytes * (bm.bmHeight - 1));
-            using (Bitmap tmp = new Bitmap(bm.bmWidth, bm.bmHeight, -bm.bmWidthBytes, PixelFormat.Format32bppPArgb, last))
-              bmp = new Bitmap(tmp);
-          } else {
-            bmp = Image.FromHbitmap(hbm);
+          // Always ask GDI for top-down 32-bit rows, so the picture is never upside down or mirrored,
+          // whichever way the source bitmap is stored.
+          if (bm.bmWidth > 0 && bm.bmHeight > 0) {
+            BIH bi = new BIH(); bi.biSize = 40; bi.biWidth = bm.bmWidth; bi.biHeight = -bm.bmHeight; bi.biPlanes = 1; bi.biBitCount = 32;
+            byte[] buf = new byte[bm.bmWidth * bm.bmHeight * 4];
+            IntPtr dc = GetDC(IntPtr.Zero);
+            int n = GetDIBits(dc, hbm, 0, (uint)bm.bmHeight, buf, ref bi, 0);
+            ReleaseDC(IntPtr.Zero, dc);
+            if (n > 0) {
+              GCHandle gh = GCHandle.Alloc(buf, GCHandleType.Pinned);
+              try { using (Bitmap tmp = new Bitmap(bm.bmWidth, bm.bmHeight, bm.bmWidth * 4, PixelFormat.Format32bppPArgb, gh.AddrOfPinnedObject())) bmp = new Bitmap(tmp); }
+              finally { gh.Free(); }
+            }
           }
+          if (bmp == null) bmp = Image.FromHbitmap(hbm);
         } finally { DeleteObject(hbm); }
       }
     } catch { }
@@ -202,13 +213,38 @@ function Find-AppInfo([string]$aumid) {
     $proc = [IO.Path]::GetFileNameWithoutExtension($aumid)
     $key = $proc.ToLower()
     if ($KnownAumid.ContainsKey($key)) { $proc = $KnownAumid[$key] }
-    $p = Get-Process -Name $proc -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
-    if (-not $p) { return $null }
-    $png = [PdIcon]::Png($p.Path, 96)
+    # Notification ids look like com.squirrel.Discord.Discord or Spotify.desktop.client: try the useful words in turn.
+    $names = New-Object System.Collections.Generic.List[string]
+    $names.Add($proc)
+    foreach ($tok in ($proc -split '[._ -]')) {
+      if ($tok.Length -lt 3 -or $tok -match '^(com|squirrel|electron|app|desktop|client|windows|microsoft|org|net|dev|exe)$') { continue }
+      $names.Add($tok); if ($tok -match 'Desktop$') { $names.Add($tok -replace 'Desktop$', '') }
+    }
+    $path = $null
+    foreach ($n in $names) {
+      $p = Get-Process -Name $n -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
+      if ($p) { $path = $p.Path; break }
+    }
+    if (-not $path) {
+      # Not running: look for a Start menu shortcut with that name and use its target.
+      $menus = @("$env:ProgramData\Microsoft\Windows\Start Menu\Programs", "$env:APPDATA\Microsoft\Windows\Start Menu\Programs")
+      $lnks = Get-ChildItem -LiteralPath $menus -Filter *.lnk -Recurse -ErrorAction SilentlyContinue
+      $sh = New-Object -ComObject WScript.Shell
+      foreach ($n in $names) {
+        if ($n.Length -lt 3) { continue }
+        foreach ($l in ($lnks | Where-Object { $_.BaseName -like "*$n*" } | Select-Object -First 3)) {
+          $t = $sh.CreateShortcut($l.FullName).TargetPath
+          if ($t -and (Test-Path -LiteralPath $t) -and $t -notmatch 'Update\.exe$') { $path = $t; break }
+        }
+        if ($path) { break }
+      }
+    }
+    if (-not $path) { return $null }
+    $png = [PdIcon]::Png($path, 96)
     if (-not $png) { return $null }
     $desc = ""
-    try { $desc = "" + [Diagnostics.FileVersionInfo]::GetVersionInfo($p.Path).FileDescription } catch { }
-    return @{ png = [Convert]::ToBase64String($png); name = $desc.Trim(); game = ($p.Path -match $GameDirs) }
+    try { $desc = "" + [Diagnostics.FileVersionInfo]::GetVersionInfo($path).FileDescription } catch { }
+    return @{ png = [Convert]::ToBase64String($png); name = $desc.Trim(); game = ($path -match $GameDirs) }
   } catch { Log "icon lookup failed for ${aumid}: $($_.Exception.Message)"; return $null }
 }
 

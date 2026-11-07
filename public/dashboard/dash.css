@@ -342,3 +342,19 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 button { transition: transform .12s, background-color .15s, border-color .15s, color .15s; }
 button:active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) { .view.on, .view.on > .card, .view.on > .grid > .card, .onboard > * { animation: none !important; } }
+
+/* ---------------------------------------------------------------- connection (compact) */
+.phones { display: flex; flex-direction: column; gap: 8px; }
+.phone-row { display: flex; align-items: center; gap: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.phone-row .pr-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.phone-row small { color: var(--fg3); }
+.pr-stat { min-width: 56px; text-align: right; color: var(--fg2); font-variant-numeric: tabular-nums; font-size: 13px; }
+details.more { border-top: 1px solid var(--line); padding-top: 10px; }
+details.more > summary { cursor: pointer; color: var(--fg2); font-size: 13px; font-weight: 600; list-style: none; }
+details.more > summary::before { content: "\203A"; display: inline-block; margin-right: 8px; transition: transform .15s; }
+details.more[open] > summary::before { transform: rotate(90deg); }
+details.more > :not(summary) { margin-top: 10px; }
+ol.steps { margin: 0; padding-left: 18px; color: var(--fg2); display: flex; flex-direction: column; gap: 6px; }
+.row2 { display: flex; gap: 12px; }
+.row2 .field { flex: 1; min-width: 0; }
+.row2 input { width: 100%; }

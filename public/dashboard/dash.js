@@ -562,13 +562,21 @@
       : '<p class="small muted">This PC isn\'t on a network right now. Use USB instead.</p>';
     if ($('cn-urls').innerHTML !== html) $('cn-urls').innerHTML = html;
 
+    // Phones that are connected right now (any way: USB, Wi-Fi, charger)
+    const ph = s.clients || [];
+    setText($('cn-count'), ph.length ? ph.length + ' connected' : 'None');
+    $('cn-count').className = 'badge' + (ph.length ? ' usb' : '');
+    const phtml = ph.length ? ph.map((c) => `<div class="phone-row"><span class="dot ok"></span><div class="pr-main"><b>${esc(c.device)}</b><small>Showing ${esc(SCREEN_NAMES[c.screen] || 'PhoneDesk')}</small></div><span class="badge${c.via === 'USB' ? ' usb' : ''}">${esc(c.via)}</span><span class="pr-stat">${c.rtt != null ? c.rtt + ' ms' : '–'}</span><span class="pr-stat">${c.battery ? c.battery.level + '%' + (c.battery.charging ? ' ⚡' : '') : '–'}</span><button class="btn sm" data-identify="${c.id}">Identify</button></div>`).join('')
+      : '<p class="small muted">No phone yet. Scan the code below, or plug one in.</p>';
+    if ($('cn-phones').innerHTML !== phtml) $('cn-phones').innerHTML = phtml;
+
     const a = s.adb;
     $('cn-adb-install').hidden = a.found || a.installing;
     $('cn-usb-connect').disabled = !a.found || !a.devices.some((d) => d.reversed);
     let usb;
     if (a.installing) usb = '<div class="dev"><span class="dot warn"></span>Downloading ADB…</div>';
     else if (!a.found) usb = '<div class="dev"><span class="dot"></span>ADB isn\'t installed yet. Download it to use USB.</div>';
-    else if (!a.devices.length) usb = '<div class="dev"><span class="dot"></span>No phone plugged in</div>';
+    else if (!a.devices.length) usb = '<div class="dev"><span class="dot"></span>No cable-linked phone</div>';
     else usb = a.devices.map((d) => {
       const st = d.state === 'device' ? (d.reversed ? ['ok', 'Linked'] : ['warn', 'Linking…']) : d.state === 'unauthorized' ? ['warn', 'Accept the prompt on the phone'] : ['', d.state];
       return `<div class="dev"><span class="dot ${st[0]}"></span>${esc(d.model)}<span class="badge${d.via === 'USB' ? ' usb' : ''}">${esc(d.via || 'USB')}</span><small>${st[1]}</small></div>`;
@@ -576,6 +584,10 @@
     if ($('cn-usb').innerHTML !== usb) $('cn-usb').innerHTML = usb;
     setText($('cn-bridge-info'), s.bridge.ready ? 'Running' + (s.bridge.restarts ? ` · restarted ${s.bridge.restarts}×` : '') : 'Starting…');
   }
+  $('cn-phones').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-identify]');
+    if (b) api(`phones/${b.dataset.identify}/identify`, {}).catch((er) => toast(er.message));
+  });
   function renderConnectionSettings() {
     const c = state.config;
     $('cn-autousb').checked = c.autoUsb;

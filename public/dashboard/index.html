@@ -241,65 +241,79 @@
 
     <!-- =============================== CONNECTION =============================== -->
     <section class="view" id="v-connection" aria-label="Connection">
-      <div class="head"><div><h1>Connection</h1><p>Two ways to connect a phone. USB is the fastest and keeps the screen awake.</p></div></div>
+      <div class="head"><div><h1>Connection</h1><p>Phones and online services.</p></div></div>
+
+      <section class="card" aria-label="Phones">
+        <div class="card-head"><h3>Your phones</h3><span class="badge" id="cn-count">None</span></div>
+        <div class="phones" id="cn-phones"></div>
+      </section>
+
       <div class="grid">
-        <section class="card" aria-label="Wi-Fi">
-          <div class="card-head"><h3>Over Wi-Fi</h3><span class="badge">Same network</span></div>
+        <section class="card" aria-label="Connect a phone">
+          <div class="card-head"><h3>Connect a phone</h3></div>
           <div class="addr">
             <div class="qr lg"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
             <div class="addr-body">
+              <div class="small muted">Scan, or open on the phone</div>
               <div class="big name-url">phonedesk.local</div>
-              <p class="small muted">Open this in the phone's browser. It keeps working when the PC's IP changes.</p>
-              <button class="btn sm copy-url" style="align-self:flex-start">Copy link</button>
+              <div class="row"><button class="btn sm copy-url">Copy link</button></div>
             </div>
           </div>
-          <div class="sep"></div>
-          <h2 class="label">If the name doesn't work, use an address</h2>
-          <div class="urls" id="cn-urls"></div>
+          <details class="more">
+            <summary>Name not working?</summary>
+            <div class="urls" id="cn-urls"></div>
+          </details>
         </section>
+
         <section class="card" aria-label="USB">
-          <div class="card-head"><h3>Over USB</h3><span class="badge usb">Fastest</span></div>
-          <p class="small muted">On the phone: Settings → About phone → tap <i>Build number</i> 7 times, then Developer options → turn on <b>USB debugging</b>. Plug it in and accept the prompt.</p>
+          <div class="card-head"><h3>USB and cable-free</h3><span class="badge usb">Optional</span></div>
           <div class="urls" id="cn-usb"></div>
-          <div class="row"><button class="btn" id="cn-usb-connect">Open PhoneDesk on the phone</button><button class="btn" id="cn-adb-install" hidden>Download ADB (≈7 MB)</button></div>
-          <label class="toggle-row">Link phones automatically (USB and Wi-Fi)<span class="switch"><input type="checkbox" id="cn-autousb"><span></span></span></label>
+          <div class="row"><button class="btn" id="cn-usb-connect">Open on phone</button><button class="btn" id="cn-adb-install" hidden>Download ADB (≈7 MB)</button></div>
+          <label class="toggle-row">Link phones automatically<span class="switch"><input type="checkbox" id="cn-autousb"><span></span></span></label>
+          <details class="more">
+            <summary>How to set it up</summary>
+            <ol class="small steps">
+              <li>Phone: Settings → About phone → tap <i>Build number</i> 7 times.</li>
+              <li>Developer options → turn on <b>USB debugging</b>, plug in, accept the prompt.</li>
+              <li>No cable later? Turn on <b>Wireless debugging</b> too. PhoneDesk links over Wi-Fi by itself.</li>
+            </ol>
+          </details>
         </section>
-        <section class="card" aria-label="Phone on a charger">
-          <div class="card-head"><h3>Phone on a charger, no cable to the PC?</h3><span class="badge">Optional</span></div>
-          <p class="small muted">Link it over Wi-Fi so PhoneDesk can show its battery, keep its screen on, and reopen PhoneDesk on it after it restarts.</p>
-          <ol class="small" style="margin:0;padding-left:18px;color:var(--fg2);display:flex;flex-direction:column;gap:6px">
-            <li>On the phone: Developer options → turn on <b>ADB over network</b> (LineageOS) or <b>Wireless debugging</b>.</li>
-            <li>Open PhoneDesk on the phone over Wi-Fi. The PC links to it by itself.</li>
-            <li>The first time, accept the "Allow debugging" prompt on the phone and tick <i>Always allow</i>.</li>
-          </ol>
-          <p class="small muted">Already set up once: the screen stays on whenever the phone is charging (Developer options → Stay awake).</p>
-        </section>
+
         <section class="card" aria-label="Spotify">
           <div class="card-head"><h3>Spotify</h3><span class="badge" id="sp-badge">Not connected</span></div>
-          <p class="small muted">Shows what's up next and adds a ♥ button on the phone to save songs to your Liked Songs.</p>
+          <p class="small muted">Up next and a ♥ button on the phone.</p>
           <div id="sp-setup">
-            <ol class="small" style="margin:0 0 10px;padding-left:18px;color:var(--fg2);display:flex;flex-direction:column;gap:6px">
-              <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>, sign in and choose <b>Create app</b> (any name).</li>
-              <li>Under <b>Redirect URIs</b> add <span class="mono" id="sp-redirect">http://127.0.0.1:8765/spotify/callback</span> <button class="btn sm ghost" id="sp-copy">Copy</button>, tick <b>Web API</b>, and save.</li>
-              <li>Paste the app's <b>Client ID</b> here:</li>
-            </ol>
-            <div class="row"><input type="text" id="sp-id" placeholder="Client ID (32 letters and numbers)" maxlength="32" style="flex:1;min-width:200px" class="mono"></div>
+            <details class="more">
+              <summary>How to connect</summary>
+              <ol class="small steps">
+                <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> → <b>Create app</b>.</li>
+                <li>Add Redirect URI <span class="mono" id="sp-redirect">http://127.0.0.1:8765/spotify/callback</span> <button class="btn sm ghost" id="sp-copy">Copy</button> and tick <b>Web API</b>.</li>
+                <li>Paste the <b>Client ID</b> below.</li>
+              </ol>
+            </details>
+            <div class="row" style="margin-top:10px"><input type="text" id="sp-id" placeholder="Client ID" maxlength="32" style="flex:1;min-width:160px" class="mono"></div>
           </div>
           <div class="row"><button class="btn primary" id="sp-connect">Connect Spotify</button><button class="btn" id="sp-disconnect" hidden>Disconnect</button><span class="small muted" id="sp-state"></span></div>
         </section>
+
         <section class="card" aria-label="Updates">
           <div class="card-head"><h3>Updates</h3><span class="badge" id="up-badge">–</span></div>
           <p class="small muted" id="up-text">Checking…</p>
           <div class="row"><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div>
-          <label class="toggle-row">Check for updates automatically<span class="switch"><input type="checkbox" id="up-auto"><span></span></span></label>
-          <label class="field">Release source (GitHub owner/repository)<input type="text" id="up-repo" placeholder="owner/phonedesk" maxlength="100" class="mono"><span class="hint">PhoneDesk updates from this repository's latest GitHub release. Leave blank to turn updates off.</span></label>
+          <label class="toggle-row">Check automatically<span class="switch"><input type="checkbox" id="up-auto"><span></span></span></label>
+          <label class="field">GitHub repository<input type="text" id="up-repo" placeholder="owner/phonedesk" maxlength="100" class="mono"></label>
         </section>
+
         <section class="card" aria-label="Advanced">
           <h3>Advanced</h3>
-          <label class="field">Port<input type="number" id="cn-port" min="1024" max="65535" style="width:140px"><span class="hint">Takes effect after you restart PhoneDesk.</span></label>
-          <label class="field">Name on the network<input type="text" id="cn-name" maxlength="40" style="width:220px"><span class="hint">Phones open <span class="mono" id="cn-name-ex">phonedesk.local</span>. Change it if you have two PCs. Restart to apply.</span></label>
+          <div class="row2">
+            <label class="field">Port<input type="number" id="cn-port" min="1024" max="65535"></label>
+            <label class="field">Network name<input type="text" id="cn-name" maxlength="40"></label>
+          </div>
+          <p class="small muted">Phones open <span class="mono" id="cn-name-ex">phonedesk.local</span>. Name and port apply after a restart.</p>
           <div class="row"><button class="btn" id="cn-bridge">Restart media bridge</button><span class="small muted" id="cn-bridge-info"></span></div>
-          <div class="row"><button class="btn" id="cn-onboard">Run first-time setup again</button></div>
+          <div class="row"><button class="btn ghost" id="cn-onboard">Run setup again</button></div>
         </section>
       </div>
     </section>
