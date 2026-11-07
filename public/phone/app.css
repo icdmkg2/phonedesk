@@ -548,3 +548,20 @@ body.ly-kinetic.ly-dark #s-lyrics .ly-head { color: rgba(255, 255, 255, .45); }
 .kfx .tn.later { opacity: 0; transition: opacity .3s .7s; }
 .kfx.draw .tn.later { opacity: 1; }
 .kfx.fade { opacity: 0; transition: opacity 1.4s ease; }
+
+/* ---------------------------------------------------------------- right-to-left text (Hebrew, Arabic) */
+.title, .artist, .upnext b, .ly-head, .nb-title, .nb-body, .mx-name { unicode-bidi: plaintext; text-align: start; }
+.title, .artist { width: 100%; }
+body { --lf: "Noto Serif", Georgia, "Times New Roman", "Noto Serif Hebrew", "David", serif; }
+body[data-lf="sans"] { --lf: Inter, Roboto, "Segoe UI", "Noto Sans Hebrew", Arial, system-ui, sans-serif; }
+body[data-lf="condensed"] { --lf: "Roboto Condensed", "sans-serif-condensed", "Arial Narrow", "Noto Sans Hebrew", "Segoe UI", sans-serif; }
+body[data-lf="mono"] { --lf: "Roboto Mono", "Droid Sans Mono", Consolas, "Miriam Fixed", "Courier New", monospace; }
+body[data-lf="script"] { --lf: "Dancing Script", "Segoe Script", "Brush Script MT", "Noto Sans Hebrew", cursive; }
+/* alignment follows the reading direction */
+.kl.a-1 { text-align: start; }
+.kl.a-2 { text-align: end; }
+.kl.rtl { letter-spacing: 0; font-style: normal; }
+.kl.rtl .w { background-image: linear-gradient(270deg, var(--ink) 0, var(--ink) 50%, var(--ghost) 50%, var(--ghost) 100%); background-position: 0 0; }
+.kl.rtl .w.in, .kl.rtl.echo .w { background-position: 100% 0; }
+.kl.rtl .w.em { margin: 0 .04em; }
+.ly-line[dir="rtl"] { letter-spacing: 0; }

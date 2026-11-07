@@ -916,6 +916,7 @@
     d.lines.forEach(function (l) {
       var div = document.createElement('div');
       div.className = 'ly-line' + (l.text ? '' : ' gap');
+      if (isRtl(l.text)) div.dir = 'rtl';
       if (l.text) {
         var words = l.text.split(/\s+/), total = 0, acc = 0, spans = [], wf = [];
         words.forEach(function (w) { total += w.length + 1; });
@@ -1008,6 +1009,7 @@
     var sig = mode + '|' + font + '|' + (state.config.lyricsLines || 'off');
     if (on !== had || !on || sig !== kinSig) { kinSig = sig; kinIdx = -2; kinEl = null; kinEcho = null; $('ly-kin').textContent = ''; lyrIndex = -2; }
   }
+  function isRtl(t) { return /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F]/.test(t || ''); }
   function kinRnd(a, b) { return a + Math.random() * (b - a); }
   function kinPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function kinDrop(el, ms) { if (!el) return; el.classList.add('out'); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, ms); }
@@ -1144,6 +1146,7 @@
     var sung = Math.min(gap, Math.max(1.1, len * 0.085)), cps = len / sung;
     var mood = cps > 14 ? 'hot' : cps < 8 ? 'calm' : 'mid';
     var words = ln.text.split(/\s+/);
+    var rtl = isRtl(ln.text);
 
     // Random ragged rows of 1 to 3 words (never a lone word at the end)
     var rows = [], k = 0;
@@ -1154,7 +1157,7 @@
     }
     // One or two emphasis words, chosen among the longer ones
     var cand = [];
-    words.forEach(function (x, q) { var c = x.replace(/[^\p{L}\p{N}]/gu, '').length; if (c >= 4) cand.push({ q: q, c: c }); });
+    words.forEach(function (x, q) { var c = x.replace(/[^\p{L}\p{N}]/gu, '').length; if (c >= (rtl ? 3 : 4)) cand.push({ q: q, c: c }); });
     cand.sort(function (a, b) { return b.c - a.c + (Math.random() - 0.5) * 2; });
     var ems = {};
     if (cand.length) ems[cand[0].q] = kinRnd(1.4, 1.95);
@@ -1170,7 +1173,8 @@
     fs = Math.max(h * 0.09, Math.min(h * (mood === 'hot' ? 0.2 : 0.21), fs)) * kinRnd(0.9, 1.1);
 
     var el = document.createElement('div');
-    el.className = 'kl m-' + mood + ' a-' + align + (Math.random() < 0.14 ? ' it' : '');
+    el.className = 'kl m-' + mood + ' a-' + align + (rtl ? ' rtl' : (Math.random() < 0.14 ? ' it' : ''));
+    if (rtl) el.dir = 'rtl';
     el.style.fontSize = fs.toFixed(1) + 'px';
     el.style.fontWeight = kinPick(mood === 'hot' ? [700, 800] : [500, 600, 600, 700]);
     el.style.setProperty('--tilt', tilt.toFixed(1) + 'deg');
