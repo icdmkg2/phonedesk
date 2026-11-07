@@ -223,6 +223,7 @@
   function renderMedia() {
     var m = state.media;
     toggle(document.body, 'idle', !m.active);
+    toggle(document.body, 'paused', !!m.active && m.status !== 'Playing');
     if (!m.active) {
       setText(el.title, 'Nothing playing');
       setText(el.artist, 'Play something on your PC');

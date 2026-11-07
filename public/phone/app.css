@@ -572,3 +572,38 @@ body.ly-open .ly-nudge, body.scr-lyrics .ly-nudge { display: flex; }
 .ly-nudge button { padding: 8px 14px; border-radius: 17px; background: rgba(127, 127, 127, .2); color: var(--fg); font-size: 13px; font-weight: 700; }
 .ly-nudge button:active { transform: scale(.94); }
 body.ly-kinetic:not(.ly-dark).ly-ready .ly-nudge button, body.ly-kinetic:not(.ly-dark).scr-lyrics .ly-nudge button { background: rgba(20, 30, 28, .1); color: #1a2523; }
+
+/* ---------------------------------------------------------------- Immersive layout: album card
+   Big cover; the title sits level with the top of the cover and the controls level with its bottom.
+   Progress is one row with the times at each end; volume shares the controls row. */
+body.ns-imm { --art: min(calc(var(--ah) - 112px), calc(var(--aw) * .34)); }
+body.ns-imm .media { align-items: center; gap: calc(var(--aw) * .045); padding: 50px 44px 46px; }
+body.ns-imm .art-wrap {
+  width: var(--art); height: var(--art); align-self: center; border-radius: 20px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .5); transition: transform .55s cubic-bezier(.2, .8, .2, 1);
+}
+body.ns-imm.paused .art-wrap { transform: scale(.93); }
+body.ns-imm .info {
+  align-self: center; height: var(--art); display: grid; align-content: stretch;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 220px); grid-template-rows: 1fr auto auto;
+  grid-template-areas: "meta meta" "prog prog" "ctrl vol"; row-gap: 12px; column-gap: 24px;
+}
+body.ns-imm .meta { grid-area: meta; align-self: start; min-width: 0; }
+body.ns-imm .title { font-size: clamp(24px, calc(var(--art) * .17), 46px); line-height: 1.06; letter-spacing: -.02em; }
+body.ns-imm .artist { font-size: clamp(14px, calc(var(--art) * .075), 21px); margin-top: 8px; }
+body.ns-imm .upnext { margin-top: 10px; }
+body.ns-imm .progress { grid-area: prog; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 0; }
+body.ns-imm .progress .times { display: contents; }
+body.ns-imm .progress .times span { font-size: 12px; color: var(--fg3); font-variant-numeric: tabular-nums; min-width: 32px; }
+body.ns-imm .progress .times span:first-child { grid-column: 1; grid-row: 1; text-align: left; }
+body.ns-imm .progress .track { grid-column: 2; grid-row: 1; }
+body.ns-imm .progress .times span:last-child { grid-column: 3; grid-row: 1; text-align: right; }
+body.ns-imm .controls { grid-area: ctrl; justify-content: flex-start; gap: 8px; margin-left: -6px; }
+body.ns-imm .volume { grid-area: vol; align-self: center; max-width: none; }
+/* one edge for everything, whatever the language (each text still reads in its own direction) */
+.title, .artist { text-align: left; }
+body.ns-imm .info { grid-template-columns: auto minmax(90px, 1fr); }
+body.ns-imm .controls .btn { flex: none; }
+body.ns-imm .volume { min-width: 0; }
+body.ns-imm .vnum { display: none; }
+body.ns-imm .controls { gap: 6px; }
