@@ -1044,7 +1044,7 @@
   // Optional connecting lines: a dot under each word and a line that draws from word to word as they are sung.
   function kinConnect(el, kd, spans, fs) {
     var style = state.config.lyricsLines || 'off';
-    if (style === 'off' || spans.length < 2) return;
+    if ((style !== 'curve' && style !== 'straight') || spans.length < 2) return;
     var NS = 'http://www.w3.org/2000/svg';
     var svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('class', 'kc');
@@ -1081,6 +1081,98 @@
     el._segs = segs; el._dots = dots;
   }
 
+  // "Glass" lines, after the Lyric Speaker's look: thin hairlines sweeping across the screen, a map of tiny words joined
+  // by dotted lines in the free space, and a bold slanted slash that travels along the line as it is sung.
+  var kinFxEl = null;
+  function kinFxClear() {
+    if (!kinFxEl) return;
+    var o = kinFxEl; kinFxEl = null;
+    o.classList.add('out');
+    setTimeout(function () { if (o.parentNode) o.parentNode.removeChild(o); }, 700);
+  }
+  function kinFx(el, stage, sung, words, fs) {
+    kinFxClear();
+    if ((state.config.lyricsLines || 'off') !== 'glass') return;
+    var NS = 'http://www.w3.org/2000/svg', sw = stage.clientWidth, sh = stage.clientHeight;
+    var sr = stage.getBoundingClientRect(), rows = el.querySelectorAll('.kr'), l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+    for (var i = 0; i < rows.length; i++) {
+      var q = rows[i].getBoundingClientRect();
+      l = Math.min(l, q.left - sr.left); t = Math.min(t, q.top - sr.top); r = Math.max(r, q.right - sr.left); b = Math.max(b, q.bottom - sr.top);
+    }
+    var fx = document.createElement('div'); fx.className = 'kfx';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', sw); svg.setAttribute('height', sh);
+    fx.appendChild(svg);
+    var draws = [];
+
+    // 1) thin hairlines from edge to edge
+    var nH = 2 + (Math.random() < 0.5 ? 1 : 0);
+    for (var h = 0; h < nH; h++) {
+      var top2bot = Math.random() < 0.5, ax = kinRnd(-0.05, 0.55) * sw, bx = kinRnd(0.45, 1.05) * sw;
+      var x1 = Math.random() < 0.5 ? ax : 0, y1 = x1 === 0 ? kinRnd(0, sh) : (top2bot ? 0 : sh);
+      var x2 = Math.random() < 0.5 ? bx : sw, y2 = x2 === sw ? kinRnd(0, sh) : (top2bot ? sh : 0);
+      var len = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+      var ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', x1.toFixed(1)); ln.setAttribute('y1', y1.toFixed(1)); ln.setAttribute('x2', x2.toFixed(1)); ln.setAttribute('y2', y2.toFixed(1));
+      ln.setAttribute('class', 'kh'); ln.style.setProperty('--len', len.toFixed(0)); ln.style.setProperty('--dl', kinRnd(0, 0.5).toFixed(2) + 's');
+      svg.appendChild(ln); draws.push(ln);
+    }
+
+    // 2) word map: tiny upper-case copies of the words in free space, joined by dotted lines
+    var uniq = [];
+    words.forEach(function (x) { var u = x.replace(/[^\p{L}\p{N}']/gu, '').toUpperCase(); if (u.length > 1 && uniq.indexOf(u) < 0) uniq.push(u); });
+    uniq.sort(function () { return Math.random() - 0.5; });
+    var nodes = [], tsz = Math.max(8, Math.min(13, fs * 0.2)), pad = 14;
+    for (var n = 0; n < Math.min(7, uniq.length); n++) {
+      var w2 = uniq[n].length * tsz * 0.62 + 8, h2 = tsz + 6;
+      for (var tries = 0; tries < 40; tries++) {
+        var px = kinRnd(10, sw - w2 - 10), py = kinRnd(10 + tsz, sh - 12);
+        var hitsText = px < r + pad && px + w2 > l - pad && py - h2 < b + pad && py > t - pad;
+        var hitsNode = nodes.some(function (o) { return Math.abs(o.x - px) < o.w + 8 && Math.abs(o.y - py) < 22; });
+        if (!hitsText && !hitsNode) { nodes.push({ x: px, y: py, w: w2, label: uniq[n] }); break; }
+      }
+    }
+    var segs = [], marks = [];
+    if (nodes.length >= 2) {
+      var order = nodes.slice();
+      var link = function (a, c) {
+        var g = document.createElementNS(NS, 'line');
+        g.setAttribute('x1', (a.x + a.w / 2).toFixed(1)); g.setAttribute('y1', (a.y - tsz / 2).toFixed(1));
+        g.setAttribute('x2', (c.x + c.w / 2).toFixed(1)); g.setAttribute('y2', (c.y - tsz / 2).toFixed(1));
+        g.setAttribute('class', 'kg'); svg.appendChild(g); segs.push(g);
+      };
+      for (var k = 0; k < order.length - 1; k++) link(order[k], order[k + 1]);
+      if (order.length > 3) link(order[0], order[order.length - 1]);
+      order.forEach(function (o) {
+        var dot = document.createElementNS(NS, 'circle');
+        dot.setAttribute('cx', (o.x + o.w / 2).toFixed(1)); dot.setAttribute('cy', (o.y - tsz / 2).toFixed(1)); dot.setAttribute('r', '2.2'); dot.setAttribute('class', 'kn');
+        var tx = document.createElementNS(NS, 'text');
+        tx.setAttribute('x', (o.x + o.w / 2).toFixed(1)); tx.setAttribute('y', (o.y + tsz * 0.55).toFixed(1)); tx.setAttribute('text-anchor', 'middle');
+        tx.setAttribute('class', 'kt'); tx.style.fontSize = tsz.toFixed(1) + 'px'; tx.textContent = o.label;
+        svg.appendChild(dot); svg.appendChild(tx); marks.push(dot, tx);
+      });
+    }
+
+    // 3) the slash: a bold slanted bar that rides along the line as it is sung
+    var sl = document.createElement('div');
+    sl.className = 'kslash';
+    var bh = Math.max(fs * 1.1, b - t + fs * 0.3);
+    sl.style.cssText = 'left:' + (l - fs * 0.35).toFixed(1) + 'px;top:' + (t - fs * 0.12).toFixed(1) + 'px;height:' + bh.toFixed(1) + 'px;width:' + (fs * 0.26).toFixed(1) + 'px;';
+    sl.style.setProperty('--sd', Math.max(0.5, sung).toFixed(2) + 's');
+    fx.appendChild(sl);
+
+    stage.insertBefore(fx, stage.firstChild);
+    kinFxEl = fx;
+    fx._segs = segs; fx._marks = marks;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        draws.forEach(function (d) { d.classList.add('draw'); });
+        sl.style.transform = 'translateX(' + (r - l + fs * 0.7).toFixed(1) + 'px) skewX(-22deg)';
+        setTimeout(function () { sl.style.opacity = '0'; }, Math.max(500, sung * 1000));
+      });
+    });
+  }
+
   function kinShow(idx) {
     var L = lyr.lines, ln = L[idx], stage = $('ly-kin');
     // The line that was showing shrinks into a faint echo; the echo before it goes.
@@ -1095,6 +1187,7 @@
       }
     }
     kinGone = false;
+    kinFxClear();
     if (!ln || !ln.text) return;
     var gap = (L[idx + 1] ? L[idx + 1].t : ln.t + 6) - ln.t, len = ln.text.length;
     var sung = Math.min(gap, Math.max(1.1, len * 0.085)), cps = len / sung;
@@ -1160,6 +1253,7 @@
     stage.appendChild(el);
     kinFit(el, stage, fs);
     kinConnect(el, kd, spans, el._fs || fs);
+    kinFx(el, stage, sung, words, el._fs || fs);
     kinEl = el;
   }
   function kinTick(force) {
@@ -1176,13 +1270,18 @@
     for (var q = 0; q < el._wf.length; q++) { if (p >= el._wf[q]) cw = q; else break; }
     if (cw !== el._cur) {
       for (var r = 0; r < el._w.length; r++) el._w[r].classList.toggle('in', r <= cw);
+      if (kinFxEl && kinFxEl._segs) {
+        var fr = (cw + 1) / el._w.length, fs2 = kinFxEl._segs, mk = kinFxEl._marks;
+        for (var g2 = 0; g2 < fs2.length; g2++) fs2[g2].classList.toggle('in', fr >= (g2 + 1) / fs2.length);
+        for (var m2 = 0; m2 < mk.length; m2++) mk[m2].classList.toggle('in', fr >= ((m2 >> 1) + 0.5) / (mk.length / 2));
+      }
       if (el._segs) { for (var s2 = 0; s2 < el._segs.length; s2++) el._segs[s2].classList.toggle('in', cw >= s2 + 1); for (var d2 = 0; d2 < el._dots.length; d2++) el._dots[d2].classList.toggle('in', cw >= d2); }
       el._cur = cw;
     }
     // A long pause before the next line: let the words go and leave the screen quiet.
     var nextT = L[idx + 1] ? L[idx + 1].t : start + 99;
     var gone = pos > start + el._sung + 3.2 && nextT - pos > 2.5;
-    if (gone !== kinGone) { kinGone = gone; toggle(el, 'out', gone); }
+    if (gone !== kinGone) { kinGone = gone; toggle(el, 'out', gone); if (kinFxEl) toggle(kinFxEl, 'out', gone); }
   }
   function lyricsVisible() { return (state.screen === 'lyrics' || document.body.classList.contains('ly-open')) && document.visibilityState === 'visible'; }
   var lyRaf = 0;

@@ -522,3 +522,19 @@ body.ly-kinetic.ly-dark #s-lyrics .ly-head { color: rgba(255, 255, 255, .45); }
 .kc .dot.in { fill: var(--ink); transform: scale(1.15); }
 .kl.echo .segi { stroke-dashoffset: 0; transition: none; }
 .kl.echo .dot { fill: var(--ink); transform: scale(1); transition: none; }
+
+/* ---------------------------------------------------------------- kinetic: glass lines (hairlines, word map, slash) */
+.kfx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; transition: opacity .6s ease; }
+.kfx.out { opacity: 0; }
+.kfx svg { position: absolute; left: 0; top: 0; overflow: hidden; }
+.kh { stroke: var(--ink); stroke-width: 1; opacity: .55; fill: none; stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+  transition: stroke-dashoffset 1.3s cubic-bezier(.2, .7, .2, 1) var(--dl, 0s); }
+.kh.draw { stroke-dashoffset: 0; }
+.kg { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 1.5 4; fill: none; opacity: 0; transition: opacity .5s; }
+.kg.in { opacity: .75; }
+.kn { fill: var(--ink); opacity: 0; transition: opacity .4s; }
+.kn.in { opacity: .85; }
+.kt { fill: var(--ink); font-family: var(--lf); letter-spacing: .09em; opacity: 0; transition: opacity .5s; }
+.kt.in { opacity: .8; }
+.kslash { position: absolute; background: var(--ink); opacity: .92; transform: translateX(0) skewX(-22deg);
+  transition: transform var(--sd, 1s) linear, opacity .5s ease; will-change: transform; }

@@ -86,7 +86,7 @@ function sanitize(c) {
   out.dimAfter = Math.max(0, Math.min(3600, +c.dimAfter || 0));
   out.nowStyle = c.nowStyle === 'classic' ? 'classic' : 'immersive';
   out.lyricsMode = ['scroll', 'kinetic', 'kinetic-dark'].includes(c.lyricsMode) ? c.lyricsMode : 'scroll';
-  out.lyricsLines = ['off', 'curve', 'straight'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
+  out.lyricsLines = ['off', 'curve', 'straight', 'glass'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';
   out.screens = Array.isArray(c.screens) ? c.screens.filter((s) => SCREENS.includes(s)) : DEFAULTS.screens.slice();
   if (!out.screens.length) out.screens = ['media'];
