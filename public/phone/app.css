@@ -629,3 +629,29 @@ body[data-lf="sans"] { --lf: "PD Hebrew Sans", Inter, Roboto, "Segoe UI", system
 body[data-lf="condensed"] { --lf: "PD Hebrew Sans", "Roboto Condensed", "sans-serif-condensed", "Arial Narrow", "Segoe UI", sans-serif; }
 body[data-lf="mono"] { --lf: "PD Hebrew Round", "Roboto Mono", "Droid Sans Mono", Consolas, monospace; }
 body[data-lf="script"] { --lf: "PD Hebrew Round", "Dancing Script", "Segoe Script", "Brush Script MT", cursive; }
+
+/* ---------------------------------------------------------------- scrolling lyrics: cover column */
+.ly-side { display: none; }
+body:not(.ly-kinetic) #s-lyrics { --sidew: min(calc(var(--ah) * .5), calc(var(--aw) * .25)); }
+body:not(.ly-kinetic) .ly-side {
+  display: flex; position: absolute; left: 10px; top: 0; bottom: 0; width: var(--sidew); z-index: 2;
+  flex-direction: column; justify-content: center; gap: 4px; padding-bottom: 44px;
+}
+body:not(.ly-kinetic) .ly-side img, body:not(.ly-kinetic) .ly-noart {
+  width: var(--sidew); height: var(--sidew); border-radius: 16px; object-fit: cover; flex: none;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .45); margin-bottom: 10px;
+}
+.ly-side img[hidden], .ly-noart[hidden] { display: none; }
+.ly-noart { display: flex; align-items: center; justify-content: center; background: var(--card); color: var(--fg3); }
+.ly-noart svg { width: 34%; height: 34%; }
+.ly-t { font-size: 16px; font-weight: 700; line-height: 1.2; color: var(--fg); unicode-bidi: plaintext; text-align: left;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ly-a { font-size: 13px; color: var(--fg2); unicode-bidi: plaintext; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ly-est { margin-top: 6px; font-size: 11px; color: var(--fg3); letter-spacing: .03em; }
+.ly-est[hidden] { display: none; }
+body:not(.ly-kinetic) .ly-view, body:not(.ly-kinetic) .ly-msg { margin-left: calc(var(--sidew) + 34px); }
+body:not(.ly-kinetic) .ly-msg { left: 0; }
+body:not(.ly-kinetic) .ly-head { display: none; }
+body:not(.ly-kinetic) .ly-view { margin-top: 24px; }
+body:not(.ly-kinetic) #s-lyrics { --sidew: min(calc(var(--ah) * .44), calc(var(--aw) * .23)); }
+body:not(.ly-kinetic) .ly-side { top: 34px; padding-bottom: 54px; }

@@ -927,6 +927,16 @@
   /* ============================================================ lyrics screen */
   var lyr = null, lyrIndex = -2;
   function setLyrics(d) {
+    // Plain lyrics (no timestamps): spread the lines over the song by their length so they still scroll and light up.
+    // Approximate; the Earlier/Later buttons fine-tune it.
+    if (d && !d.synced && !d.instrumental && d.lines && d.lines.length > 2 && state.media.active && state.media.duration > 30) {
+      var dur = state.media.duration, t0 = Math.min(12, dur * 0.07), t1 = dur * 0.93, tot = 0, acc = 0;
+      var wts = d.lines.map(function (l) { return l.text ? l.text.length + 8 : 6; });
+      wts.forEach(function (x) { tot += x; });
+      d.lines.forEach(function (l, i) { l.t = t0 + (t1 - t0) * acc / tot; acc += wts[i]; });
+      d.synced = true; d.estimated = true;
+    }
+    $('ly-est').hidden = !(d && d.estimated);
     lyr = d;
     lyrIndex = -2;
     syncKinetic();
@@ -965,6 +975,15 @@
   }
   function renderLyricsHead() {
     var m = state.media;
+    var art = m.active && m.art ? pcUrl(m.art) : '', img = $('ly-art');
+    if (img.getAttribute('data-src') !== art) {
+      img.setAttribute('data-src', art);
+      if (art) { img.onload = function () { img.hidden = false; $('ly-noart').hidden = true; }; img.onerror = function () { img.hidden = true; $('ly-noart').hidden = false; }; img.src = art; }
+      else { img.removeAttribute('src'); img.hidden = true; $('ly-noart').hidden = false; }
+    }
+    setText($('ly-t'), m.active ? (m.title || '') : '');
+    setText($('ly-a'), m.active ? (m.artist || '') : '');
+    if (lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
     setText($('ly-song'), m.active ? (m.title || '') + (m.artist ? ' — ' + m.artist : '') : '');
     var ic = m.active ? (m.site === 'youtube' ? VIDEO_ICON : m.appIcon ? '<img src="' + pcUrl(m.appIcon) + '" alt="">' : '') : '';
     if ($('ly-ic').getAttribute('data-ic') !== ic) { $('ly-ic').setAttribute('data-ic', ic); $('ly-ic').innerHTML = ic; }
