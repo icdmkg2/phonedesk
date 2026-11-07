@@ -41,7 +41,7 @@
     media: { active: false },
     volume: { level: 0, muted: false },
     stats: null,
-    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive' },
+    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive', lyricsMode: 'scroll' },
     clockOffset: 0, // PC time - phone time (ms)
     screen: store.get('screen', 'media'),
   };
@@ -669,6 +669,7 @@
   function applyConfig(c) {
     var prevShortcuts = JSON.stringify(state.config.shortcuts), prevScreens = JSON.stringify(state.config.screens) + state.config.nowStyle;
     state.config = c;
+    syncKinetic();
     document.body.classList.toggle('ns-imm', c.nowStyle !== 'classic');
     if (c.nowStyle === 'classic') closeLyrics(true);
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
@@ -900,6 +901,7 @@
   function setLyrics(d) {
     lyr = d;
     lyrIndex = -2;
+    syncKinetic();
     var list = $('ly-list');
     list.style.transform = 'translateY(0)';
     if (!d || !d.lines || !d.lines.length) {
@@ -950,6 +952,7 @@
   function lyricTick(force) {
     if (!lyr || !lyr.lines.length || !lyricsVisible()) return;
     var lines = $('ly-list').children, L = lyr.lines;
+    if (document.body.classList.contains('ly-kinetic')) return kinTick(force);
     if (!lyr.synced) { if (force && lines[0]) $('ly-list').style.transform = 'translateY(0)'; return; }
     var pos = currentPos() + LY_LEAD, idx = lyIndexAt(pos);
     if (idx !== lyrIndex || force) {
@@ -990,6 +993,65 @@
         }
       }
     }
+  }
+  /* ---- Kinetic lyrics (Lyric Speaker style): one big line at a time, words appear as they're sung,
+     and the motion follows the mood of the line (slow and soft, or quick and punchy). ---- */
+  var kinIdx = -2, kinEl = null, kinGone = false;
+  function syncKinetic() {
+    var on = state.config.lyricsMode === 'kinetic' && !!lyr && !!lyr.synced && !!lyr.lines && lyr.lines.length > 0;
+    var had = document.body.classList.contains('ly-kinetic');
+    toggle(document.body, 'ly-kinetic', on);
+    if (on !== had || !on) { kinIdx = -2; kinEl = null; $('ly-kin').textContent = ''; lyrIndex = -2; }
+  }
+  function kinHash(s) { var h = 7; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
+  function kinShow(idx) {
+    var L = lyr.lines, ln = L[idx], stage = $('ly-kin');
+    if (kinEl) { var old = kinEl; old.classList.add('out'); setTimeout(function () { if (old.parentNode) old.parentNode.removeChild(old); }, 520); kinEl = null; }
+    kinGone = false;
+    if (!ln || !ln.text) return;
+    var gap = (L[idx + 1] ? L[idx + 1].t : ln.t + 6) - ln.t, len = ln.text.length;
+    var sung = Math.min(gap, Math.max(1.1, len * 0.085)), cps = len / sung;
+    var mood = cps > 14 ? 'hot' : cps < 8 ? 'calm' : 'mid';
+    var hsh = kinHash(ln.text), align = hsh % 3;
+    var w = stage.clientWidth || 600, h = stage.clientHeight || 260;
+    var fs = Math.sqrt((w * h * 0.32) / (Math.max(6, len) * 0.6 * 1.3));
+    fs = Math.max(h * 0.1, Math.min(h * (mood === 'hot' ? 0.26 : 0.22), fs));
+    var el = document.createElement('div');
+    el.className = 'kl m-' + mood + ' a-' + align;
+    el.style.fontSize = fs.toFixed(1) + 'px';
+    var words = ln.text.split(/\s+/), total = 0, acc = 0, spans = [], wf = [];
+    words.forEach(function (x) { total += x.length + 1; });
+    words.forEach(function (x, k) {
+      var sp = document.createElement('span');
+      sp.className = 'w'; sp.textContent = x;
+      el.appendChild(sp);
+      if (k < words.length - 1) el.appendChild(document.createTextNode(' '));
+      spans.push(sp); wf.push(acc / total); acc += x.length + 1;
+    });
+    el._w = spans; el._wf = wf; el._cur = -2; el._sung = sung;
+    stage.appendChild(el);
+    kinEl = el;
+  }
+  function kinTick(force) {
+    var L = lyr.lines, pos = currentPos() + LY_LEAD, idx = lyIndexAt(pos);
+    if (idx !== kinIdx || force) {
+      if (force && idx === kinIdx && kinEl) { /* same line, just re-measure below */ }
+      kinIdx = idx;
+      kinShow(idx);
+    }
+    var el = kinEl;
+    if (!el || idx < 0) return;
+    var start = L[idx].t, p = Math.max(0, Math.min(1, (pos - start) / el._sung));
+    var cw = -1;
+    for (var q = 0; q < el._wf.length; q++) { if (p >= el._wf[q]) cw = q; else break; }
+    if (cw !== el._cur) {
+      for (var r = 0; r < el._w.length; r++) el._w[r].classList.toggle('in', r <= cw);
+      el._cur = cw;
+    }
+    // A long pause before the next line: let the words go and leave the screen quiet.
+    var nextT = L[idx + 1] ? L[idx + 1].t : start + 99;
+    var gone = pos > start + el._sung + 3.2 && nextT - pos > 2.5;
+    if (gone !== kinGone) { kinGone = gone; toggle(el, 'out', gone); }
   }
   function lyricsVisible() { return (state.screen === 'lyrics' || document.body.classList.contains('ly-open')) && document.visibilityState === 'visible'; }
   var lyRaf = 0;

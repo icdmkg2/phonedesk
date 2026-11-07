@@ -455,6 +455,7 @@ function publicConfig() {
     screens: c.screens,
     dimAfter: c.dimAfter,
     nowStyle: c.nowStyle,
+    lyricsMode: c.lyricsMode,
     showBattery: c.showBattery,
     weather: c.weather,
     notifications: c.notifications,
