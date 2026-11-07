@@ -216,9 +216,9 @@
       setAppIcon('');
       setArt('');
     } else {
-      setText(el.title, m.title || 'Unknown title');
-      setText(el.artist, m.artist || m.album || '');
-      setText(el.app, (m.game ? 'Game · ' : '') + (m.app || ''));
+      swapText(el.title, m.title || 'Unknown title');
+      swapText(el.artist, m.artist || m.album || '');
+      swapText(el.app, (m.game ? 'Game · ' : '') + (m.app || ''));
       setAppIcon(m.site === 'youtube' ? 'video' : m.appIcon || '');
       setArt(m.art || '');
     }
@@ -246,15 +246,53 @@
     el.appIc.appendChild(img);
   }
 
+  // Same as setText, but replays a small slide-up when the text really changes (not on first paint).
+  var swapReady = false;
+  setTimeout(function () { swapReady = true; }, 1500);
+  function swapText(node, txt) {
+    if (node.textContent === txt) return;
+    node.textContent = txt;
+    if (!swapReady || document.hidden) return;
+    node.classList.remove('swap'); void node.offsetWidth; node.classList.add('swap');
+  }
+
+  // Cover art: the old cover stays until the new one is fully loaded, then the new one fades in over it
+  // (two stacked <img>s). A light sweep runs on the placeholder while loading.
+  var artWrap = el.art.parentNode, artB = el.art.cloneNode(false), artTok = 0, artOld = null;
+  artB.removeAttribute('id'); artWrap.appendChild(artB);
   function setArt(src) {
     if (src === lastArt) return;
     lastArt = src;
-    el.art.classList.remove('ok');
-    if (!src) { el.art.removeAttribute('src'); applyAccent(null); return; }
-    el.art.onload = function () { if (lastArt === src) { el.art.classList.add('ok'); applyAccent(el.art); } };
-    el.art.onerror = function () { el.art.classList.remove('ok'); };
-    el.art.crossOrigin = 'anonymous'; // lets the accent color be read from the picture
-    el.art.src = pcUrl(src);
+    var tok = ++artTok;
+    if (!src) {
+      artWrap.classList.remove('loading');
+      el.art.classList.remove('ok'); artB.classList.remove('ok');
+      applyAccent(null);
+      return;
+    }
+    artWrap.classList.add('loading');
+    var im = new Image();
+    im.crossOrigin = 'anonymous'; // lets the accent color be read from the picture
+    im.onload = function () {
+      if (tok !== artTok) return;
+      artWrap.classList.remove('loading');
+      var front = el.art.classList.contains('ok') ? artB : el.art, back = front === el.art ? artB : el.art;
+      front.src = im.src;
+      front.style.zIndex = 2; back.style.zIndex = 1;
+      front.classList.remove('pop'); void front.offsetWidth;
+      front.classList.add('ok', 'pop');
+      clearTimeout(artOld);
+      artOld = setTimeout(function () { back.classList.remove('ok'); }, 470);
+      if (front !== el.art) { var t = el.art; el.art = artB; artB = t; } // el.art always points at the visible one
+      applyAccent(im);
+    };
+    im.onerror = function () {
+      if (tok !== artTok) return;
+      artWrap.classList.remove('loading');
+      el.art.classList.remove('ok'); artB.classList.remove('ok');
+      applyAccent(null);
+    };
+    im.src = pcUrl(src);
   }
 
   // One CSS transition from "now" to "end of track". The compositor animates it; zero JS per frame.
@@ -418,6 +456,7 @@
     currentTint = key;
     var root = document.documentElement.style;
     root.setProperty('--tint', key);
+    var bg = $('bg'); bg.classList.remove('bgswap'); void bg.offsetWidth; bg.classList.add('bgswap');
     root.setProperty('--accent', 'rgb(' + key + ')');
   }
 
@@ -555,6 +594,8 @@
   function show(name) {
     var list = screens();
     if (list.indexOf(name) < 0) name = list[0];
+    var from = list.indexOf(state.screen), to = list.indexOf(name);
+    $('screens').setAttribute('data-dir', from < 0 || from === to ? 'none' : (to > from ? 'next' : 'prev'));
     state.screen = name;
     store.set('screen', name);
     var secs = document.querySelectorAll('.screen');
@@ -589,6 +630,7 @@
   function step(dir) {
     var list = screens(), i = list.indexOf(state.screen);
     show(list[(i + dir + list.length) % list.length]);
+    $('screens').setAttribute('data-dir', dir > 0 ? 'next' : 'prev'); // wrapping around keeps the swipe direction
   }
 
   // Swipe left/right anywhere (except on sliders) to change screen.
@@ -920,6 +962,7 @@
   $('b-like').addEventListener('click', function () {
     buzz();
     if (state.spotify) { state.spotify.liked = !state.spotify.liked; renderSpotify(); }
+    var lb = $('b-like'); lb.classList.remove('pop'); void lb.offsetWidth; lb.classList.add('pop');
     send({ t: 'like' });
   });
 
@@ -934,19 +977,34 @@
   }
   function nextNotification() {
     var n = nQueue.shift(), el = $('nb');
-    if (!n) { nShowing = false; el.hidden = true; return; }
-    nShowing = true;
-    $('nb-ic').innerHTML = n.icon ? '<img src="' + pcUrl(n.icon) + '" alt="">' : BELL;
-    setText($('nb-app'), n.app || '');
-    setText($('nb-title'), n.title || (n.body ? '' : 'New notification'));
-    setText($('nb-body'), n.body || '');
-    el.hidden = false;
-    el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
-    buzz();
     clearTimeout(nTimer);
-    nTimer = setTimeout(nextNotification, 6000);
+    if (!n) {
+      if (!nShowing) return;
+      // slide out, then hide
+      el.classList.remove('go'); el.classList.add('out');
+      nTimer = setTimeout(function () { el.hidden = true; el.classList.remove('out'); nShowing = false; if (nQueue.length) nextNotification(); }, 230);
+      return;
+    }
+    var show = function () {
+      nShowing = true;
+      $('nb-ic').innerHTML = n.icon ? '<img src="' + pcUrl(n.icon) + '" alt="">' : BELL;
+      setText($('nb-app'), n.app || '');
+      setText($('nb-title'), n.title || (n.body ? '' : 'New notification'));
+      setText($('nb-body'), n.body || '');
+      el.classList.remove('out', 'go');
+      el.hidden = false;
+      el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+      el.classList.add('go');
+      buzz();
+      nTimer = setTimeout(nextNotification, 6000);
+    };
+    if (nShowing && !el.hidden) {
+      // a banner is already up: play its exit, then the next one's entrance
+      el.classList.remove('go'); el.classList.add('out');
+      nTimer = setTimeout(show, 200);
+    } else show();
   }
-  $('nb').addEventListener('click', function (e) { e.stopPropagation(); clearTimeout(nTimer); nextNotification(); });
+  $('nb').addEventListener('click', function (e) { e.stopPropagation(); nextNotification(); });
 
   /* ============================================================ boot */
   renderDots();

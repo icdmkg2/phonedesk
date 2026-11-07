@@ -328,3 +328,17 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .mini-mixer .r i b { position: absolute; left: 0; top: 0; bottom: 0; background: currentColor; }
 .mini-wx { display: flex; align-items: center; gap: 1.2cqw; font-size: 2.4cqw; opacity: .8; margin-top: 1cqw; }
 .mini-wx svg { width: 3.6cqw; height: 3.6cqw; }
+
+/* ---------------------------------------------------------------- motion */
+.view.on { animation: viewin .35s cubic-bezier(.2, .8, .2, 1); }
+.view.on > .card, .view.on > .grid > .card { animation: cardin .45s cubic-bezier(.2, .8, .2, 1) both; }
+.view.on > .card:nth-child(2), .view.on > .grid > .card:nth-child(2) { animation-delay: .04s; }
+.view.on > .card:nth-child(3), .view.on > .grid > .card:nth-child(3) { animation-delay: .08s; }
+.view.on > .card:nth-child(4), .view.on > .grid > .card:nth-child(4) { animation-delay: .12s; }
+@keyframes viewin { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cardin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.onboard:not([hidden]) { animation: viewin .3s ease-out; }
+.onboard:not([hidden]) > * { animation: cardin .45s .05s cubic-bezier(.2, .8, .2, 1) both; }
+button { transition: transform .12s, background-color .15s, border-color .15s, color .15s; }
+button:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { .view.on, .view.on > .card, .view.on > .grid > .card, .onboard > * { animation: none !important; } }

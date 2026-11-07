@@ -62,8 +62,13 @@ body.theme-light #bg { opacity: .55; }
   display: none;
   padding: 14px 22px 30px;
 }
-.screen.on { display: flex; animation: fadein .18s ease-out; }
+.screen.on { display: flex; animation: fadein .2s ease-out; }
+#screens[data-dir="next"] .screen.on { animation: slidenext .32s cubic-bezier(.2, .8, .2, 1); }
+#screens[data-dir="prev"] .screen.on { animation: slideprev .32s cubic-bezier(.2, .8, .2, 1); }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slidenext { from { opacity: 0; transform: translateX(7%); } to { opacity: 1; transform: none; } }
+@keyframes slideprev { from { opacity: 0; transform: translateX(-7%); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #screens .screen.on { animation: fadein .15s linear; } }
 
 /* ---------------------------------------------------------------- media */
 .media { flex: 1; display: flex; align-items: center; gap: calc(var(--aw) * .05); min-width: 0; }
@@ -76,8 +81,21 @@ body.theme-light #bg { opacity: .55; }
 }
 .art-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--fg3); }
 .art-ph svg { width: 34%; height: 34%; }
-.art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s; }
+.art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .45s ease; }
 .art.ok { opacity: 1; }
+.art.pop { animation: artpop .55s cubic-bezier(.2, .8, .2, 1); }
+@keyframes artpop { from { transform: scale(1.06); } to { transform: none; } }
+/* While a new cover loads: a soft light sweep over the placeholder (transform only, cheap). */
+.art-wrap.loading::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .09) 50%, transparent 70%);
+  animation: sweep 1.2s ease-in-out infinite;
+}
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+/* Title, artist and app slide up softly when the track changes. */
+.swap { animation: swapin .4s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes swapin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+#bg.bgswap { animation: fadein .7s ease-out; }
 
 .info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: calc(var(--ah) * .032); }
 .app { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); min-height: 16px; display: flex; align-items: center; gap: 7px; }
@@ -222,6 +240,8 @@ body.fullscreen .fs { display: none; }
 .btn.like[hidden] { display: none; }
 .btn.like.on { color: #1ed760; }
 .btn.like.on path { fill: currentColor; }
+.btn.like.pop { animation: likepop .35s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes likepop { 0% { transform: scale(.7); } 100% { transform: none; } }
 
 /* ---------------------------------------------------------------- lyrics */
 .lyrics { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
@@ -266,12 +286,20 @@ body.fullscreen .fs { display: none; }
 /* ---------------------------------------------------------------- notification banner */
 .nbanner {
   position: fixed; top: 10px; left: 50%; z-index: 13; width: min(560px, calc(var(--aw) - 120px));
-  transform: translate(-50%, 0); display: flex; gap: 12px; align-items: flex-start;
+  transform: translate(-50%, 0); display: flex; gap: 12px; align-items: flex-start; overflow: hidden;
   background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
-  animation: nbin .25s ease-out;
+  animation: nbin .42s cubic-bezier(.2, 1.15, .4, 1) both;
 }
 .nbanner[hidden] { display: none; }
-@keyframes nbin { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.nbanner.out { animation: nbout .22s ease-in both; }
+@keyframes nbin { from { opacity: 0; transform: translate(-50%, -34px) scale(.94); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes nbout { from { opacity: 1; transform: translate(-50%, 0) scale(1); } to { opacity: 0; transform: translate(-50%, -22px) scale(.96); } }
+/* Time-left bar along the bottom edge */
+.nb-time { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); opacity: .7; transform-origin: 0 50%; transform: scaleX(1); }
+.nbanner.go .nb-time { animation: nbtime 6s linear forwards; }
+@keyframes nbtime { to { transform: scaleX(0); } }
+.nbanner .nb-ic { animation: nbic .5s .08s cubic-bezier(.3, 1.5, .5, 1) both; }
+@keyframes nbic { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
 .nb-ic { width: 28px; height: 28px; flex: none; display: flex; align-items: center; justify-content: center; }
 .nb-ic img { width: 28px; height: 28px; object-fit: contain; }
 .nb-ic svg { width: 22px; height: 22px; color: var(--accent); }
