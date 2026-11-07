@@ -1,0 +1,11 @@
+{
+  "name": "PhoneDesk",
+  "short_name": "PhoneDesk",
+  "start_url": "/phone",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0e0f12",
+  "theme_color": "#0e0f12",
+  "icons": [{ "src": "/phone/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

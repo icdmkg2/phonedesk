@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e0f12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>PhoneDesk</title>
+<link rel="manifest" href="/phone/manifest.webmanifest">
+<link rel="icon" href="/phone/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/phone/app.css">
+</head>
+<body class="theme-dark">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4.2" height="14" rx="1.2" fill="currentColor"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 6.2v11.6a.9.9 0 0 0 1.4.75L15 12.75a.9.9 0 0 0 0-1.5L6.4 5.45A.9.9 0 0 0 5 6.2z" fill="currentColor"/><rect x="16.5" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 6.2v11.6a.9.9 0 0 1-1.4.75L9 12.75a.9.9 0 0 1 0-1.5l8.6-5.8A.9.9 0 0 1 19 6.2z" fill="currentColor"/><rect x="4.9" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M4 7h3.5c1.6 0 3 .8 3.9 2.1l2.2 3.3c.9 1.3 2.3 2.1 3.9 2.1H20M4 17h3.5c1.6 0 3-.8 3.9-2.1M14 9.1c.9-1.3 2.1-2.1 3.6-2.1H20M17.5 4.5 20 7l-2.5 2.5M17.5 14.5 20 17l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M5 11V9.5A2.5 2.5 0 0 1 7.5 7H19M16.5 4.5 19 7l-2.5 2.5M19 13v1.5a2.5 2.5 0 0 1-2.5 2.5H5M7.5 19.5 5 17l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.2 3.4a.8.8 0 0 0 1.3-.6V5.7a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z" fill="currentColor"/><path d="M16.5 9a4.2 4.2 0 0 1 0 6M19 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.2 3.4a.8.8 0 0 0 1.3-.6V5.7a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z" fill="currentColor"/><path d="m16.5 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18.5V6.8a1 1 0 0 1 .8-1l8-1.6a1 1 0 0 1 1.2 1v11.3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.5" cy="18.5" r="2.5" fill="currentColor"/><circle cx="16.5" cy="16.5" r="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 20h6M12 16.5V20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2h5.6l1.5 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12.8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 9.5c3-1 6.5-.8 9.2.6M8 12.6c2.5-.7 5.4-.5 7.6.6M8.6 15.5c2-.5 4.2-.3 5.9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.5h16M7 16v-4M11 16V8M15 16v-6M19 16V5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.2l2 2H19a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 3 5.5 13.5h6l-1 7.5 8-10.5h-6z" fill="currentColor"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.2-3.5-8.5S9.6 5.9 12 3.5z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-game" viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 3.9 4.9l-.9 4a2.2 2.2 0 0 1-3.8 1L14.5 16h-5l-1.7 1.9a2.2 2.2 0 0 1-3.8-1l-.9-4A4 4 0 0 1 7 8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 11v3M6.5 12.5h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="15.5" cy="11.5" r="1.1" fill="currentColor"/><circle cx="17.5" cy="13.5" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8.5 7.5-4.5 4.5 4.5 4.5M15.5 7.5l4.5 4.5-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 6.5A2 2 0 0 1 6.5 4.5h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5v-3.5h0a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8M7 6.3a7.5 7.5 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div id="bg" aria-hidden="true"></div>
+
+<main id="screens">
+  <!-- ======================= MEDIA ======================= -->
+  <section class="screen" id="s-media" data-screen="media">
+    <div class="media">
+      <div class="art-wrap">
+        <div class="art-ph"><svg><use href="#i-note"/></svg></div>
+        <img id="art" class="art" alt="" decoding="async">
+      </div>
+      <div class="info">
+        <div class="meta">
+          <div class="app" id="m-app"></div>
+          <div class="title" id="m-title">Nothing playing</div>
+          <div class="artist" id="m-artist">Play something on your PC</div>
+        </div>
+        <div class="progress">
+          <div class="track" id="m-track"><div class="fill" id="m-fill"></div></div>
+          <div class="times"><span id="m-pos">0:00</span><span id="m-dur">0:00</span></div>
+        </div>
+        <div class="controls">
+          <button class="btn sm" id="b-shuffle" aria-label="Shuffle"><svg><use href="#i-shuffle"/></svg></button>
+          <button class="btn" id="b-prev" aria-label="Previous"><svg><use href="#i-prev"/></svg></button>
+          <button class="btn play" id="b-play" aria-label="Play or pause"><svg><use id="b-play-ic" href="#i-play"/></svg></button>
+          <button class="btn" id="b-next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
+          <button class="btn sm" id="b-repeat" aria-label="Repeat"><svg><use href="#i-repeat"/></svg><i class="one">1</i></button>
+        </div>
+        <div class="volume">
+          <button class="btn xs" id="b-mute" aria-label="Mute"><svg><use id="b-mute-ic" href="#i-vol"/></svg></button>
+          <div class="slider" id="v-slider"><div class="fill" id="v-fill"></div><div class="knob" id="v-knob"></div></div>
+          <span class="vnum" id="v-num">0</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CLOCK ======================= -->
+  <section class="screen" id="s-clock" data-screen="clock">
+    <div class="clock" id="clock">
+      <div class="time" id="c-time">--:--</div>
+      <div class="date" id="c-date"></div>
+      <div class="mini" id="c-mini"><svg><use href="#i-note"/></svg><span id="c-mini-t"></span></div>
+    </div>
+  </section>
+
+  <!-- ======================= STATS ======================= -->
+  <section class="screen" id="s-stats" data-screen="stats">
+    <div class="stats">
+      <div class="host" id="st-host">PC</div>
+      <div class="cards">
+        <div class="card">
+          <div class="label">CPU</div>
+          <div class="big"><span id="st-cpu">0</span><small>%</small></div>
+          <div class="bar"><div class="fill" id="st-cpu-f"></div></div>
+          <div class="sub" id="st-cores"></div>
+        </div>
+        <div class="card">
+          <div class="label">Memory</div>
+          <div class="big"><span id="st-mem">0</span><small>%</small></div>
+          <div class="bar"><div class="fill" id="st-mem-f"></div></div>
+          <div class="sub" id="st-mem-s"></div>
+        </div>
+        <div class="card">
+          <div class="label">Volume</div>
+          <div class="big"><span id="st-vol">0</span><small>%</small></div>
+          <div class="bar"><div class="fill" id="st-vol-f"></div></div>
+          <div class="sub" id="st-up"></div>
+        </div>
+      </div>
+      <canvas id="st-graph" class="graph"></canvas>
+    </div>
+  </section>
+
+  <!-- ======================= SHORTCUTS ======================= -->
+  <section class="screen" id="s-shortcuts" data-screen="shortcuts">
+    <div class="pad" id="pad"></div>
+  </section>
+</main>
+
+<nav id="dots" aria-label="Screens"></nav>
+<button id="fs" class="fs" aria-label="Full screen"><svg><use href="#i-expand"/></svg></button>
+
+<div id="offline" class="offline" hidden>
+  <div class="spinner"></div>
+  <div class="o-title">Connecting to your PC…</div>
+  <div class="o-sub" id="o-sub">Make sure PhoneDesk is running on the PC.</div>
+</div>
+<div id="dim" class="dim" hidden></div>
+<div id="toast" class="toast"></div>
+
+<script src="/phone/app.js"></script>
+</body>
+</html>

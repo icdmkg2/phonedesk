@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhoneDesk</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/dashboard/dash.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img src="/favicon.svg" alt="" width="28" height="28">
+    <span>PhoneDesk</span>
+    <span class="ver" id="ver"></span>
+  </div>
+  <div class="health" id="health">
+    <span class="pill" id="h-server"><i></i>Server</span>
+    <span class="pill" id="h-bridge"><i></i>Media bridge</span>
+    <span class="pill" id="h-phones"><i></i><b id="h-phones-n">0</b>&nbsp;<span id="h-phones-w">phones</span></span>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="home" class="on">Home</button>
+  <button data-tab="shortcuts">Shortcuts</button>
+  <button data-tab="settings">Settings</button>
+  <button data-tab="logs">Logs</button>
+</nav>
+
+<main>
+  <!-- ======================= HOME ======================= -->
+  <section class="tab on" id="t-home">
+    <div class="grid">
+      <div class="card connect">
+        <h2>Connect your phone</h2>
+        <div class="connect-body">
+          <div class="qr-box"><img id="qr" alt="QR code to open PhoneDesk on your phone"></div>
+          <div class="connect-steps">
+            <div class="method">
+              <h3>Over Wi-Fi</h3>
+              <p>Scan the code, or open this address in the phone's browser. The phone must be on the same network as the PC.</p>
+              <div class="urls" id="urls"></div>
+            </div>
+            <div class="method">
+              <h3>Over USB <span class="tag">fastest</span></h3>
+              <p id="usb-help">Turn on USB debugging on the phone, plug it in, and accept the prompt. PhoneDesk opens on the phone automatically.</p>
+              <div class="usb" id="usb"></div>
+              <div class="row gap">
+                <button class="btn" id="usb-connect">Connect now</button>
+                <button class="btn ghost" id="usb-install" hidden>Download ADB (≈7 MB)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card np">
+        <h2>Now playing</h2>
+        <div class="np-body">
+          <div class="np-art"><img id="np-art" alt=""></div>
+          <div class="np-info">
+            <div class="np-app" id="np-app"></div>
+            <div class="np-title" id="np-title">Nothing playing</div>
+            <div class="np-artist" id="np-artist"></div>
+            <div class="np-bar"><div id="np-fill"></div></div>
+            <div class="np-ctrl">
+              <button class="ic" data-cmd="prev" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M19 6.2v11.6a.9.9 0 0 1-1.4.75L9 12.75a.9.9 0 0 1 0-1.5l8.6-5.8A.9.9 0 0 1 19 6.2z" fill="currentColor"/><rect x="4.9" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></svg></button>
+              <button class="ic main" data-cmd="toggle" aria-label="Play or pause"><svg viewBox="0 0 24 24" id="np-play"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></svg></button>
+              <button class="ic" data-cmd="next" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M5 6.2v11.6a.9.9 0 0 0 1.4.75L15 12.75a.9.9 0 0 0 0-1.5L6.4 5.45A.9.9 0 0 0 5 6.2z" fill="currentColor"/><rect x="16.5" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></svg></button>
+              <label class="vol">Volume <input type="range" id="np-vol" min="0" max="100" step="1"><span id="np-vol-n">0</span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card phones">
+        <div class="row between">
+          <h2>Connected phones</h2>
+          <button class="btn ghost sm" id="reload-phones" title="Reload the page on every connected phone">Reload phones</button>
+        </div>
+        <ul class="list" id="phones"></ul>
+      </div>
+
+      <div class="card tips">
+        <h2>Making an old phone feel fast</h2>
+        <ul class="tiplist">
+          <li><b>Use USB when you can.</b> It's faster than Wi-Fi and keeps the screen awake by itself.</li>
+          <li><b>Tap the ⤢ corner button</b> on the phone for full screen, or use <i>Add to Home screen</i> in Chrome.</li>
+          <li><b>Keep the screen on over Wi-Fi:</b> Developer options → <i>Stay awake</i> (while charging).</li>
+          <li><b>Close other apps on the phone</b> and turn off battery saver while it's docked.</li>
+          <li>If the phone gets warm, set <i>Dim after</i> in Settings, or use the Black theme.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= SHORTCUTS ======================= -->
+  <section class="tab" id="t-shortcuts">
+    <div class="card">
+      <div class="row between">
+        <div>
+          <h2>Shortcut buttons</h2>
+          <p class="muted">Buttons on the phone's Shortcuts screen. Each one presses keys, opens a link, or starts an app on this PC.</p>
+        </div>
+        <div class="row gap">
+          <button class="btn ghost" id="sc-add">Add button</button>
+          <button class="btn" id="sc-save" disabled>Save</button>
+        </div>
+      </div>
+      <div class="sc-head"><span></span><span>Label</span><span>Action</span><span>What to do</span><span>Icon</span><span>Color</span><span></span></div>
+      <div id="sc-list" class="sc-list"></div>
+      <p class="muted small">Keys: combine with <code>+</code>, e.g. <code>ctrl+shift+m</code>, <code>win+d</code>, <code>alt+f4</code>, <code>f5</code>, <code>medianext</code>.
+        Link: a web address or app link like <code>spotify:</code> / <code>discord://</code>. App: a full path like <code>C:\Program Files\App\app.exe</code>.</p>
+    </div>
+  </section>
+
+  <!-- ======================= SETTINGS ======================= -->
+  <section class="tab" id="t-settings">
+    <div class="grid">
+      <div class="card">
+        <h2>Phone display</h2>
+        <div class="field">
+          <label>Theme</label>
+          <div class="seg" id="set-theme">
+            <button data-v="dark">Dark</button><button data-v="black">Black</button><button data-v="light">Light</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Accent color</label>
+          <div class="row gap">
+            <div class="seg" id="set-accent-mode"><button data-v="auto">From album art</button><button data-v="fixed">Fixed</button></div>
+            <input type="color" id="set-accent" value="#5b8cff">
+          </div>
+        </div>
+        <div class="field">
+          <label>Clock</label>
+          <div class="seg" id="set-clock"><button data-v="24">24-hour</button><button data-v="12">12-hour</button></div>
+        </div>
+        <div class="field">
+          <label for="set-dim">Dim the screen after no touches</label>
+          <select id="set-dim">
+            <option value="0">Never</option><option value="30">30 seconds</option><option value="60">1 minute</option>
+            <option value="300">5 minutes</option><option value="900">15 minutes</option><option value="1800">30 minutes</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Screens</h2>
+        <p class="muted">Pick which screens the phone shows and their order. Swipe on the phone to move between them.</p>
+        <ul class="screens" id="set-screens"></ul>
+      </div>
+      <div class="card">
+        <h2>Connection</h2>
+        <div class="field">
+          <label class="check"><input type="checkbox" id="set-usb"> Set up USB phones automatically</label>
+          <p class="muted small">Checks for plugged-in phones every few seconds, links them, and opens PhoneDesk on them.</p>
+        </div>
+        <div class="field">
+          <label for="set-port">Port</label>
+          <div class="row gap"><input type="number" id="set-port" min="1024" max="65535"><span class="muted small">Takes effect after you restart PhoneDesk.</span></div>
+        </div>
+        <div class="field">
+          <label>Media bridge</label>
+          <div class="row gap"><button class="btn ghost" id="bridge-restart">Restart media bridge</button><span class="muted small" id="bridge-info"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= LOGS ======================= -->
+  <section class="tab" id="t-logs">
+    <div class="card">
+      <div class="row between"><h2>Logs</h2><button class="btn ghost sm" id="logs-refresh">Refresh</button></div>
+      <pre class="logs" id="logs"></pre>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+<script src="/dashboard/dash.js"></script>
+</body>
+</html>
