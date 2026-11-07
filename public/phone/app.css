@@ -357,3 +357,27 @@ body.ns-imm.ly-open #dots, body.ns-imm.ly-closing #dots { display: none; }
 body.ns-imm.ly-open .ly-close { display: flex; }
 .ly-close { position: absolute; right: 44px; top: 8px; z-index: 3; width: 38px; height: 38px; padding: 8px; align-items: center; justify-content: center; color: var(--fg2); border-radius: 50%; background: rgba(127, 127, 127, .18); }
 body.ns-imm.ly-open .ly-head { padding-left: 84px; }
+
+/* ---- Immersive polish: tidy grid, bigger cover, clock/weather hugging the corner ---- */
+body.ns-imm .media { gap: calc(var(--aw) * .04); padding: 0 40px 36px; }
+body.ns-imm .art-wrap { width: min(calc(var(--ah) * .58), calc(var(--aw) * .28)); height: min(calc(var(--ah) * .58), calc(var(--aw) * .28)); border-radius: 18px; align-self: flex-end; }
+body.ns-imm .info {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 230px); align-content: end; align-self: stretch;
+  grid-template-areas: "meta meta" "ctrl vol" "prog prog"; column-gap: 20px; row-gap: calc(var(--ah) * .035);
+}
+body.ns-imm .meta { grid-area: meta; align-self: end; }
+body.ns-imm .controls { grid-area: ctrl; order: 0; gap: 10px; align-items: center; margin-left: -4px; }
+body.ns-imm .volume { grid-area: vol; order: 0; max-width: none; align-self: center; }
+body.ns-imm .progress { grid-area: prog; order: 0; }
+body.ns-imm #b-shuffle[style*="hidden"] { display: none; }
+body.ns-imm .btn { width: 46px; height: 46px; padding: 11px; }
+body.ns-imm .btn.play { width: 58px; height: 58px; padding: 17px; }
+body.ns-imm .btn.sm { width: 40px; height: 40px; padding: 9px; }
+body.ns-imm .btn.xs { width: 34px; height: 34px; padding: 7px; }
+body.ns-imm .title { font-size: clamp(26px, calc(var(--ah) * .12), 48px); }
+body.ns-imm .np-top { right: 16px; top: 9px; gap: 12px; font-size: 15px; }
+body.ns-imm:not(.fullscreen) .np-top { right: 52px; }
+body.ns-imm .np-top .wx svg { width: 22px; height: 22px; }
+body.ns-imm .app { left: 88px; top: 11px; }
+body.ns-imm .media { padding-bottom: 58px; }
+body.ns-imm .ly-pill { bottom: 12px; right: 24px; }
