@@ -41,7 +41,7 @@
     media: { active: false },
     volume: { level: 0, muted: false },
     stats: null,
-    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive', lyricsMode: 'scroll', lyricsFont: 'serif' },
+    config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive', lyricsMode: 'scroll', lyricsFont: 'serif', lyricsLines: 'off' },
     clockOffset: 0, // PC time - phone time (ms)
     screen: store.get('screen', 'media'),
   };
@@ -1005,7 +1005,7 @@
     toggle(document.body, 'ly-kinetic', on);
     toggle(document.body, 'ly-dark', on && mode === 'kinetic-dark');
     document.body.setAttribute('data-lf', font);
-    var sig = mode + '|' + font;
+    var sig = mode + '|' + font + '|' + (state.config.lyricsLines || 'off');
     if (on !== had || !on || sig !== kinSig) { kinSig = sig; kinIdx = -2; kinEl = null; kinEcho = null; $('ly-kin').textContent = ''; lyrIndex = -2; }
   }
   function kinRnd(a, b) { return a + Math.random() * (b - a); }
@@ -1018,7 +1018,7 @@
     var sw = stage.clientWidth, sh = stage.clientHeight, mx = sw * 0.05, my = sh * 0.07;
     el.style.transition = 'none';
     var box = function () {
-      var sr = stage.getBoundingClientRect(), rows = el.children, l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+      var sr = stage.getBoundingClientRect(), rows = el.querySelectorAll('.kr'), l = 1e9, t = 1e9, r = -1e9, b = -1e9;
       for (var i = 0; i < rows.length; i++) {
         var q = rows[i].getBoundingClientRect();
         l = Math.min(l, q.left - sr.left); t = Math.min(t, q.top - sr.top); r = Math.max(r, q.right - sr.left); b = Math.max(b, q.bottom - sr.top);
@@ -1036,8 +1036,49 @@
     if (f.t < my) dy = my - f.t; else if (f.b > sh - my) dy = (sh - my) - f.b;
     el.style.setProperty('--nx', dx.toFixed(1) + 'px');
     el.style.setProperty('--ny', dy.toFixed(1) + 'px');
+    el._fs = fs;
     void el.offsetWidth;
     el.style.transition = '';
+  }
+
+  // Optional connecting lines: a dot under each word and a line that draws from word to word as they are sung.
+  function kinConnect(el, kd, spans, fs) {
+    var style = state.config.lyricsLines || 'off';
+    if (style === 'off' || spans.length < 2) return;
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'kc');
+    svg.setAttribute('width', kd.offsetWidth); svg.setAttribute('height', kd.offsetHeight);
+    var enter = [], leave = [];
+    spans.forEach(function (sp, k) {
+      var cx = sp.offsetLeft + sp.offsetWidth / 2, bottom = sp.offsetTop + sp.offsetHeight * 0.92 + fs * 0.1;
+      var top = sp.offsetTop + sp.offsetHeight * 0.1 - fs * 0.1;
+      var newRow = k > 0 && sp.parentNode !== spans[k - 1].parentNode;
+      leave.push({ x: cx, y: bottom });
+      enter.push(newRow ? { x: cx, y: top } : { x: cx, y: bottom });
+    });
+    var segs = [], dots = [];
+    for (var k = 0; k < spans.length - 1; k++) {
+      var a = leave[k], b = enter[k + 1], d;
+      if (style === 'straight') d = 'M' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) + ' L' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+      else if (Math.abs(a.y - b.y) < fs * 0.4) {
+        var my = Math.max(a.y, b.y) + fs * 0.32;
+        d = 'M' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) + ' Q' + ((a.x + b.x) / 2).toFixed(1) + ' ' + my.toFixed(1) + ' ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+      } else {
+        var dy = (b.y - a.y) * 0.55;
+        d = 'M' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) + ' C' + a.x.toFixed(1) + ' ' + (a.y + dy).toFixed(1) + ' ' + b.x.toFixed(1) + ' ' + (b.y - dy).toFixed(1) + ' ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+      }
+      var g = document.createElementNS(NS, 'path'); g.setAttribute('d', d); g.setAttribute('class', 'segg');
+      var i = document.createElementNS(NS, 'path'); i.setAttribute('d', d); i.setAttribute('class', 'segi'); i.setAttribute('pathLength', '1');
+      svg.appendChild(g); svg.appendChild(i); segs.push(i);
+    }
+    enter.forEach(function (p) {
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', p.x.toFixed(1)); c.setAttribute('cy', p.y.toFixed(1)); c.setAttribute('r', Math.max(2.4, fs * 0.055).toFixed(1)); c.setAttribute('class', 'dot');
+      svg.appendChild(c); dots.push(c);
+    });
+    kd.appendChild(svg);
+    el._segs = segs; el._dots = dots;
   }
 
   function kinShow(idx) {
@@ -1092,6 +1133,7 @@
     el.style.setProperty('--shift', kinRnd(-12, 12).toFixed(1) + '%');
     el.style.setProperty('--vy', kinRnd(-9, 9).toFixed(1) + '%');
     var spans = [], wf = [], acc = 0, total = 0, wi = 0;
+    var kd = document.createElement('div'); kd.className = 'kd';
     words.forEach(function (x) { total += x.length + 1; });
     rows.forEach(function (r) {
       var row = document.createElement('div');
@@ -1111,11 +1153,13 @@
         if (q < r.length - 1) row.appendChild(document.createTextNode(' '));
         spans.push(sp); wf.push(acc / total); acc += x.length + 1; wi++;
       });
-      el.appendChild(row);
+      kd.appendChild(row);
     });
+    el.appendChild(kd);
     el._w = spans; el._wf = wf; el._cur = -2; el._sung = sung;
     stage.appendChild(el);
     kinFit(el, stage, fs);
+    kinConnect(el, kd, spans, el._fs || fs);
     kinEl = el;
   }
   function kinTick(force) {
@@ -1132,6 +1176,7 @@
     for (var q = 0; q < el._wf.length; q++) { if (p >= el._wf[q]) cw = q; else break; }
     if (cw !== el._cur) {
       for (var r = 0; r < el._w.length; r++) el._w[r].classList.toggle('in', r <= cw);
+      if (el._segs) { for (var s2 = 0; s2 < el._segs.length; s2++) el._segs[s2].classList.toggle('in', cw >= s2 + 1); for (var d2 = 0; d2 < el._dots.length; d2++) el._dots[d2].classList.toggle('in', cw >= d2); }
       el._cur = cw;
     }
     // A long pause before the next line: let the words go and leave the screen quiet.
