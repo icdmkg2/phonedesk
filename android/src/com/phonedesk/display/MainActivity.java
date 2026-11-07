@@ -47,6 +47,12 @@ public class MainActivity extends Activity {
                 | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            // Draw behind the camera hole / notch instead of leaving a black bar next to it.
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(lp);
+        }
         prefs = getSharedPreferences("phonedesk", MODE_PRIVATE);
 
         web = new WebView(this);

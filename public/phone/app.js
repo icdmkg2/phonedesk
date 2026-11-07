@@ -714,7 +714,7 @@
   });
   document.addEventListener('webkitfullscreenchange', function () { toggle(document.body, 'fullscreen', !!document.webkitFullscreenElement); });
   // In standalone (added to home screen) mode there is no browser bar anyway.
-  if (window.matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) document.body.classList.add('fullscreen');
+  if (window.matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || /PhoneDeskApp/.test(navigator.userAgent)) document.body.classList.add('fullscreen');
 
   var wakeLock = null;
   function requestWakeLock() {
