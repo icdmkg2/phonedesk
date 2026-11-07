@@ -7,7 +7,7 @@ const path = require('path');
 const { execFile, spawn } = require('child_process');
 const log = require('./log');
 
-const TOOLS = path.join(__dirname, '..', 'tools');
+const { TOOLS } = require('./paths');
 const CANDIDATES = [
   path.join(TOOLS, 'platform-tools', 'adb.exe'),
   process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk', 'platform-tools', 'adb.exe'),

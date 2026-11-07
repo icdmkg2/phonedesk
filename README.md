@@ -4,13 +4,31 @@ Turn an old Android phone (built and tuned for a Samsung Galaxy A11) into a fast
 
 It's a lighter take on the DeskThing idea.
 
-## Start it
+## Install
 
-Double-click **`start.bat`**. The first run installs what it needs, then the dashboard opens in your browser at http://localhost:8765.
+Run **`PhoneDesk-Setup-1.1.0.exe`**. It installs for your Windows account only and needs no admin rights. Node.js comes bundled, so you don't need to install it.
 
-You need **Node.js 18 or newer** (https://nodejs.org).
+- PhoneDesk lives in the **system tray**, near the clock. Left-click the icon for the dashboard; right-click it for the menu (phone address, start with Windows, restart, quit).
+- It starts with Windows and runs quietly in the background. If the server ever crashes, the tray app restarts it.
+- The installer offers to let phones on your Wi-Fi through Windows Firewall. That's the only step where Windows asks for permission.
+- To update, run a newer setup. Your settings are kept.
+- To uninstall, use Windows Settings → Apps → PhoneDesk.
 
-To start PhoneDesk with Windows and no console window: press `Win+R`, type `shell:startup`, and put a shortcut to `start-hidden.vbs` in that folder.
+Windows SmartScreen may warn about the setup because it isn't code-signed. Choose *More info → Run anyway*.
+
+Settings are stored in `%APPDATA%\PhoneDesk`, and logs in `%APPDATA%\PhoneDesk\logs`.
+
+### Run from source instead
+
+Double-click **`start.bat`** (needs Node.js 18+). The dashboard opens at http://localhost:8765.
+
+### Build the installer
+
+```
+powershell -ExecutionPolicy Bypass -File builduild.ps1
+```
+
+This writes `dist\PhoneDesk-Setup-<version>.exe`. It uses only the C# compiler that comes with Windows plus your installed Node.js, which it copies in as the bundled runtime.
 
 ## Connect the phone
 
@@ -22,7 +40,11 @@ To start PhoneDesk with Windows and no console window: press `Win+R`, type `shel
 PhoneDesk links the phone and opens itself on the phone's browser. If ADB isn't installed, the dashboard has a button that downloads it from Google.
 
 **Wi-Fi**
-Scan the QR code on the dashboard, or type the address it shows into the phone's browser. Both devices must be on the same network. If it won't connect, allow Node.js through Windows Firewall on **Private** networks.
+On the phone, open **http://phonedesk.local** in the browser, or scan the QR code on the dashboard. The phone must be on the same network as the PC.
+
+`phonedesk.local` always points at the PC, even when the router gives it a new IP address. PhoneDesk announces the name on your local network (mDNS), so there's nothing to set up on the router. You can rename it in `config.json` (`"name"`) if you have more than one PC.
+
+If the phone can't connect, right-click the tray icon and choose *Let phones on Wi-Fi connect…*.
 
 On the phone, tap the ⤢ button in the corner for full screen, or use Chrome's menu → *Add to Home screen*.
 
@@ -56,9 +78,13 @@ server/index.js        HTTP + WebSocket server, API for the dashboard
 server/bridge-win.ps1  Windows media (SMTC), volume and key presses; its own process
 server/bridge.js       Restarts the bridge if it crashes or hangs
 server/adb.js          USB auto-connect (adb reverse)
+server/mdns.js         Answers "phonedesk.local" on the local network
+installer/Tray.cs      PhoneDesk.exe: tray app, server supervisor, uninstaller
+installer/Setup.cs     PhoneDesk-Setup.exe
+build/build.ps1        Builds the installer
 public/phone/          The phone app
 public/dashboard/      The PC dashboard
-data/config.json       Your settings (created on first run)
+data/config.json       Your settings when running from source (installed: %APPDATA%\PhoneDesk)
 ```
 
 ## Notes

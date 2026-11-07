@@ -5,11 +5,13 @@ const path = require('path');
 const crypto = require('crypto');
 const log = require('./log');
 
-const DIR = path.join(__dirname, '..', 'data');
+const DIR = require('./paths').DATA;
 const FILE = path.join(DIR, 'config.json');
 
 const DEFAULTS = {
   port: 8765,
+  port80: true,
+  name: 'phonedesk',
   autoUsb: true,
   clock24: true,
   theme: 'dark',
@@ -51,6 +53,8 @@ function load() {
 function sanitize(c) {
   const out = {};
   out.port = Number.isInteger(+c.port) && +c.port > 0 && +c.port < 65536 ? +c.port : DEFAULTS.port;
+  out.port80 = c.port80 !== false;
+  out.name = String(c.name || 'phonedesk').toLowerCase().replace(/\.local$/, '').replace(/[^a-z0-9-]/g, '').slice(0, 40) || 'phonedesk';
   out.autoUsb = c.autoUsb !== false;
   out.clock24 = c.clock24 !== false;
   out.theme = ['dark', 'black', 'light'].includes(c.theme) ? c.theme : 'dark';

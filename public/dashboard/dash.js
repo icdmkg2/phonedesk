@@ -59,7 +59,7 @@
 
   function renderUrls() {
     const box = $('urls');
-    const urls = status.urls;
+    const urls = [{ name: 'by name', url: status.nameUrl }].concat(status.urls);
     if (!urls.length) {
       box.innerHTML = '<div class="muted small">No network found. Connect the PC to Wi-Fi or Ethernet, or use USB.</div>';
       return;

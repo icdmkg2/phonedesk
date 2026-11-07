@@ -14,8 +14,9 @@ const config = require('./config');
 const Bridge = require('./bridge');
 const adb = require('./adb');
 const stats = require('./stats');
+const mdns = require('./mdns');
 
-const ROOT = path.join(__dirname, '..');
+const { ROOT } = require('./paths');
 const PUBLIC = path.join(ROOT, 'public');
 const VERSION = require('../package.json').version;
 
@@ -172,7 +173,9 @@ async function handleApi(req, res, url) {
         version: VERSION,
         uptime: process.uptime(),
         port,
-        urls: addrs.map((a) => ({ name: a.name, url: `http://${a.address}:${port}` })),
+        urls: addrs.map((a) => ({ name: a.name, url: `http://${a.address}${port80Ok ? '' : ':' + port}` })),
+        nameUrl: `http://${mdns.name()}${port80Ok ? '' : ':' + port}`,
+        port80: port80Ok,
         clients: [...clients].filter((c) => c.role === 'phone').map((c) => c.info),
         bridge: bridge.status(),
         adb: adb.status(),
@@ -212,6 +215,10 @@ async function handleApi(req, res, url) {
       bridge.restart();
       return send(res, 200, { ok: true });
     }
+    if (p === '/api/shutdown' && req.method === 'POST') {
+      send(res, 200, { ok: true });
+      return void setTimeout(shutdown, 50);
+    }
     if (p === '/api/phones/reload' && req.method === 'POST') {
       broadcast({ t: 'reload' }, 'phone');
       return send(res, 200, { ok: true });
@@ -223,7 +230,9 @@ async function handleApi(req, res, url) {
   }
 }
 
-const server = http.createServer((req, res) => {
+let port80Ok = false;
+
+function app(req, res) {
   let url;
   try { url = new URL(req.url, 'http://x'); } catch { return send(res, 400, 'bad url', 'text/plain'); }
   const p = url.pathname;
@@ -249,7 +258,9 @@ const server = http.createServer((req, res) => {
   if (p === '/phone' || p === '/phone/') return serveStatic(req, res, 'phone/index.html');
   if (p === '/dashboard' || p === '/dashboard/') return serveStatic(req, res, 'dashboard/index.html');
   return serveStatic(req, res, p.slice(1));
-});
+}
+const server = http.createServer(app);
+const server80 = http.createServer(app);
 
 // A phone over USB (adb reverse) also connects from 127.0.0.1. Its browser is mobile, so tell by UA.
 function isAdbPhone(req) {
@@ -257,7 +268,13 @@ function isAdbPhone(req) {
 }
 
 // ---------------------------------------------------------------- websocket
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 64 * 1024, perMessageDeflate: false });
+const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
+function onUpgrade(req, socket, head) {
+  if (!req.url.startsWith('/ws')) return socket.destroy();
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+}
+server.on('upgrade', onUpgrade);
+server80.on('upgrade', onUpgrade);
 const clients = new Set();
 
 function publicConfig() {
@@ -382,22 +399,39 @@ server.on('error', (e) => {
 server.listen(port, '0.0.0.0', () => {
   log.info(`PhoneDesk ${VERSION} running`);
   log.info(`Dashboard: http://localhost:${port}`);
-  for (const a of lanAddresses()) log.info(`Phone (Wi-Fi): http://${a.address}:${port}   [${a.name}]`);
+  for (const a of lanAddresses()) log.info(`Phone (Wi-Fi, by IP): http://${a.address}:${port}   [${a.name}]`);
   if (process.platform === 'win32') bridge.start();
   else log.warn('media bridge only supports Windows; media controls disabled');
   adb.onlineCheck(() => [...clients].some((c) => c.role === 'phone' && c.info.via === 'USB'));
-  adb.setAuto(config.get().autoUsb, port, 6000);
+  adb.setAuto(config.get().autoUsb, port, 10000);
+  // Also serve on port 80 so the phone address can be just http://phonedesk.local
+  const startMdns = () => mdns.start({ name: config.get().name, port: port80Ok ? 80 : port });
+  if (config.get().port80 && port !== 80) {
+    server80.once('error', (e) => {
+      log.info(`port 80 is busy (${e.code}), phones will use :${port}`);
+      startMdns();
+    });
+    server80.listen(80, '0.0.0.0', () => { port80Ok = true; startMdns(); });
+  } else {
+    port80Ok = port === 80;
+    startMdns();
+  }
   if (process.argv.includes('--open')) {
     spawn('cmd.exe', ['/d', '/c', 'start', '""', `http://localhost:${port}`], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
   }
 });
 
+let shuttingDown = false;
 function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
   log.info('shutting down');
   bridge.stop();
   adb.stopAuto();
   for (const c of clients) try { c.ws.close(1001); } catch {}
+  mdns.stop();
   server.close();
+  server80.close();
   setTimeout(() => process.exit(0), 300).unref();
 }
 process.on('SIGINT', shutdown);
