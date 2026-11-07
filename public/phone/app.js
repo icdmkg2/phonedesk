@@ -687,6 +687,7 @@
     state.config = c;
     syncKinetic();
     document.body.classList.toggle('ns-imm', c.nowStyle !== 'classic');
+    placeSourcePill();
     if (c.nowStyle === 'classic') closeLyrics(true);
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
     var meta = document.querySelector('meta[name=theme-color]');
@@ -767,6 +768,7 @@
     var b = battery || serverBattery, el = $('batt');
     var show = !!b && state.config.showBattery !== false;
     if (el.hidden === show) el.hidden = !show;
+    placeSourcePill();
     if (!show) return;
     var pct = Math.round(b.level * 100);
     $('batt-fill').setAttribute('width', (19 * Math.max(0.06, b.level)).toFixed(1));
@@ -774,7 +776,17 @@
     setText($('batt-n'), pct + '%');
     toggle(el, 'low', pct <= 20 && !b.charging);
     toggle(el, 'charging', !!b.charging);
+    placeSourcePill();
   }
+  // Immersive: the source pill (Spotify, YouTube...) sits right after the battery pill, with the same gap as the
+  // pills on the right, whatever width the battery reading has.
+  function placeSourcePill() {
+    var pill = el.app.parentNode, b = $('batt');
+    if (!imm()) { pill.style.left = ''; return; }
+    var left = b.hidden ? 14 : b.offsetLeft + b.offsetWidth + 8;
+    pill.style.left = left + 'px';
+  }
+  window.addEventListener('resize', placeSourcePill);
   // Only available on secure origins (USB uses localhost, so it works there).
   if (navigator.getBattery) {
     navigator.getBattery().then(function (b) {

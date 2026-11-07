@@ -607,3 +607,10 @@ body.ns-imm .controls .btn { flex: none; }
 body.ns-imm .volume { min-width: 0; }
 body.ns-imm .vnum { display: none; }
 body.ns-imm .controls { gap: 6px; }
+
+/* ---------------------------------------------------------------- top pills: one height, one rhythm */
+.batt { top: 10px; height: 28px; padding: 0 11px 0 9px; box-sizing: border-box; align-items: center; }
+body.ns-imm .app { top: 10px; height: 28px; padding: 0 12px 0 8px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; line-height: 1; }
+body.ns-imm .app-ic img, body.ns-imm .app-ic svg { width: 16px; height: 16px; }
+body.ns-imm .np-top { top: 10px; gap: 8px; }
+body.ns-imm .np-time, body.ns-imm .np-top .wx { height: 28px; box-sizing: border-box; display: flex; align-items: center; padding-top: 0; padding-bottom: 0; line-height: 1; }
