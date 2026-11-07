@@ -381,3 +381,28 @@ body.ns-imm .np-top .wx svg { width: 22px; height: 22px; }
 body.ns-imm .app { left: 88px; top: 11px; }
 body.ns-imm .media { padding-bottom: 58px; }
 body.ns-imm .ly-pill { bottom: 12px; right: 24px; }
+
+/* ---------------------------------------------------------------- lyrics: karaoke-style */
+.ly-list { transition: transform .5s cubic-bezier(.25, .8, .25, 1); }
+.ly-line { font-size: clamp(20px, calc(var(--ah) * .075), 34px); font-weight: 800; line-height: 1.22; letter-spacing: -.01em;
+  color: var(--fg); opacity: .26; transform: scale(.86); transform-origin: 50% 50%; transition: opacity .45s, transform .45s cubic-bezier(.25, .8, .25, 1);
+  padding: calc(var(--ah) * .016) 7%; cursor: pointer; }
+.ly-line.near2 { opacity: .34; }
+.ly-line.near1 { opacity: .5; }
+.ly-line.past { opacity: .2; }
+.ly-line.past.near1 { opacity: .32; }
+.ly-line.on { opacity: 1; transform: scale(1); }
+/* The filled part of the sung line (text-clip gradient, laid out over wrapped lines in reading order) */
+.ly-line .lw { -webkit-box-decoration-break: slice; box-decoration-break: slice; }
+.ly-line.on .lw {
+  background: linear-gradient(90deg, var(--fg) var(--p, 0%), rgba(var(--lymute, 255, 255, 255), .38) var(--p, 0%));
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+body.theme-light .ly-line.on .lw { --lymute: 20, 22, 26; }
+/* Instrumental break: three dots that fill in, then breathe */
+.ly-line.gap { display: flex; justify-content: center; gap: 10px; min-height: 1.2em; align-items: center; }
+.ly-line.gap i { width: .42em; height: .42em; border-radius: 50%; background: var(--fg); opacity: .5; }
+.ly-line.gap.on i { animation: lydot 1.4s ease-in-out infinite; }
+.ly-line.gap.on i:nth-child(2) { animation-delay: .2s; }
+.ly-line.gap.on i:nth-child(3) { animation-delay: .4s; }
+@keyframes lydot { 0%, 100% { transform: scale(.7); opacity: .35; } 50% { transform: scale(1); opacity: 1; } }

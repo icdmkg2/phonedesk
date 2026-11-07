@@ -617,7 +617,7 @@
   function renderAll() {
     if (state.screen === 'media') { renderMedia(); drawVolume(state.volume.level, state.volume.muted); npLast = ''; renderNpTop(); }
     else if (state.screen === 'mixer') renderMixer(true);
-    else if (state.screen === 'lyrics') { renderLyricsHead(); lyricTick(true); }
+    else if (state.screen === 'lyrics') { renderLyricsHead(); lyricTick(true); lyStart(); }
     else if (state.screen === 'clock') { lastClock = ''; renderClock(); renderClockMini(); }
     else if (state.screen === 'stats') renderStats();
   }
@@ -913,12 +913,13 @@
     d.lines.forEach(function (l) {
       var div = document.createElement('div');
       div.className = 'ly-line' + (l.text ? '' : ' gap');
-      div.textContent = l.text || '♪';
+      if (l.text) { var sp = document.createElement('span'); sp.className = 'lw'; sp.textContent = l.text; div.appendChild(sp); }
+      else div.innerHTML = '<i></i><i></i><i></i>';
       frag.appendChild(div);
     });
     list.textContent = '';
     list.appendChild(frag);
-    lyricTick(true);
+    lyricTick(true); lyStart();
   }
   function renderLyricsHead() {
     var m = state.media;
@@ -927,24 +928,61 @@
     if ($('ly-ic').getAttribute('data-ic') !== ic) { $('ly-ic').setAttribute('data-ic', ic); $('ly-ic').innerHTML = ic; }
     if (!lyr) setLyrics(null);
   }
-  function lyricTick(force) {
-    if (!lyr || !lyr.lines.length || (state.screen !== 'lyrics' && !document.body.classList.contains('ly-open'))) return;
-    var lines = $('ly-list').children, idx = 0;
-    if (lyr.synced) {
-      var pos = currentPos() + 0.25;
-      idx = -1;
-      for (var i = 0; i < lyr.lines.length; i++) { if (lyr.lines[i].t <= pos) idx = i; else break; }
-    }
-    if (idx === lyrIndex && !force) return;
-    if (lines[lyrIndex]) lines[lyrIndex].classList.remove('on');
-    lyrIndex = idx;
-    var view = $('ly-view'), cur = lines[Math.max(0, idx)];
-    if (!cur) return;
-    if (idx >= 0 && lyr.synced) cur.classList.add('on');
-    var y = cur.offsetTop - view.clientHeight / 2 + cur.offsetHeight / 2;
-    $('ly-list').style.transform = 'translateY(' + (-Math.max(0, y)) + 'px)';
+  // Where in the song are we? Binary search over the line start times.
+  function lyIndexAt(pos) {
+    var L = lyr.lines, lo = 0, hi = L.length - 1, ans = -1;
+    while (lo <= hi) { var mid = (lo + hi) >> 1; if (L[mid].t <= pos) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+    return ans;
   }
-  setInterval(function () { if ((state.screen === 'lyrics' || document.body.classList.contains('ly-open')) && document.visibilityState === 'visible') lyricTick(false); }, 250);
+  var LY_LEAD = 0.28; // light on a touch early, like the big players do
+  var lyFillAt = 0;
+  function lyricTick(force) {
+    if (!lyr || !lyr.lines.length || !lyricsVisible()) return;
+    var lines = $('ly-list').children, L = lyr.lines;
+    if (!lyr.synced) { if (force && lines[0]) $('ly-list').style.transform = 'translateY(0)'; return; }
+    var pos = currentPos() + LY_LEAD, idx = lyIndexAt(pos);
+    if (idx !== lyrIndex || force) {
+      var from = Math.max(0, Math.min(lyrIndex, idx) - 3), to = Math.min(lines.length - 1, Math.max(lyrIndex, idx) + 3);
+      if (force) { from = 0; to = lines.length - 1; }
+      for (var i = from; i <= to; i++) {
+        var d = i - idx, cls = 'ly-line' + (L[i].text ? '' : ' gap');
+        if (d === 0) cls += ' on'; else if (d < 0) cls += d === -1 ? ' past near1' : ' past'; else cls += d === 1 ? ' near1' : d === 2 ? ' near2' : '';
+        if (lines[i].className !== cls) lines[i].className = cls;
+        if (d !== 0) lines[i].style.removeProperty('--p');
+      }
+      lyrIndex = idx;
+      var cur = lines[Math.max(0, idx)], view = $('ly-view');
+      if (cur) {
+        var y = cur.offsetTop - view.clientHeight * 0.42 + cur.offsetHeight / 2;
+        $('ly-list').style.transform = 'translate3d(0,' + (-Math.max(0, y)) + 'px,0)';
+      }
+    }
+    // Word-by-word fill across the current line, paced by how long the line is sung (estimated from its length).
+    if (idx >= 0) {
+      var now = Date.now();
+      if (force || now - lyFillAt > 45) {
+        lyFillAt = now;
+        var start = L[idx].t, gap = (L[idx + 1] ? L[idx + 1].t : start + 6) - start;
+        var sung = L[idx].text ? Math.min(gap, Math.max(1.1, L[idx].text.length * 0.085)) : gap;
+        var p = Math.max(0, Math.min(1, (pos - start) / sung));
+        lines[idx].style.setProperty('--p', (p * 100).toFixed(1) + '%');
+      }
+    }
+  }
+  function lyricsVisible() { return (state.screen === 'lyrics' || document.body.classList.contains('ly-open')) && document.visibilityState === 'visible'; }
+  var lyRaf = 0;
+  function lyFrame() { lyRaf = 0; if (!lyricsVisible()) return; lyricTick(false); lyRaf = requestAnimationFrame(lyFrame); }
+  function lyStart() { if (!lyRaf && lyricsVisible()) lyRaf = requestAnimationFrame(lyFrame); }
+  setInterval(lyStart, 1000);
+  window.addEventListener('resize', function () { lyrIndex = -2; lyricTick(true); });
+  // Tap a line to jump the song there.
+  $('ly-list').addEventListener('click', function (e) {
+    if (!lyr || !lyr.synced) return;
+    var el = e.target.closest('.ly-line');
+    if (!el) return;
+    var i = Array.prototype.indexOf.call($('ly-list').children, el);
+    if (i >= 0 && lyr.lines[i]) { cmd('seek', Math.max(0, lyr.lines[i].t)); lyrIndex = -2; }
+  });
 
   // The lyrics sheet (immersive style): pull up on Now playing, pull down or tap the arrow to close.
   var lyCloseT = null;
@@ -953,7 +991,7 @@
     if (b.classList.contains('ly-open')) return;
     clearTimeout(lyCloseT); b.classList.remove('ly-closing');
     b.classList.add('ly-open');
-    renderLyricsHead(); lyricTick(true);
+    renderLyricsHead(); lyricTick(true); lyStart();
     buzz();
   }
   function closeLyrics(now) {

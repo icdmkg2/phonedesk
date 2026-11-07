@@ -10,6 +10,8 @@ function clean(s) {
   return String(s || '')
     .replace(/\s*-\s*YouTube( Music)?$/i, '')
     .replace(/[([](official|lyrics?|audio|video|music video|visualizer|hd|4k|explicit|clean|remaster(ed)?( \d{4})?|live)[^)\]]*[)\]]/gi, '')
+    .replace(/\s*[([]\s*(feat|ft|with)\.?[^)\]]*[)\]]/gi, '')
+    .replace(/\s+-\s+(\d{4}\s+)?(remaster(ed)?|live|single version|radio edit|mono|stereo|remix|bonus track|deluxe)\b.*$/i, '')
     .replace(/\s+(ft\.?|feat\.?)\s.*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -45,16 +47,35 @@ function toResult(r) {
   return null;
 }
 
+// The best candidate: synced lyrics whose length matches the song, else plain text from a close match.
+function pick(list, duration) {
+  const items = (list || []).filter((x) => x && (x.syncedLyrics || x.plainLyrics || x.instrumental));
+  const diff = (x) => (duration > 0 && x.duration > 0 ? Math.abs(x.duration - duration) : 0);
+  const byDiff = (a, b) => diff(a) - diff(b);
+  const synced = items.filter((x) => x.syncedLyrics).sort(byDiff);
+  if (synced.length && (!duration || diff(synced[0]) <= 6)) return synced[0];
+  const close = items.sort(byDiff);
+  if (close.length && (!duration || diff(close[0]) <= 12)) return close[0];
+  return null;
+}
+
 async function lookup(artist, title, album, duration) {
-  const q = new URLSearchParams({ artist_name: artist, track_name: title });
-  if (album) q.set('album_name', album);
-  if (duration > 0) q.set('duration', String(Math.round(duration)));
-  let r = toResult(await getJson('https://lrclib.net/api/get?' + q));
+  const base = { artist_name: artist, track_name: title };
+  const withAlbum = new URLSearchParams(base);
+  if (album) withAlbum.set('album_name', album);
+  if (duration > 0) withAlbum.set('duration', String(Math.round(duration)));
+  // 1) exact match with album and length, 2) without the album, 3) searches
+  let r = toResult(await getJson('https://lrclib.net/api/get?' + withAlbum));
   if (r && r.lines.length) return r;
-  // Looser search: the first result with synced lyrics and a close length.
-  const list = await getJson('https://lrclib.net/api/search?' + new URLSearchParams({ artist_name: artist, track_name: title }));
-  const best = (list || []).find((x) => x.syncedLyrics && (!duration || Math.abs(x.duration - duration) < 8)) || (list || [])[0];
-  return toResult(best);
+  if (album) {
+    const q = new URLSearchParams(base);
+    if (duration > 0) q.set('duration', String(Math.round(duration)));
+    r = toResult(await getJson('https://lrclib.net/api/get?' + q));
+    if (r && r.lines.length) return r;
+  }
+  let found = pick(await getJson('https://lrclib.net/api/search?' + new URLSearchParams(base)), duration);
+  if (!found) found = pick(await getJson('https://lrclib.net/api/search?' + new URLSearchParams({ q: artist + ' ' + title })), duration);
+  return toResult(found);
 }
 
 module.exports = {
