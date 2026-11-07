@@ -15,6 +15,8 @@ const Bridge = require('./bridge');
 const adb = require('./adb');
 const stats = require('./stats');
 const mdns = require('./mdns');
+const autostart = require('./autostart');
+const artwork = require('./artwork');
 
 const { ROOT } = require('./paths');
 const PUBLIC = path.join(ROOT, 'public');
@@ -35,22 +37,44 @@ const state = {
 const bridge = new Bridge(path.join(__dirname, 'bridge-win.ps1'));
 bridge.on('message', (m) => {
   if (m.t === 'media') {
+    // A new track: drop the old picture right away instead of showing it on the next song.
+    const key = m.active ? [m.app, m.title, m.artist].join('|') : '';
+    if (key !== trackKey) { trackKey = key; state.art = null; }
     if (typeof m.art === 'string') {
-      if (m.art) {
-        const buf = Buffer.from(m.art, 'base64');
-        const id = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 12);
-        state.art = { id, buf, type: sniffImage(buf) };
-      } else {
+      if (m.art) setArt(Buffer.from(m.art, 'base64'));
+      else {
         state.art = null;
+        // The app has no picture for this track: try to find one online.
+        if (m.active && config.get().artLookup) {
+          const wanted = trackKey;
+          artwork.find(m).then((buf) => {
+            if (!buf || trackKey !== wanted || state.art) return;
+            setArt(buf);
+            state.media = Object.assign({}, state.media, { art: '/art/' + state.art.id });
+            broadcast({ t: 'media', d: state.media });
+          });
+        }
       }
     }
     delete m.art;
     delete m.t;
     // Keep the art id stable across position updates of the same track.
     m.art = state.art ? '/art/' + state.art.id : '';
-    m.app = prettyApp(m.app);
+    const rawApp = m.app;
+    const ic = appIcons.get(rawApp);
+    m.appIcon = ic ? '/appicon/' + ic.id : '';
+    m.game = !!(ic && ic.game);
+    m.site = siteOf(rawApp, m.title);
+    m.app = m.site === 'youtube' ? 'YouTube' : ic && ic.name && ic.name.length <= 24 ? ic.name : prettyApp(rawApp);
+    if (m.site === 'youtube') m.title = String(m.title || '').replace(/\s+-\s+YouTube( Music)?$/i, '');
     state.media = m;
     broadcast({ t: 'media', d: state.media });
+  } else if (m.t === 'appicon') {
+    const buf = Buffer.from(m.png || '', 'base64');
+    if (buf.length) {
+      const id = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 12);
+      appIcons.set(m.app, { id, buf, name: String(m.name || '').trim(), game: !!m.game });
+    }
   } else if (m.t === 'volume') {
     state.volume = { level: m.level, muted: m.muted };
     broadcast({ t: 'volume', d: state.volume });
@@ -58,8 +82,32 @@ bridge.on('message', (m) => {
     log.warn('[bridge] ' + m.msg);
   } else if (m.t === 'ready') {
     log.info('media bridge ready');
+    bridge.send('ignore ' + config.get().ignoreApps.join(','));
   }
 });
+
+let trackKey = '';
+const appIcons = new Map(); // app id -> { id, buf, name, game }
+
+const BROWSERS = /chrome|msedge|firefox|308046b0af4a39cb|6f193ccc56814779|opera|brave|vivaldi|zen/i;
+// What a browser tab is playing, judged by the tab title.
+function siteOf(app, title) {
+  if (!BROWSERS.test(String(app || ''))) return '';
+  if (/-\s*YouTube( Music)?$/i.test(String(title || ''))) return 'youtube';
+  return '';
+}
+const adbBattery = new Map(); // 'usb' or a phone's Wi-Fi IP -> { level, charging }
+function pushAdbBattery(c) {
+  if (c.role !== 'phone') return;
+  const b = adbBattery.get(c.info.via === 'USB' ? 'usb' : c.info.ip);
+  if (!b) return;
+  if (!c.ownBattery) c.info.battery = { level: Math.round(b.level * 100), charging: b.charging };
+  sendTo(c.ws, { t: 'battery', d: b });
+}
+function setArt(buf) {
+  const id = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 12);
+  state.art = { id, buf, type: sniffImage(buf) };
+}
 
 function prettyApp(id) {
   if (!id) return '';
@@ -86,7 +134,7 @@ function sniffImage(buf) {
 function runShortcut(id) {
   const sc = config.get().shortcuts.find((s) => s.id === id);
   if (!sc) return;
-  log.info(`shortcut: ${sc.label} (${sc.type})`);
+  log.event('shortcut', `Shortcut “${sc.label}” pressed`);
   try {
     if (sc.type === 'keys') {
       bridge.send('keys ' + sc.value);
@@ -107,7 +155,7 @@ function runShortcut(id) {
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
-  '.webmanifest': 'application/manifest+json',
+  '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2',
 };
 
 function isLocal(req) {
@@ -144,6 +192,15 @@ function readBody(req) {
     req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch (e) { reject(e); } });
     req.on('error', reject);
   });
+}
+
+// Every address a phone can reach this PC on, best first. A phone that loaded PhoneDesk over USB
+// (localhost) uses these to carry on over Wi-Fi when the cable is pulled, and vice versa.
+function phoneHosts() {
+  const port = config.get().port;
+  const suffix = port80Ok ? '' : ':' + port;
+  const list = [mdns.name() + suffix, ...lanAddresses().map((a) => a.address + suffix), 'localhost:' + port];
+  return [...new Set(list)];
 }
 
 function lanAddresses() {
@@ -195,6 +252,7 @@ async function handleApi(req, res, url) {
       const next = config.update(body);
       broadcast({ t: 'config', d: publicConfig() });
       if (next.autoUsb !== before.autoUsb) adb.setAuto(next.autoUsb, next.port);
+      if (next.ignoreApps.join(',') !== before.ignoreApps.join(',')) bridge.send('ignore ' + next.ignoreApps.join(','));
       return send(res, 200, next);
     }
     if (p === '/api/logs' && req.method === 'GET') return send(res, 200, log.recent());
@@ -219,6 +277,21 @@ async function handleApi(req, res, url) {
       send(res, 200, { ok: true });
       return void setTimeout(shutdown, 50);
     }
+    const pm = p.match(/^\/api\/phones\/([a-f0-9]{8})\/(identify|reload|screen)$/);
+    if (pm && req.method === 'POST') {
+      const c = [...clients].find((x) => x.role === 'phone' && x.info.id === pm[1]);
+      if (!c) return send(res, 404, { error: 'that phone is not connected' });
+      const body = await readBody(req);
+      if (pm[2] === 'identify') sendTo(c.ws, { t: 'identify', d: { name: c.info.device } });
+      if (pm[2] === 'reload') sendTo(c.ws, { t: 'reload' });
+      if (pm[2] === 'screen') sendTo(c.ws, { t: 'show', v: String(body.screen || '') });
+      return send(res, 200, { ok: true });
+    }
+    if (p === '/api/activity' && req.method === 'GET') return send(res, 200, log.activity());
+    if (p === '/api/autostart') {
+      if (req.method === 'POST') { const body = await readBody(req); await autostart.set(!!body.enabled); }
+      return send(res, 200, await autostart.get());
+    }
     if (p === '/api/phones/reload' && req.method === 'POST') {
       broadcast({ t: 'reload' }, 'phone');
       return send(res, 200, { ok: true });
@@ -239,6 +312,14 @@ function app(req, res) {
 
   if (p.startsWith('/api/')) return void handleApi(req, res, url);
 
+  if (p.startsWith('/appicon/')) {
+    const id = p.slice(9);
+    const ic = [...appIcons.values()].find((x) => x.id === id);
+    if (!ic) return send(res, 404, 'no icon', 'text/plain');
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': ic.buf.length, 'Cache-Control': 'public, max-age=31536000, immutable', 'Access-Control-Allow-Origin': '*' });
+    return res.end(ic.buf);
+  }
+
   if (p.startsWith('/art/')) {
     const id = p.slice(5);
     if (!state.art || state.art.id !== id) return send(res, 404, 'no art', 'text/plain');
@@ -247,6 +328,8 @@ function app(req, res) {
       'Content-Length': state.art.buf.length,
       // Art URLs are content-addressed, so the phone can cache them forever.
       'Cache-Control': 'public, max-age=31536000, immutable',
+      // The phone may have loaded its page from another address (USB) than it now talks to (Wi-Fi).
+      'Access-Control-Allow-Origin': '*',
     });
     return res.end(state.art.buf);
   }
@@ -286,6 +369,7 @@ function publicConfig() {
     accent: c.accent,
     screens: c.screens,
     dimAfter: c.dimAfter,
+    showBattery: c.showBattery,
   };
 }
 
@@ -318,17 +402,25 @@ wss.on('connection', (ws, req) => {
   };
   clients.add(client);
   if (role === 'phone') {
-    log.info(`phone connected: ${client.info.device} via ${client.info.via} (${client.info.ip})`);
+    log.event('phone', `${client.info.device} connected over ${client.info.via}`);
+    pushAdbBattery(client);
+    // On Wi-Fi: try a network ADB link (only works if the phone has it switched on).
+    if (client.info.via === 'Wi-Fi' && config.get().autoUsb) adb.tryWifi(client.info.ip);
     broadcast({ t: 'clients' }, 'dashboard');
   }
 
-  sendTo(ws, { t: 'hello', d: { version: VERSION, serverTime: Date.now() } });
+  sendTo(ws, { t: 'hello', d: { version: VERSION, serverTime: Date.now(), hosts: phoneHosts() } });
   sendTo(ws, { t: 'config', d: publicConfig() });
   sendTo(ws, { t: 'media', d: state.media });
   sendTo(ws, { t: 'volume', d: state.volume });
   sendTo(ws, { t: 'stats', d: stats.latest() });
 
-  ws.on('pong', () => { client.alive = true; });
+  ws.on('pong', () => {
+    client.alive = true;
+    if (client.pingAt) client.info.rtt = Date.now() - client.pingAt;
+  });
+  client.pingAt = Date.now();
+  try { ws.ping(); } catch {}
   ws.on('message', (raw) => {
     client.alive = true;
     let m;
@@ -338,7 +430,7 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     clients.delete(client);
     if (role === 'phone') {
-      log.info(`phone disconnected: ${client.info.device}`);
+      log.event('phone', `${client.info.device} disconnected`);
       broadcast({ t: 'clients' }, 'dashboard');
     }
   });
@@ -359,6 +451,9 @@ function handleClientMessage(client, m) {
     case 'mute': return bridge.send('mute');
     case 'shortcut': return runShortcut(String(m.id || ''));
     case 'screen': client.info.screen = String(m.v || '').slice(0, 20); return;
+    case 'battery':
+      if (Number.isFinite(+m.level)) { client.ownBattery = true; client.info.battery = { level: Math.round(+m.level * 100), charging: !!m.charging }; }
+      return;
   }
 }
 
@@ -380,9 +475,10 @@ setInterval(() => {
   for (const c of clients) {
     if (!c.alive) { c.ws.terminate(); continue; }
     c.alive = false;
+    c.pingAt = Date.now();
     try { c.ws.ping(); } catch {}
   }
-}, 15000).unref();
+}, 10000).unref();
 
 // PC stats: only computed while someone is listening.
 stats.start((s) => broadcast({ t: 'stats', d: s }), () => clients.size > 0);
@@ -402,7 +498,16 @@ server.listen(port, '0.0.0.0', () => {
   for (const a of lanAddresses()) log.info(`Phone (Wi-Fi, by IP): http://${a.address}:${port}   [${a.name}]`);
   if (process.platform === 'win32') bridge.start();
   else log.warn('media bridge only supports Windows; media controls disabled');
-  adb.onlineCheck(() => [...clients].some((c) => c.role === 'phone' && c.info.via === 'USB'));
+  // Is PhoneDesk already open on this phone? (Wi-Fi link: match by IP; cable: any USB phone.)
+  adb.onlineCheck((wifiIp) => [...clients].some((c) => c.role === 'phone' && (wifiIp ? c.info.ip === wifiIp : c.info.via === 'USB')));
+  adb.setPhoneUrl(() => `http://${mdns.name()}${port80Ok ? '' : ':' + port}/phone`);
+  // Battery read through adb (USB or Wi-Fi link). Works even when the phone's browser can't report it.
+  adb.onBattery((b, where) => {
+    const key = where.wifiIp || (where.onlyCable ? 'usb' : null); // several cables: can't tell which is which
+    if (!key) return;
+    adbBattery.set(key, b);
+    for (const c of clients) pushAdbBattery(c);
+  });
   adb.setAuto(config.get().autoUsb, port, 10000);
   // Also serve on port 80 so the phone address can be just http://phonedesk.local
   const startMdns = () => mdns.start({ name: config.get().name, port: port80Ok ? 80 : port });

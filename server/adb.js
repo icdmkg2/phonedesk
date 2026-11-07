@@ -20,7 +20,9 @@ let timer = null;
 let busy = false;
 let installing = false;
 let lastError = '';
-let hasUsbPhone = () => false; // set by the server: is a phone already connected over USB?
+let hasPhone = () => false;      // set by the server: is PhoneDesk already open on this phone? (wifiIp or USB)
+let phoneUrl = () => 'http://phonedesk.local/phone';
+let onBattery = () => {};       // set by the server: battery read from a USB phone
 const devices = new Map(); // serial -> { serial, state, model, reversed, opened }
 
 function run(args, timeout = 8000) {
@@ -59,6 +61,7 @@ async function scan(port, forceOpen) {
   busy = true;
   try {
     if (!(await locate())) { devices.clear(); return; }
+    for (const ip of knownWifi) tryWifi(ip); // not awaited: runs alongside, rate-limited
     const r = await run(['devices', '-l']);
     if (!r.ok) { lastError = r.err.trim(); return; }
     lastError = '';
@@ -69,40 +72,62 @@ async function scan(port, forceOpen) {
       const [, serial, st, rest] = m;
       seen.add(serial);
       const model = friendly(((rest.match(/model:(\S+)/) || [])[1] || serial).replace(/_/g, ' '));
+      // A serial like 10.0.0.5:5555 is a phone linked over Wi-Fi (network ADB), not a cable.
+      const wifiIp = (serial.match(/^(\d+\.\d+\.\d+\.\d+):\d+$/) || [])[1] || null;
       let d = devices.get(serial);
       if (!d) {
-        d = { serial, state: st, model, reversed: false, opened: false };
+        d = { serial, state: st, model, reversed: false, opened: false, lastPoll: 0, wifiIp };
         devices.set(serial, d);
-        log.info(`USB device found: ${model} (${st})`);
-        if (st === 'unauthorized') log.warn(`Accept the "Allow USB debugging" prompt on ${model}`);
+        log.event('phone', wifiIp ? `${model} linked over Wi-Fi` : `${model} plugged in by USB`);
+        if (st === 'unauthorized') log.event('problem', `Accept the "Allow debugging" prompt on ${model}`);
       }
       d.state = st;
       d.model = model;
       if (st !== 'device') { d.reversed = false; continue; }
 
-      // Re-check the reverse mapping each scan: it vanishes when the phone reboots or adb restarts.
-      const list = await run(['-s', serial, 'reverse', '--list']);
-      const has = list.ok && list.out.includes(`tcp:${port}`);
-      if (!has) {
-        const rr = await run(['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
-        d.reversed = rr.ok;
-        if (rr.ok) log.info(`USB link ready on ${model}`);
-        else log.warn(`adb reverse failed on ${model}: ${rr.err.trim()}`);
-      } else {
+      if (wifiIp) {
+        // Over Wi-Fi the phone reaches the PC by name; no port mapping needed.
         d.reversed = true;
+      } else {
+        // Re-check the reverse mapping each scan: it vanishes when the phone reboots or adb restarts.
+        const list = await run(['-s', serial, 'reverse', '--list']);
+        const has = list.ok && list.out.includes(`tcp:${port}`);
+        if (!has) {
+          const rr = await run(['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
+          d.reversed = rr.ok;
+          if (rr.ok) log.info(`USB link ready on ${model}`);
+          else log.warn(`adb reverse failed on ${model}: ${rr.err.trim()}`);
+        } else {
+          d.reversed = true;
+        }
       }
-      if (d.reversed && !d.opened && !forceOpen && hasUsbPhone()) d.opened = true; // already showing PhoneDesk
+      if (d.reversed && !d.opened && !forceOpen && hasPhone(wifiIp)) d.opened = true; // already showing PhoneDesk
       if (d.reversed && (!d.opened || forceOpen)) {
         d.opened = true;
-        // Open PhoneDesk on the phone. Chrome reuses the tab if it's already there.
-        await run(['-s', serial, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', `http://localhost:${port}/phone`]);
-        // Keep the screen on while plugged in (USB + AC). Harmless if it fails.
-        await run(['-s', serial, 'shell', 'svc', 'power', 'stayon', 'usb']);
+        // Open PhoneDesk on the phone (also after the phone restarts). The browser reuses the tab.
+        await run(['-s', serial, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', wifiIp ? phoneUrl() : `http://localhost:${port}/phone`]);
+      }
+      // Every ~30s: read the battery and (re)apply "screen always on". Re-applying covers a phone
+      // reboot. stayon true = the screen never sleeps by itself while PhoneDesk manages the phone.
+      if (d.reversed && Date.now() - (d.lastPoll || 0) > 30000) {
+        d.lastPoll = Date.now();
+        await run(['-s', serial, 'shell', 'svc', 'power', 'stayon', 'true']);
+        const b = await run(['-s', serial, 'shell', 'dumpsys', 'battery']);
+        const level = +((b.out.match(/^\s*level:\s*(\d+)/m) || [])[1]);
+        const scale = +((b.out.match(/^\s*scale:\s*(\d+)/m) || [])[1]) || 100;
+        const status = +((b.out.match(/^\s*status:\s*(\d+)/m) || [])[1]);
+        if (Number.isFinite(level)) {
+          // status 2 = charging, 5 = full (still on power)
+          d.battery = { level: level / scale, charging: status === 2 || status === 5 };
+          const cables = [...devices.values()].filter((x) => !x.wifiIp).length;
+          onBattery(d.battery, { wifiIp, onlyCable: !wifiIp && cables === 1 });
+        }
       }
     }
     for (const serial of [...devices.keys()]) {
       if (!seen.has(serial)) {
-        log.info(`USB device removed: ${devices.get(serial).model}`);
+        const gone = devices.get(serial);
+        log.event('phone', gone.wifiIp ? `${gone.model} Wi-Fi link lost` : `${gone.model} unplugged`);
         devices.delete(serial);
       }
     }
@@ -113,8 +138,28 @@ async function scan(port, forceOpen) {
   }
 }
 
+// Phones on Wi-Fi with "ADB over network" (LineageOS) or adb tcpip turned on: link to them so the
+// PC can read their battery, keep the screen awake and reopen PhoneDesk after a restart.
+// Tried quietly at most once a minute per phone; if network ADB is off, it simply fails.
+const wifiTried = new Map();
+const knownWifi = new Set(); // phones linked over Wi-Fi before: keep retrying them (e.g. after a phone restart)
+async function tryWifi(ip) {
+  if (!ip || !(await locate())) return;
+  if ([...devices.values()].some((d) => d.wifiIp === ip && d.state === 'device')) return;
+  if (Date.now() - (wifiTried.get(ip) || 0) < 60000) return;
+  wifiTried.set(ip, Date.now());
+  const r = await run(['connect', ip + ':5555'], 5000);
+  if (/connected to/i.test(r.out) && !/failed|unable|cannot/i.test(r.out)) {
+    if (!knownWifi.has(ip)) log.info(`network ADB link to ${ip}`);
+    knownWifi.add(ip);
+  }
+}
+
 module.exports = {
-  onlineCheck(fn) { hasUsbPhone = fn; },
+  onlineCheck(fn) { hasPhone = fn; },
+  onBattery(fn) { onBattery = fn; },
+  setPhoneUrl(fn) { phoneUrl = fn; },
+  tryWifi,
   setAuto(on, port, initialDelay) {
     clearInterval(timer);
     timer = null;
@@ -138,7 +183,7 @@ module.exports = {
       path: adbPath,
       installing,
       error: lastError,
-      devices: [...devices.values()].map(({ serial, state, model, reversed }) => ({ serial, state, model, reversed })),
+      devices: [...devices.values()].map(({ serial, state, model, reversed, wifiIp }) => ({ serial, state, model, reversed, via: wifiIp ? 'Wi-Fi' : 'USB' })),
     };
   },
   async install() {

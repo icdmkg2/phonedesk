@@ -49,9 +49,24 @@
   /* ============================================================ connection */
   var ws = null, retry = 0, lastMsg = 0, connectTimer = null, everConnected = false;
 
+  // Where the PC can be reached. The page itself may have come from USB (localhost) — when the
+  // cable is pulled, carry on over Wi-Fi (phonedesk.local, then the PC's IP) without reloading,
+  // so full screen and everything else stays as it is.
+  var hosts = uniq([location.host].concat(store.get('hosts', [])));
+  var activeHost = location.host; // the page just loaded from here, so it works right now
+  var hostFails = 0;
+  function uniq(a) { var o = []; for (var i = 0; i < a.length; i++) if (a[i] && o.indexOf(a[i]) < 0) o.push(a[i]); return o; }
+  function nextHost() {
+    var i = hosts.indexOf(activeHost);
+    activeHost = hosts[(i + 1) % hosts.length];
+    hostFails = 0;
+  }
+  // Absolute URL on whichever address we're talking to right now.
+  function pcUrl(path) { return activeHost === location.host ? path : 'http://' + activeHost + path; }
+
   function wsUrl() {
     var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-    return proto + location.host + '/ws?role=phone&screen=' + encodeURIComponent(state.screen);
+    return proto + activeHost + '/ws?role=phone&screen=' + encodeURIComponent(state.screen);
   }
 
   function connect() {
@@ -61,8 +76,9 @@
     try { sock = new WebSocket(wsUrl()); } catch (e) { return scheduleReconnect(); }
     ws = sock;
     sock.onopen = function () {
-      retry = 0; lastMsg = Date.now(); everConnected = true;
+      retry = 0; lastMsg = Date.now(); everConnected = true; hostFails = 0;
       $('offline').hidden = true;
+      reportBattery();
     };
     sock.onmessage = function (ev) {
       lastMsg = Date.now();
@@ -81,7 +97,9 @@
 
   function scheduleReconnect() {
     clearTimeout(connectTimer);
-    var delay = Math.min(5000, 400 * Math.pow(1.6, retry++));
+    // Two misses on one address: try the next one (USB -> Wi-Fi name -> IP -> back again).
+    if (++hostFails >= 2 && hosts.length > 1) { nextHost(); retry = Math.min(retry, 2); }
+    var delay = Math.min(4000, 400 * Math.pow(1.6, retry++));
     connectTimer = setTimeout(connect, delay);
   }
 
@@ -101,12 +119,22 @@
     return false;
   }
 
-  // Liveness: if the socket looks open but nothing arrived for 25s, it's a zombie. Kill it.
+  // Liveness: the PC sends something at least every 2s (stats), so 6.5s of silence means the link is
+  // dead even if the socket still looks open (that's what pulling a USB cable looks like). Drop it
+  // and fail over to the next address quickly.
+  var pingTick = 0;
   setInterval(function () {
     if (!ws || ws.readyState !== 1) return;
-    if (Date.now() - lastMsg > 25000) { try { ws.close(); } catch (e) {} ws = null; showOffline(); connect(); return; }
-    send({ t: 'ping', d: Date.now() });
-  }, 10000);
+    if (Date.now() - lastMsg > 6500) {
+      var dead = ws;
+      ws = null;
+      try { dead.close(); } catch (e) {}
+      showOffline();
+      scheduleReconnect();
+      return;
+    }
+    if (++pingTick % 5 === 0) send({ t: 'ping', d: Date.now() });
+  }, 2000);
 
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') {
@@ -119,12 +147,18 @@
 
   function onMessage(m) {
     switch (m.t) {
-      case 'hello': state.clockOffset = m.d.serverTime - Date.now(); break;
+      case 'hello':
+        state.clockOffset = m.d.serverTime - Date.now();
+        if (m.d.hosts) { store.set('hosts', m.d.hosts); hosts = uniq([activeHost, location.host].concat(m.d.hosts)); }
+        break;
       case 'media': state.media = m.d || { active: false }; renderMedia(); renderClockMini(); break;
       case 'volume': state.volume = m.d; renderVolume(); break;
       case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); break;
       case 'config': applyConfig(m.d); break;
-      case 'reload': location.reload(); break;
+      case 'reload': location.replace(pcUrl('/phone')); break;
+      case 'show': if (screens().indexOf(m.v) >= 0) show(m.v); break;
+      case 'identify': identify(m.d && m.d.name); break;
+      case 'battery': serverBattery = m.d; renderBattery(); break;
     }
   }
 
@@ -150,7 +184,7 @@
 
   /* ============================================================ media */
   var el = {
-    art: $('art'), title: $('m-title'), artist: $('m-artist'), app: $('m-app'),
+    art: $('art'), title: $('m-title'), artist: $('m-artist'), app: $('m-app'), appIc: $('m-app-ic'),
     fill: $('m-fill'), track: $('m-track'), pos: $('m-pos'), dur: $('m-dur'),
     playIc: $('b-play-ic'), shuffle: $('b-shuffle'), repeat: $('b-repeat'),
   };
@@ -174,11 +208,13 @@
       setText(el.title, 'Nothing playing');
       setText(el.artist, 'Play something on your PC');
       setText(el.app, '');
+      setAppIcon('');
       setArt('');
     } else {
       setText(el.title, m.title || 'Unknown title');
       setText(el.artist, m.artist || m.album || '');
-      setText(el.app, m.app || '');
+      setText(el.app, (m.game ? 'Game · ' : '') + (m.app || ''));
+      setAppIcon(m.site === 'youtube' ? 'video' : m.appIcon || '');
       setArt(m.art || '');
     }
     if (Date.now() > optimisticUntil) setHref(el.playIc, isPlaying() ? '#i-pause' : '#i-play');
@@ -189,6 +225,21 @@
     renderProgress();
   }
 
+  // The playing app's own icon (Spotify, a game...) or a video icon for YouTube in a browser.
+  var lastAppIcon = null;
+  function setAppIcon(src) {
+    if (src === lastAppIcon) return;
+    lastAppIcon = src;
+    if (!src) { el.appIc.innerHTML = ''; return; }
+    if (src === 'video') { el.appIc.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="4.5" width="21" height="15" rx="4.5" fill="#FF0033"/><path d="M10 9v6l5.2-3z" fill="#fff"/></svg>'; return; }
+    var img = new Image();
+    img.alt = '';
+    img.onerror = function () { el.appIc.innerHTML = ''; };
+    img.src = pcUrl(src);
+    el.appIc.innerHTML = '';
+    el.appIc.appendChild(img);
+  }
+
   function setArt(src) {
     if (src === lastArt) return;
     lastArt = src;
@@ -196,7 +247,8 @@
     if (!src) { el.art.removeAttribute('src'); applyAccent(null); return; }
     el.art.onload = function () { if (lastArt === src) { el.art.classList.add('ok'); applyAccent(el.art); } };
     el.art.onerror = function () { el.art.classList.remove('ok'); };
-    el.art.src = src;
+    el.art.crossOrigin = 'anonymous'; // lets the accent color be read from the picture
+    el.art.src = pcUrl(src);
   }
 
   // One CSS transition from "now" to "end of track". The compositor animates it; zero JS per frame.
@@ -544,6 +596,7 @@
     currentTint = '';
     applyAccent(el.art.classList.contains('ok') ? el.art : null);
     if (JSON.stringify(c.shortcuts) !== prevShortcuts) renderPad();
+    renderBattery();
     if (JSON.stringify(c.screens) !== prevScreens || !$('dots').children.length) { renderDots(); show(state.screen); }
     else renderAll();
     armDim();
@@ -585,7 +638,11 @@
   var wakeLock = null;
   function requestWakeLock() {
     if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
-    navigator.wakeLock.request('screen').then(function (l) { wakeLock = l; }).catch(function () {});
+    navigator.wakeLock.request('screen').then(function (l) {
+      wakeLock = l;
+      // The browser drops the lock on some events; take it back while visible.
+      l.addEventListener('release', function () { wakeLock = null; setTimeout(requestWakeLock, 1000); });
+    }).catch(function () {});
   }
   requestWakeLock();
 
@@ -600,6 +657,48 @@
     armDim();
     if (!wakeLock) requestWakeLock();
   }, true);
+
+  /* ============================================================ battery + identify (for the PC app) */
+  var battery = null, serverBattery = null;
+  function reportBattery() {
+    renderBattery();
+    if (battery) send({ t: 'battery', level: battery.level, charging: battery.charging });
+  }
+  // The phone's own reading wins; over USB the PC also reads it with adb, for browsers that can't.
+  function renderBattery() {
+    var b = battery || serverBattery, el = $('batt');
+    var show = !!b && state.config.showBattery !== false;
+    if (el.hidden === show) el.hidden = !show;
+    if (!show) return;
+    var pct = Math.round(b.level * 100);
+    $('batt-fill').setAttribute('width', (19 * Math.max(0.06, b.level)).toFixed(1));
+    $('batt-bolt').style.display = b.charging ? '' : 'none';
+    setText($('batt-n'), pct + '%');
+    toggle(el, 'low', pct <= 20 && !b.charging);
+    toggle(el, 'charging', !!b.charging);
+  }
+  // Only available on secure origins (USB uses localhost, so it works there).
+  if (navigator.getBattery) {
+    navigator.getBattery().then(function (b) {
+      battery = b;
+      b.addEventListener('levelchange', reportBattery);
+      b.addEventListener('chargingchange', reportBattery);
+      reportBattery();
+    }).catch(function () {});
+  }
+
+  // "Identify" from the PC app: flash this phone so you know which one it is.
+  function identify(name) {
+    var el = $('identify');
+    $('identify-name').textContent = name || 'This phone';
+    el.hidden = false;
+    el.classList.remove('go');
+    void el.offsetWidth;
+    el.classList.add('go');
+    buzz();
+    clearTimeout(identify.t);
+    identify.t = setTimeout(function () { el.hidden = true; }, 2200);
+  }
 
   /* ============================================================ boot */
   renderDots();

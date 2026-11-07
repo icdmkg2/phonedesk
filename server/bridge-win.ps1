@@ -51,6 +51,54 @@ public static class PdKeys {
 }
 '@
 
+# A program's icon as PNG, at a good size and with transparency (the shell's own icon renderer).
+Add-Type -ReferencedAssemblies System.Drawing -Language CSharp -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Runtime.InteropServices;
+
+public static class PdIcon {
+  [ComImport, Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IShellItemImageFactory { [PreserveSig] int GetImage(SIZE size, int flags, out IntPtr phbm); }
+  [StructLayout(LayoutKind.Sequential)] struct SIZE { public int cx, cy; }
+  [StructLayout(LayoutKind.Sequential)] struct BITMAP { public int bmType, bmWidth, bmHeight, bmWidthBytes; public ushort bmPlanes, bmBitsPixel; public IntPtr bmBits; }
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+  static extern void SHCreateItemFromParsingName(string path, IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItemImageFactory item);
+  [DllImport("gdi32.dll")] static extern int GetObject(IntPtr h, int size, ref BITMAP bm);
+  [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr h);
+
+  public static byte[] Png(string path, int size) {
+    Bitmap bmp = null;
+    try {
+      IShellItemImageFactory f;
+      SHCreateItemFromParsingName(path, IntPtr.Zero, typeof(IShellItemImageFactory).GUID, out f);
+      IntPtr hbm;
+      SIZE s; s.cx = size; s.cy = size;
+      if (f.GetImage(s, 0x4 /* icon only */, out hbm) == 0) {
+        try {
+          BITMAP bm = new BITMAP();
+          GetObject(hbm, Marshal.SizeOf(typeof(BITMAP)), ref bm);
+          if (bm.bmBitsPixel == 32 && bm.bmBits != IntPtr.Zero) {
+            // A bottom-up DIB with premultiplied alpha: read it from the last row upward.
+            IntPtr last = new IntPtr(bm.bmBits.ToInt64() + (long)bm.bmWidthBytes * (bm.bmHeight - 1));
+            using (Bitmap tmp = new Bitmap(bm.bmWidth, bm.bmHeight, -bm.bmWidthBytes, PixelFormat.Format32bppPArgb, last))
+              bmp = new Bitmap(tmp);
+          } else {
+            bmp = Image.FromHbitmap(hbm);
+          }
+        } finally { DeleteObject(hbm); }
+      }
+    } catch { }
+    if (bmp == null) {
+      try { using (Icon ic = Icon.ExtractAssociatedIcon(path)) bmp = ic.ToBitmap(); } catch { return null; }
+    }
+    using (bmp) using (MemoryStream ms = new MemoryStream()) { bmp.Save(ms, ImageFormat.Png); return ms.ToArray(); }
+  }
+}
+'@
+
 $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
   $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
 })[0]
@@ -95,9 +143,68 @@ function Send-Combo([string]$combo) {
   if ($codes.Count -gt 0) { [PdKeys]::Combo($codes.ToArray()) }
 }
 
+# Apps that register with Windows media controls but aren't music (voice chat). Set by the server.
+$script:Ignored = @('discord')
+function Test-Ignored($s) {
+  $id = ("" + $s.SourceAppUserModelId).ToLower()
+  foreach ($b in $script:Ignored) { if ($b -and $id.Contains($b)) { return $true } }
+  return $false
+}
+
+# Windows' "current" session, unless it's an ignored app; then the best other one
+# (something playing first, else the first non-ignored session).
 function Get-Session {
-  $s = $mgr.GetCurrentSession()
-  return $s
+  $cur = $mgr.GetCurrentSession()
+  if ($cur -and -not (Test-Ignored $cur)) { return $cur }
+  $fallback = $null
+  foreach ($s in $mgr.GetSessions()) {
+    if (Test-Ignored $s) { continue }
+    if (([string]$s.GetPlaybackInfo().PlaybackStatus) -eq 'Playing') { return $s }
+    if ($null -eq $fallback) { $fallback = $s }
+  }
+  return $fallback
+}
+
+# ---------------------------------------------------------------- the playing app's icon + name
+$GameDirs = '\\steamapps\\common\\|\\Epic Games\\|\\GOG Galaxy\\Games\\|\\GOG Games\\|\\XboxGames\\|\\Riot Games\\|\\Battle\.net\\|\\EA Games\\|\\Ubisoft Game Launcher\\games\\|\\Rockstar Games\\'
+$KnownAumid = @{ 'chrome' = 'chrome'; 'msedge' = 'msedge'; '308046b0af4a39cb' = 'firefox'; '6f193ccc56814779' = 'firefox'; 'opera' = 'opera'; 'brave' = 'brave' }
+$IconSent = @{}
+
+function Find-AppInfo([string]$aumid) {
+  try {
+    if ($aumid -match '!') {
+      # Store app: Family_Publisher!App -> package logo
+      $name = $aumid.Split('!')[0].Split('_')[0]
+      $pkg = Get-AppxPackage -Name $name -ErrorAction SilentlyContinue | Select-Object -First 1
+      if (-not $pkg) { return $null }
+      [xml]$man = Get-Content -LiteralPath (Join-Path $pkg.InstallLocation 'AppxManifest.xml') -Raw
+      $display = "" + $man.Package.Properties.DisplayName
+      if ($display -like 'ms-resource:*') { $display = '' }
+      $logo = Join-Path $pkg.InstallLocation ("" + $man.Package.Properties.Logo)
+      $dir = Split-Path $logo; $stem = [IO.Path]::GetFileNameWithoutExtension($logo); $ext = [IO.Path]::GetExtension($logo)
+      $best = Get-ChildItem -LiteralPath $dir -Filter "$stem*$ext" -ErrorAction SilentlyContinue | Sort-Object Length -Descending | Select-Object -First 1
+      $file = if ($best) { $best.FullName } elseif (Test-Path -LiteralPath $logo) { $logo } else { $null }
+      if (-not $file) { return $null }
+      return @{ png = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file)); name = $display; game = $false }
+    }
+    $proc = $aumid -replace '\.exe$', ''
+    $key = $proc.ToLower()
+    if ($KnownAumid.ContainsKey($key)) { $proc = $KnownAumid[$key] }
+    $p = Get-Process -Name $proc -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
+    if (-not $p) { return $null }
+    $png = [PdIcon]::Png($p.Path, 96)
+    if (-not $png) { return $null }
+    $desc = ""
+    try { $desc = "" + [Diagnostics.FileVersionInfo]::GetVersionInfo($p.Path).FileDescription } catch { }
+    return @{ png = [Convert]::ToBase64String($png); name = $desc.Trim(); game = ($p.Path -match $GameDirs) }
+  } catch { Log "icon lookup failed for ${aumid}: $($_.Exception.Message)"; return $null }
+}
+
+function Send-AppIcon([string]$aumid) {
+  if (-not $aumid -or $IconSent.ContainsKey($aumid)) { return }
+  $IconSent[$aumid] = $true
+  $info = Find-AppInfo $aumid
+  if ($info) { Emit @{ t = 'appicon'; app = $aumid; png = $info.png; name = $info.name; game = $info.game } }
 }
 
 function Invoke-Cmd([string]$line) {
@@ -109,6 +216,7 @@ function Invoke-Cmd([string]$line) {
     'volume' { [PdAudio]::SetVolume([float]::Parse($arg, [Globalization.CultureInfo]::InvariantCulture)); $script:forceVol = $true; return }
     'mute' { [PdAudio]::SetMute(-not [PdAudio]::GetMute()); $script:forceVol = $true; return }
     'keys' { Send-Combo $arg; return }
+    'ignore' { $script:Ignored = @($arg.ToLower().Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }); $script:forceMedia = $true; return }
   }
   $s = Get-Session
   if ($null -eq $s) {
@@ -140,13 +248,18 @@ function Read-Art($props) {
   if ($null -eq $props.Thumbnail) { return $null }
   try {
     $stream = Await ($props.Thumbnail.OpenReadAsync()) $StreamType
-    $net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream)
+    # PowerShell can't pick this overload by itself for a WinRT stream (it silently failed before),
+    # so call it through reflection, which does the interface cast at runtime.
+    $net = $AsStreamForRead.Invoke($null, @($stream))
     $ms = New-Object System.IO.MemoryStream
     $net.CopyTo($ms)
     $net.Dispose()
     return [Convert]::ToBase64String($ms.ToArray())
   } catch { return $null }
 }
+
+[void][Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$AsStreamForRead = [System.IO.WindowsRuntimeStreamExtensions].GetMethod('AsStreamForRead', [Type[]]@([Windows.Storage.Streams.IInputStream]))
 
 $lastMediaKey = ''
 $lastTrackKey = ''
@@ -182,6 +295,7 @@ while ($true) {
         $key = 'none'
         if ($key -ne $lastMediaKey -or $script:forceMedia) { Emit @{ t = 'media'; active = $false }; $lastMediaKey = $key; $lastTrackKey = '' }
       } else {
+        Send-AppIcon $s.SourceAppUserModelId
         $pi = $s.GetPlaybackInfo()
         $tl = $s.GetTimelineProperties()
         $status = [string]$pi.PlaybackStatus
@@ -205,11 +319,18 @@ while ($true) {
             shuffle = $pi.IsShuffleActive; repeat = [int]$pi.AutoRepeatMode
           }
           if ($needArt -and $props) {
-            $art = Read-Art $props
-            # Thumbnails can arrive a beat after the title; retry next poll if missing.
-            $artTries++
-            if ($art) { $msg.art = $art; $lastTrackKey = $trackKey }
-            elseif ($artTries -ge 8) { $msg.art = ''; $lastTrackKey = $trackKey }
+            if ($null -eq $props.Thumbnail -and $artTries -ge 2) {
+              # The app gives no picture at all (e.g. YouTube in a browser): say so right away so
+              # the server can look one up instead of waiting.
+              $msg.art = ''; $lastTrackKey = $trackKey
+            } else {
+              $art = Read-Art $props
+              # Thumbnails can arrive a beat after the title; retry next poll if missing.
+              $artTries++
+              if ($art) { $msg.art = $art; $lastTrackKey = $trackKey }
+              elseif ($artTries -ge 8) { $msg.art = ''; $lastTrackKey = $trackKey }
+            }
+            if ($null -eq $props.Thumbnail) { $artTries++ }
           }
           Emit $msg
           $lastMediaKey = $key

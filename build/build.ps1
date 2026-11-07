@@ -33,10 +33,27 @@ $runtime = Join-Path $stage 'runtime'
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 Copy-Item $node -Destination (Join-Path $runtime 'node.exe')
 
-# ---- tray app
-$common = @('/nologo', '/optimize+', '/platform:anycpu', "/win32icon:installer\phonedesk.ico", '/win32manifest:installer\app.manifest',
+# ---- WebView2 SDK (the app window). Pinned version, downloaded once into build\.cache.
+$wv2Version = '1.0.4258.31'
+$wv2 = Join-Path $PSScriptRoot ".cache\webview2-$wv2Version"
+if (-not (Test-Path "$wv2\lib\net462\Microsoft.Web.WebView2.WinForms.dll")) {
+  Write-Host "Downloading WebView2 SDK $wv2Version from nuget.org"
+  New-Item -ItemType Directory -Force -Path $wv2 | Out-Null
+  $pkg = "$wv2.nupkg"
+  Invoke-WebRequest -UseBasicParsing -Uri "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/$wv2Version/microsoft.web.webview2.$wv2Version.nupkg" -OutFile $pkg
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [System.IO.Compression.ZipFile]::ExtractToDirectory($pkg, $wv2)
+  Remove-Item $pkg
+}
+$wvCore = "$wv2\lib\net462\Microsoft.Web.WebView2.Core.dll"
+$wvForms = "$wv2\lib\net462\Microsoft.Web.WebView2.WinForms.dll"
+Copy-Item $wvCore, $wvForms, "$wv2\runtimes\win-x64\native\WebView2Loader.dll" -Destination $stage
+
+# ---- tray app + window
+$common = @('/nologo', '/optimize+', "/win32icon:installer\phonedesk.ico", '/win32manifest:installer\app.manifest',
   '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll')
-& $csc @common /target:winexe "/out:$stage\PhoneDesk.exe" installer\Tray.cs installer\Common.cs
+& $csc @common /platform:x64 /target:winexe "/out:$stage\PhoneDesk.exe" "/r:$wvCore" "/r:$wvForms" `
+  installer\Tray.cs installer\Window.cs installer\Common.cs
 if ($LASTEXITCODE -ne 0) { throw 'compiling PhoneDesk.exe failed' }
 
 # ---- payload zip
@@ -46,7 +63,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 # ---- installer
 $setup = Join-Path $dist "PhoneDesk-Setup-$version.exe"
-& $csc @common /target:winexe "/out:$setup" "/resource:$zip,payload.zip" `
+& $csc @common /platform:anycpu /target:winexe "/out:$setup" "/resource:$zip,payload.zip" `
   /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll installer\Setup.cs installer\Common.cs
 if ($LASTEXITCODE -ne 0) { throw 'compiling setup failed' }
 Remove-Item $zip

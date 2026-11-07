@@ -8,176 +8,280 @@
 <link rel="stylesheet" href="/dashboard/dash.css">
 </head>
 <body>
-<header class="top">
-  <div class="brand">
-    <img src="/favicon.svg" alt="" width="28" height="28">
-    <span>PhoneDesk</span>
-    <span class="ver" id="ver"></span>
-  </div>
-  <div class="health" id="health">
-    <span class="pill" id="h-server"><i></i>Server</span>
-    <span class="pill" id="h-bridge"><i></i>Media bridge</span>
-    <span class="pill" id="h-phones"><i></i><b id="h-phones-n">0</b>&nbsp;<span id="h-phones-w">phones</span></span>
-  </div>
-</header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4.2" height="14" rx="1.2" fill="currentColor"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 6.2v11.6a.9.9 0 0 0 1.4.75L15 12.75a.9.9 0 0 0 0-1.5L6.4 5.45A.9.9 0 0 0 5 6.2z" fill="currentColor"/><rect x="16.5" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 6.2v11.6a.9.9 0 0 1-1.4.75L9 12.75a.9.9 0 0 1 0-1.5l8.6-5.8A.9.9 0 0 1 19 6.2z" fill="currentColor"/><rect x="4.9" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M4 7h3.5c1.6 0 3 .8 3.9 2.1l2.2 3.3c.9 1.3 2.3 2.1 3.9 2.1H20M4 17h3.5c1.6 0 3-.8 3.9-2.1M14 9.1c.9-1.3 2.1-2.1 3.6-2.1H20M17.5 4.5 20 7l-2.5 2.5M17.5 14.5 20 17l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M5 11V9.5A2.5 2.5 0 0 1 7.5 7H19M16.5 4.5 19 7l-2.5 2.5M19 13v1.5a2.5 2.5 0 0 1-2.5 2.5H5M7.5 19.5 5 17l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.2 3.4a.8.8 0 0 0 1.3-.6V5.7a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z" fill="currentColor"/><path d="M16.5 9a4.2 4.2 0 0 1 0 6M19 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.2 3.4a.8.8 0 0 0 1.3-.6V5.7a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z" fill="currentColor"/><path d="m16.5 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18.5V6.8a1 1 0 0 1 .8-1l8-1.6a1 1 0 0 1 1.2 1v11.3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.5" cy="18.5" r="2.5" fill="currentColor"/><circle cx="16.5" cy="16.5" r="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 20h6M12 16.5V20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2h5.6l1.5 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12.8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 9.5c3-1 6.5-.8 9.2.6M8 12.6c2.5-.7 5.4-.5 7.6.6M8.6 15.5c2-.5 4.2-.3 5.9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.5h16M7 16v-4M11 16V8M15 16v-6M19 16V5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.2l2 2H19a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 3 5.5 13.5h6l-1 7.5 8-10.5h-6z" fill="currentColor"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.2-3.5-8.5S9.6 5.9 12 3.5z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-game" viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 3.9 4.9l-.9 4a2.2 2.2 0 0 1-3.8 1L14.5 16h-5l-1.7 1.9a2.2 2.2 0 0 1-3.8-1l-.9-4A4 4 0 0 1 7 8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 11v3M6.5 12.5h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="15.5" cy="11.5" r="1.1" fill="currentColor"/><circle cx="17.5" cy="13.5" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8.5 7.5-4.5 4.5 4.5 4.5M15.5 7.5l4.5 4.5-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 6.5A2 2 0 0 1 6.5 4.5h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5v-3.5h0a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8M7 6.3a7.5 7.5 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
 
-<nav class="tabs" id="tabs">
-  <button data-tab="home" class="on">Home</button>
-  <button data-tab="shortcuts">Shortcuts</button>
-  <button data-tab="settings">Settings</button>
-  <button data-tab="logs">Logs</button>
-</nav>
+<div class="shell">
+  <nav class="side" aria-label="Sections">
+    <div class="brand"><img src="/favicon.svg" alt="">PhoneDesk</div>
+    <button class="nav on" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Overview</button>
+    <button class="nav" data-view="shortcuts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3 5.5 13.5h6l-1 7.5 8-10.5h-6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Shortcuts</button>
+    <button class="nav" data-view="display"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6.5" width="19" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Phone display</button>
+    <button class="nav" data-view="connection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a5.5 5.5 0 0 1 8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor"/></svg>Connection<span class="count" id="nav-warn" hidden>!</span></button>
+    <button class="nav" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Activity</button>
 
-<main>
-  <!-- ======================= HOME ======================= -->
-  <section class="tab on" id="t-home">
-    <div class="grid">
-      <div class="card connect">
-        <h2>Connect your phone</h2>
-        <div class="connect-body">
-          <div class="qr-box"><img id="qr" alt="QR code to open PhoneDesk on your phone"></div>
-          <div class="connect-steps">
-            <div class="method">
-              <h3>Over Wi-Fi</h3>
-              <p>Scan the code, or open this address in the phone's browser. The phone must be on the same network as the PC. The <b>.local</b> address keeps working even if the PC's IP changes.</p>
-              <div class="urls" id="urls"></div>
-            </div>
-            <div class="method">
-              <h3>Over USB <span class="tag">fastest</span></h3>
-              <p id="usb-help">Turn on USB debugging on the phone, plug it in, and accept the prompt. PhoneDesk opens on the phone automatically.</p>
-              <div class="usb" id="usb"></div>
-              <div class="row gap">
-                <button class="btn" id="usb-connect">Connect now</button>
-                <button class="btn ghost" id="usb-install" hidden>Download ADB (≈7 MB)</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card np">
-        <h2>Now playing</h2>
-        <div class="np-body">
-          <div class="np-art"><img id="np-art" alt=""></div>
-          <div class="np-info">
-            <div class="np-app" id="np-app"></div>
-            <div class="np-title" id="np-title">Nothing playing</div>
-            <div class="np-artist" id="np-artist"></div>
-            <div class="np-bar"><div id="np-fill"></div></div>
-            <div class="np-ctrl">
-              <button class="ic" data-cmd="prev" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M19 6.2v11.6a.9.9 0 0 1-1.4.75L9 12.75a.9.9 0 0 1 0-1.5l8.6-5.8A.9.9 0 0 1 19 6.2z" fill="currentColor"/><rect x="4.9" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></svg></button>
-              <button class="ic main" data-cmd="toggle" aria-label="Play or pause"><svg viewBox="0 0 24 24" id="np-play"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></svg></button>
-              <button class="ic" data-cmd="next" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M5 6.2v11.6a.9.9 0 0 0 1.4.75L15 12.75a.9.9 0 0 0 0-1.5L6.4 5.45A.9.9 0 0 0 5 6.2z" fill="currentColor"/><rect x="16.5" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></svg></button>
-              <label class="vol">Volume <input type="range" id="np-vol" min="0" max="100" step="1"><span id="np-vol-n">0</span></label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card phones">
-        <div class="row between">
-          <h2>Connected phones</h2>
-          <button class="btn ghost sm" id="reload-phones" title="Reload the page on every connected phone">Reload phones</button>
-        </div>
-        <ul class="list" id="phones"></ul>
-      </div>
-
-      <div class="card tips">
-        <h2>Making an old phone feel fast</h2>
-        <ul class="tiplist">
-          <li><b>Use USB when you can.</b> It's faster than Wi-Fi and keeps the screen awake by itself.</li>
-          <li><b>Tap the ⤢ corner button</b> on the phone for full screen, or use <i>Add to Home screen</i> in Chrome.</li>
-          <li><b>Keep the screen on over Wi-Fi:</b> Developer options → <i>Stay awake</i> (while charging).</li>
-          <li><b>Close other apps on the phone</b> and turn off battery saver while it's docked.</li>
-          <li>If the phone gets warm, set <i>Dim after</i> in Settings, or use the Black theme.</li>
-        </ul>
-      </div>
+    <div class="side-foot">
+      <div class="status"><span class="dot" id="st-dot"></span><span id="st-text">Connecting…</span><span class="ver" id="st-ver"></span></div>
+      <label class="toggle-row" id="autostart-row" hidden>Start with Windows
+        <span class="switch"><input type="checkbox" id="autostart"><span></span></span>
+      </label>
     </div>
-  </section>
+  </nav>
 
-  <!-- ======================= SHORTCUTS ======================= -->
-  <section class="tab" id="t-shortcuts">
-    <div class="card">
-      <div class="row between">
+  <main class="main" id="main">
+
+    <!-- =============================== OVERVIEW =============================== -->
+    <section class="view on" id="v-overview" aria-label="Overview">
+      <div class="head">
         <div>
-          <h2>Shortcut buttons</h2>
-          <p class="muted">Buttons on the phone's Shortcuts screen. Each one presses keys, opens a link, or starts an app on this PC.</p>
+          <h1>Overview</h1>
+          <p id="ov-sub">Checking for phones…</p>
         </div>
-        <div class="row gap">
-          <button class="btn ghost" id="sc-add">Add button</button>
-          <button class="btn" id="sc-save" disabled>Save</button>
+        <div class="row">
+          <button class="btn" id="ov-reload" hidden>Reload phone</button>
+          <button class="btn primary" data-goto="connection">Connect a phone</button>
         </div>
       </div>
-      <div class="sc-head"><span></span><span>Label</span><span>Action</span><span>What to do</span><span>Icon</span><span>Color</span><span></span></div>
-      <div id="sc-list" class="sc-list"></div>
-      <p class="muted small">Keys: combine with <code>+</code>, e.g. <code>ctrl+shift+m</code>, <code>win+d</code>, <code>alt+f4</code>, <code>f5</code>, <code>medianext</code>.
-        Link: a web address or app link like <code>spotify:</code> / <code>discord://</code>. App: a full path like <code>C:\Program Files\App\app.exe</code>.</p>
-    </div>
-  </section>
 
-  <!-- ======================= SETTINGS ======================= -->
-  <section class="tab" id="t-settings">
-    <div class="grid">
-      <div class="card">
-        <h2>Phone display</h2>
-        <div class="field">
-          <label>Theme</label>
-          <div class="seg" id="set-theme">
-            <button data-v="dark">Dark</button><button data-v="black">Black</button><button data-v="light">Light</button>
+      <section class="card hero" id="ov-hero" aria-label="Connected phone" hidden>
+        <div class="device"><div class="screen" id="ov-mirror"></div></div>
+        <div class="hero-info">
+          <div class="phone-tabs" id="ov-tabs" hidden></div>
+          <div class="row"><span class="badge" id="ov-via">USB</span><span class="small muted">Live preview</span></div>
+          <div class="big" id="ov-name">Phone</div>
+          <dl class="stats3">
+            <div><dt>Latency</dt><dd id="ov-rtt">–</dd></div>
+            <div><dt>Screen</dt><dd id="ov-screen">–</dd></div>
+            <div><dt>Battery</dt><dd id="ov-batt">–</dd></div>
+          </dl>
+          <div class="row">
+            <button class="btn" id="ov-identify">Identify (flash screen)</button>
+            <div class="menu-wrap">
+              <button class="btn" id="ov-switch" aria-haspopup="true" aria-expanded="false">Switch screen</button>
+              <div class="popover" id="ov-switch-menu" hidden></div>
+            </div>
           </div>
         </div>
-        <div class="field">
-          <label>Accent color</label>
-          <div class="row gap">
-            <div class="seg" id="set-accent-mode"><button data-v="auto">From album art</button><button data-v="fixed">Fixed</button></div>
-            <input type="color" id="set-accent" value="#5b8cff">
+      </section>
+
+      <section class="card empty-hero" id="ov-empty" aria-label="No phone connected" hidden>
+        <div class="qr lg"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
+        <div class="steps">
+          <h3 class="big">Connect your phone</h3>
+          <ol>
+            <li>On your phone, open <b class="name-url">phonedesk.local</b> in the browser, or scan the code.</li>
+            <li>Or plug it in by USB with USB debugging turned on. PhoneDesk opens on it by itself.</li>
+          </ol>
+          <div class="row"><button class="btn sm copy-url">Copy link</button><button class="btn sm" data-goto="connection">Connection help</button></div>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="card" aria-label="Phone address">
+          <div class="addr">
+            <div class="qr"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
+            <div class="addr-body">
+              <h2 class="label">Open on your phone</h2>
+              <div class="big name-url">phonedesk.local</div>
+              <p class="small muted">Works on the same Wi-Fi, even if this PC's IP changes.</p>
+              <div class="row"><button class="btn sm copy-url">Copy link</button><button class="btn sm" data-goto="connection">Other addresses</button></div>
+            </div>
           </div>
-        </div>
-        <div class="field">
-          <label>Clock</label>
-          <div class="seg" id="set-clock"><button data-v="24">24-hour</button><button data-v="12">12-hour</button></div>
-        </div>
-        <div class="field">
-          <label for="set-dim">Dim the screen after no touches</label>
-          <select id="set-dim">
-            <option value="0">Never</option><option value="30">30 seconds</option><option value="60">1 minute</option>
-            <option value="300">5 minutes</option><option value="900">15 minutes</option><option value="1800">30 minutes</option>
-          </select>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Screens</h2>
-        <p class="muted">Pick which screens the phone shows and their order. Swipe on the phone to move between them.</p>
-        <ul class="screens" id="set-screens"></ul>
-      </div>
-      <div class="card">
-        <h2>Connection</h2>
-        <div class="field">
-          <label class="check"><input type="checkbox" id="set-usb"> Set up USB phones automatically</label>
-          <p class="muted small">Checks for plugged-in phones every few seconds, links them, and opens PhoneDesk on them.</p>
-        </div>
-        <div class="field">
-          <label for="set-port">Port</label>
-          <div class="row gap"><input type="number" id="set-port" min="1024" max="65535"><span class="muted small">Takes effect after you restart PhoneDesk.</span></div>
-        </div>
-        <div class="field">
-          <label>Media bridge</label>
-          <div class="row gap"><button class="btn ghost" id="bridge-restart">Restart media bridge</button><span class="muted small" id="bridge-info"></span></div>
-        </div>
-      </div>
-    </div>
-  </section>
+        </section>
 
-  <!-- ======================= LOGS ======================= -->
-  <section class="tab" id="t-logs">
-    <div class="card">
-      <div class="row between"><h2>Logs</h2><button class="btn ghost sm" id="logs-refresh">Refresh</button></div>
-      <pre class="logs" id="logs"></pre>
-    </div>
-  </section>
-</main>
+        <section class="card" aria-label="Now playing on this PC">
+          <div class="card-head"><h2 class="label">Now playing on this PC</h2><span class="app-tag" id="np-app"></span></div>
+          <div class="np">
+            <div class="np-art"><img id="np-art" alt="" hidden></div>
+            <div style="min-width:0">
+              <div class="np-title" id="np-title">Nothing playing</div>
+              <div class="np-artist" id="np-artist">Start music or a video on this PC</div>
+            </div>
+          </div>
+          <div class="np-ctrl">
+            <button class="icon-btn" data-cmd="prev" aria-label="Previous"><svg><use href="#i-prev"/></svg></button>
+            <button class="play-btn" data-cmd="toggle" aria-label="Play or pause"><svg><use id="np-play" href="#i-play"/></svg></button>
+            <button class="icon-btn" data-cmd="next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
+            <label class="vol">Volume <input type="range" id="np-vol" min="0" max="100" step="1"><span id="np-vol-n">0</span></label>
+          </div>
+        </section>
 
-<div class="toast" id="toast"></div>
+        <section class="card" aria-label="This PC">
+          <h2 class="label" id="pc-name">This PC</h2>
+          <div class="pc">
+            <div><div class="small muted">CPU</div><div class="num" id="pc-cpu">–</div><div class="meter"><i id="pc-cpu-m"></i></div></div>
+            <div><div class="small muted">Memory</div><div class="num" id="pc-mem">–</div><div class="meter"><i id="pc-mem-m"></i></div></div>
+          </div>
+        </section>
+
+        <section class="card" aria-label="Recent activity">
+          <div class="card-head"><h2 class="label">Recent activity</h2><button class="btn sm ghost" data-goto="activity">See all</button></div>
+          <ul class="feed" id="ov-feed"></ul>
+        </section>
+      </div>
+    </section>
+
+    <!-- =============================== SHORTCUTS =============================== -->
+    <section class="view" id="v-shortcuts" aria-label="Shortcuts">
+      <div class="head">
+        <div>
+          <h1>Shortcuts</h1>
+          <p>Buttons on your phone that do things on this PC. Drag to reorder. Changes reach the phone instantly.</p>
+        </div>
+        <div class="row"><span class="save-state" id="sc-state"></span><button class="btn primary" id="sc-add">Add button</button></div>
+      </div>
+      <div class="split">
+        <section class="card pad-card" aria-label="Phone preview">
+          <div class="card-head"><h2 class="label">As it looks on the phone</h2><span class="small muted" id="sc-count"></span></div>
+          <div class="device"><div class="pad" id="sc-pad"></div></div>
+          <p class="small muted">Click a button to edit it. Drag one onto another to swap them.</p>
+        </section>
+        <section class="card editor" id="sc-editor" aria-label="Edit button">
+          <div class="editor-title"><span class="ic"><svg><use id="ed-icon-preview" href="#i-bolt"/></svg></span><h2 id="ed-title">Button</h2></div>
+          <label class="field">Label<input type="text" id="ed-label" maxlength="40"></label>
+          <div class="field">What it does
+            <div class="seg" id="ed-type" role="group" aria-label="What it does">
+              <button data-v="keys">Press keys</button><button data-v="url">Open link</button><button data-v="app">Start app</button>
+            </div>
+          </div>
+          <div class="field" id="ed-keys-field">Keys
+            <button class="recorder" id="ed-rec"></button>
+            <div class="row"><span class="hint" id="ed-rec-hint">Click, then press the keys.</span><button class="btn sm ghost" id="ed-win" style="margin-left:auto">Add Win key</button></div>
+          </div>
+          <label class="field" id="ed-value-field">Link<input type="text" id="ed-value" maxlength="500"><span class="hint" id="ed-value-hint"></span></label>
+          <div class="field">Icon<div class="icons" id="ed-icons"></div></div>
+          <div class="field">Color<div class="swatches" id="ed-colors"></div></div>
+          <div class="sep"></div>
+          <div class="row"><button class="btn" id="ed-test">Test it now</button><button class="btn danger" id="ed-delete" style="margin-left:auto">Delete</button></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- =============================== PHONE DISPLAY =============================== -->
+    <section class="view" id="v-display" aria-label="Phone display">
+      <div class="head"><div><h1>Phone display</h1><p>How the phone looks. Every change shows on the phone right away.</p></div></div>
+      <div class="split">
+        <div style="flex:1 1 460px;min-width:0;display:flex;flex-direction:column;gap:20px">
+          <section class="card" aria-label="Theme">
+            <h3>Theme</h3>
+            <div class="themes" id="ds-themes">
+              <button class="theme" data-v="dark"><i style="background:#0E0F12"></i><b>Dark</b></button>
+              <button class="theme" data-v="black"><i style="background:#000"></i><b>Black <small>· saves power</small></b></button>
+              <button class="theme" data-v="light"><i style="background:#F4F5F7"></i><b>Light</b></button>
+            </div>
+          </section>
+          <section class="card" aria-label="Accent, clock and dimming">
+            <div class="card-head" style="flex-wrap:wrap">
+              <div><h3>Accent color</h3><p class="small muted" style="margin-top:4px">Picked from the album art, or one color always.</p></div>
+              <div class="swatches" id="ds-accent"></div>
+            </div>
+            <div class="sep"></div>
+            <div class="card-head"><h3>Clock</h3><div class="seg" id="ds-clock"><button data-v="24">24-hour</button><button data-v="12">12-hour</button></div></div>
+            <div class="sep"></div>
+            <label class="field" style="gap:10px"><span class="card-head"><h3>Dim when nobody touches it</h3><span class="small muted" id="ds-dim-label"></span></span>
+              <input type="range" id="ds-dim" min="0" max="5" step="1">
+            </label>
+          </section>
+          <section class="card" aria-label="Extras">
+            <h3>Extras</h3>
+            <label class="toggle-row"><span>Show the phone's battery in the corner</span><span class="switch"><input type="checkbox" id="ds-batt"><span></span></span></label>
+            <div class="sep"></div>
+            <label class="toggle-row"><span>Find missing album art online<br><span class="hint">When an app (like YouTube) gives no picture, look the song up in the iTunes catalog. Only the song and artist name are sent.</span></span><span class="switch"><input type="checkbox" id="ds-art"><span></span></span></label>
+          </section>
+          <section class="card" aria-label="Screens">
+            <div><h3>Screens</h3><p class="small muted" style="margin-top:4px">Swipe on the phone to move between them. Drag to reorder.</p></div>
+            <ul class="screens" id="ds-screens"></ul>
+          </section>
+        </div>
+        <section class="card preview-card" aria-label="Live preview">
+          <div class="card-head"><h2 class="label">Preview</h2><span class="small muted" id="ds-prev-label"></span></div>
+          <div class="device"><div class="screen" id="ds-preview"></div></div>
+          <div class="pills" id="ds-pills">
+            <button data-v="media">Now playing</button><button data-v="clock">Clock</button><button data-v="stats">PC stats</button><button data-v="shortcuts">Shortcuts</button><button data-v="offline">PC off</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- =============================== CONNECTION =============================== -->
+    <section class="view" id="v-connection" aria-label="Connection">
+      <div class="head"><div><h1>Connection</h1><p>Two ways to connect a phone. USB is the fastest and keeps the screen awake.</p></div></div>
+      <div class="grid">
+        <section class="card" aria-label="Wi-Fi">
+          <div class="card-head"><h3>Over Wi-Fi</h3><span class="badge">Same network</span></div>
+          <div class="addr">
+            <div class="qr lg"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
+            <div class="addr-body">
+              <div class="big name-url">phonedesk.local</div>
+              <p class="small muted">Open this in the phone's browser. It keeps working when the PC's IP changes.</p>
+              <button class="btn sm copy-url" style="align-self:flex-start">Copy link</button>
+            </div>
+          </div>
+          <div class="sep"></div>
+          <h2 class="label">If the name doesn't work, use an address</h2>
+          <div class="urls" id="cn-urls"></div>
+        </section>
+        <section class="card" aria-label="USB">
+          <div class="card-head"><h3>Over USB</h3><span class="badge usb">Fastest</span></div>
+          <p class="small muted">On the phone: Settings → About phone → tap <i>Build number</i> 7 times, then Developer options → turn on <b>USB debugging</b>. Plug it in and accept the prompt.</p>
+          <div class="urls" id="cn-usb"></div>
+          <div class="row"><button class="btn" id="cn-usb-connect">Open PhoneDesk on the phone</button><button class="btn" id="cn-adb-install" hidden>Download ADB (≈7 MB)</button></div>
+          <label class="toggle-row">Link phones automatically (USB and Wi-Fi)<span class="switch"><input type="checkbox" id="cn-autousb"><span></span></span></label>
+        </section>
+        <section class="card" aria-label="Phone on a charger">
+          <div class="card-head"><h3>Phone on a charger, no cable to the PC?</h3><span class="badge">Optional</span></div>
+          <p class="small muted">Link it over Wi-Fi so PhoneDesk can show its battery, keep its screen on, and reopen PhoneDesk on it after it restarts.</p>
+          <ol class="small" style="margin:0;padding-left:18px;color:var(--fg2);display:flex;flex-direction:column;gap:6px">
+            <li>On the phone: Developer options → turn on <b>ADB over network</b> (LineageOS) or <b>Wireless debugging</b>.</li>
+            <li>Open PhoneDesk on the phone over Wi-Fi. The PC links to it by itself.</li>
+            <li>The first time, accept the "Allow debugging" prompt on the phone and tick <i>Always allow</i>.</li>
+          </ol>
+          <p class="small muted">Already set up once: the screen stays on whenever the phone is charging (Developer options → Stay awake).</p>
+        </section>
+        <section class="card" aria-label="Advanced">
+          <h3>Advanced</h3>
+          <label class="field">Port<input type="number" id="cn-port" min="1024" max="65535" style="width:140px"><span class="hint">Takes effect after you restart PhoneDesk.</span></label>
+          <label class="field">Name on the network<input type="text" id="cn-name" maxlength="40" style="width:220px"><span class="hint">Phones open <span class="mono" id="cn-name-ex">phonedesk.local</span>. Change it if you have two PCs. Restart to apply.</span></label>
+          <div class="row"><button class="btn" id="cn-bridge">Restart media bridge</button><span class="small muted" id="cn-bridge-info"></span></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- =============================== ACTIVITY =============================== -->
+    <section class="view" id="v-activity" aria-label="Activity">
+      <div class="head"><div><h1>Activity</h1><p>What happened recently. Newest first.</p></div></div>
+      <ul class="feed full" id="ac-feed"></ul>
+      <details id="ac-tech"><summary>Technical log</summary><pre class="logs" id="ac-logs" style="margin-top:12px"></pre></details>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
 <script src="/dashboard/dash.js"></script>
 </body>
 </html>

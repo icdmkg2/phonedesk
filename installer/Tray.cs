@@ -16,8 +16,8 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyTitle("PhoneDesk")]
 [assembly: System.Reflection.AssemblyProduct("PhoneDesk")]
 [assembly: System.Reflection.AssemblyDescription("PhoneDesk")]
-[assembly: System.Reflection.AssemblyVersion("1.1.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.1.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.2.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.2.0.0")]
 
 static class Program
 {
@@ -32,8 +32,12 @@ static class Program
         {
             if (!created)
             {
-                // Already running: launching it again just opens the dashboard.
-                if (!background) Pd.OpenUrl(Pd.DashboardUrl);
+                // Already running: launching it again brings its window forward.
+                if (!background)
+                {
+                    try { using (EventWaitHandle show = EventWaitHandle.OpenExisting(TrayApp.ShowEventName)) show.Set(); }
+                    catch { Pd.OpenUrl(Pd.DashboardUrl); }
+                }
                 return 0;
             }
             Application.EnableVisualStyles();
@@ -96,8 +100,10 @@ class TrayApp : ApplicationContext
     DateTime startedAt;
     int backoffMs = 1000;
     string phoneUrl = "http://phonedesk.local";
-    bool openDashboardWhenReady;
     bool pollBusy;
+    MainWindow window;
+    int lastPhones = -1;
+    public const string ShowEventName = "Local\\PhoneDesk.Show";
 
     public TrayApp(bool openDashboard)
     {
@@ -118,21 +124,25 @@ class TrayApp : ApplicationContext
         Directory.CreateDirectory(Path.Combine(Pd.DataDir, "logs"));
         logFile = Path.Combine(Pd.DataDir, "logs\\server.log");
 
-        statusItem = new ToolStripMenuItem("Starting…") { Enabled = false };
-        ToolStripMenuItem open = new ToolStripMenuItem("Open dashboard", null, delegate { Pd.OpenUrl(Pd.DashboardUrl); });
+        statusItem = new ToolStripMenuItem("PhoneDesk · starting…") { Enabled = false };
+        ToolStripMenuItem open = new ToolStripMenuItem("Open PhoneDesk", null, delegate { ShowWindow(); });
         open.Font = new Font(open.Font, FontStyle.Bold);
-        addressItem = new ToolStripMenuItem("Phone address: " + phoneUrl, null, delegate { CopyAddress(); });
-        addressItem.ToolTipText = "Click to copy. Open this on your phone's browser.";
-        phonesItem = new ToolStripMenuItem("No phones connected") { Enabled = false };
+        addressItem = new ToolStripMenuItem("Copy phone address", null, delegate { CopyAddress(); });
+        addressItem.ShortcutKeyDisplayString = "phonedesk.local";
+        phonesItem = new ToolStripMenuItem("No phone connected") { Enabled = false };
         startupItem = new ToolStripMenuItem("Start with Windows", null, delegate { ToggleStartup(); });
         startupItem.Checked = Pd.StartsWithWindows;
 
         ContextMenuStrip menu = new ContextMenuStrip();
+        menu.Renderer = new DarkMenuRenderer();
+        menu.ShowImageMargin = false;
+        menu.ShowCheckMargin = true;
+        menu.Padding = new Padding(4);
         menu.Items.Add(statusItem);
+        menu.Items.Add(phonesItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(open);
         menu.Items.Add(addressItem);
-        menu.Items.Add(phonesItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(startupItem);
         firewallItem = new ToolStripMenuItem("Let phones on Wi-Fi connect…", null, delegate { FixFirewall(); });
@@ -141,23 +151,27 @@ class TrayApp : ApplicationContext
         menu.Items.Add(new ToolStripMenuItem("Restart PhoneDesk", null, delegate { RestartServer(); }));
         menu.Items.Add(new ToolStripMenuItem("Open log folder", null, delegate { Pd.OpenUrl(Path.Combine(Pd.DataDir, "logs")); }));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Quit PhoneDesk", null, delegate { Quit(); }));
+        ToolStripMenuItem quit = new ToolStripMenuItem("Quit PhoneDesk", null, delegate { Quit(); });
+        quit.ForeColor = Color.FromArgb(255, 138, 143);
+        menu.Items.Add(quit);
+        foreach (ToolStripItem it in menu.Items) { it.Padding = new Padding(6, 5, 6, 5); if (it != quit && it.ForeColor != Color.FromArgb(255, 138, 143)) it.ForeColor = Color.FromArgb(237, 239, 243); }
         menu.Opening += delegate { startupItem.Checked = Pd.StartsWithWindows; };
 
         tray = new NotifyIcon();
         try { tray.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { tray.Icon = SystemIcons.Application; }
         tray.Text = "PhoneDesk";
         tray.ContextMenuStrip = menu;
-        tray.MouseClick += delegate(object s, MouseEventArgs e) { if (e.Button == MouseButtons.Left) Pd.OpenUrl(Pd.DashboardUrl); };
+        tray.MouseClick += delegate(object s, MouseEventArgs e) { if (e.Button == MouseButtons.Left) ShowWindow(); };
         tray.BalloonTipClicked += delegate
         {
             if (firewallBalloon) { firewallBalloon = false; FixFirewall(); }
-            else Pd.OpenUrl(Pd.DashboardUrl);
+            else ShowWindow();
         };
         tray.Visible = true;
 
-        openDashboardWhenReady = openDashboard;
         StartServer();
+        ListenForShow();
+        if (openDashboard) ShowWindow(); // the window waits for the server by itself
 
         CheckFirewallLater();
 
@@ -181,6 +195,7 @@ class TrayApp : ApplicationContext
         psi.StandardOutputEncoding = Encoding.UTF8;
         psi.StandardErrorEncoding = Encoding.UTF8;
         psi.EnvironmentVariables["PHONEDESK_DATA"] = Pd.DataDir;
+        psi.EnvironmentVariables["PHONEDESK_EXE"] = Application.ExecutablePath;
         try
         {
             Process p = new Process();
@@ -254,6 +269,7 @@ class TrayApp : ApplicationContext
         quitting = true;
         poll.Stop();
         tray.Visible = false;
+        if (window != null) { try { window.Close(); } catch { } }
         if (server != null) StopProcess(server);
         tray.Dispose();
         ExitThread();
@@ -287,14 +303,14 @@ class TrayApp : ApplicationContext
                 int end = json.IndexOf(']', clientsAt);
                 phones = Regex.Matches(json.Substring(clientsAt, end - clientsAt), "\"via\":").Count;
             }
-            phonesItem.Text = phones == 0 ? "No phones connected" : phones == 1 ? "1 phone connected" : phones + " phones connected";
-            SetStatus("Running");
+            Match dev = Regex.Match(json, "\"device\":\"([^\"]+)\",\"via\":\"([^\"]+)\"");
+            string first = dev.Success ? dev.Groups[1].Value + " · " + dev.Groups[2].Value : "";
+            phonesItem.Text = phones == 0 ? "No phone connected" : phones == 1 ? first : phones + " phones connected";
+            SetStatus(phones == 0 ? "running" : phones == 1 ? "running · 1 phone" : "running · " + phones + " phones");
             tray.Text = "PhoneDesk: " + (phones == 0 ? "running" : phones == 1 ? "1 phone" : phones + " phones");
-            if (openDashboardWhenReady)
-            {
-                openDashboardWhenReady = false;
-                Pd.OpenUrl(Pd.DashboardUrl);
-            }
+            if (lastPhones >= 0 && phones > lastPhones && dev.Success && (window == null || !window.ContainsFocus))
+                tray.ShowBalloonTip(4000, "Phone connected", dev.Groups[1].Value + " over " + dev.Groups[2].Value + ".", ToolTipIcon.None);
+            lastPhones = phones;
         };
         try { wc.DownloadStringAsync(new Uri(Pd.DashboardUrl + "/api/status")); }
         catch { pollBusy = false; }
@@ -339,7 +355,35 @@ class TrayApp : ApplicationContext
         t.Start();
     }
 
-    void SetStatus(string s) { statusItem.Text = "PhoneDesk " + Pd.Version + " · " + s; }
+    void SetStatus(string s) { statusItem.Text = "PhoneDesk · " + s; }
+
+    // ------------------------------------------------------------ window
+    void ShowWindow()
+    {
+        if (quitting) return;
+        if (window == null || window.IsDisposed)
+        {
+            window = new MainWindow();
+            window.FormClosed += delegate { window = null; GC.Collect(); };
+        }
+        window.Reveal();
+    }
+
+    // A second launch of PhoneDesk.exe signals this event to bring the window forward.
+    void ListenForShow()
+    {
+        EventWaitHandle ev = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+        Thread t = new Thread(delegate ()
+        {
+            while (true)
+            {
+                ev.WaitOne();
+                try { ui.BeginInvoke((MethodInvoker)delegate { ShowWindow(); }); } catch { }
+            }
+        });
+        t.IsBackground = true;
+        t.Start();
+    }
 
     void CopyAddress()
     {
@@ -409,5 +453,48 @@ static class Uninstaller
 
         if (!quiet) MessageBox.Show("PhoneDesk was removed.", "Uninstall PhoneDesk", MessageBoxButtons.OK, MessageBoxIcon.Information);
         return 0;
+    }
+}
+
+class DarkMenuColors : ProfessionalColorTable
+{
+    static readonly Color Bg = Color.FromArgb(20, 22, 27), Hover = Color.FromArgb(31, 37, 51), Line = Color.FromArgb(42, 46, 56);
+    public override Color ToolStripDropDownBackground { get { return Bg; } }
+    public override Color MenuBorder { get { return Line; } }
+    public override Color MenuItemBorder { get { return Hover; } }
+    public override Color MenuItemSelected { get { return Hover; } }
+    public override Color MenuItemSelectedGradientBegin { get { return Hover; } }
+    public override Color MenuItemSelectedGradientEnd { get { return Hover; } }
+    public override Color ImageMarginGradientBegin { get { return Bg; } }
+    public override Color ImageMarginGradientMiddle { get { return Bg; } }
+    public override Color ImageMarginGradientEnd { get { return Bg; } }
+    public override Color SeparatorDark { get { return Line; } }
+    public override Color SeparatorLight { get { return Bg; } }
+    public override Color CheckBackground { get { return Color.FromArgb(91, 140, 255); } }
+    public override Color CheckSelectedBackground { get { return Color.FromArgb(91, 140, 255); } }
+    public override Color CheckPressedBackground { get { return Color.FromArgb(91, 140, 255); } }
+}
+
+class DarkMenuRenderer : ToolStripProfessionalRenderer
+{
+    public DarkMenuRenderer() : base(new DarkMenuColors()) { RoundedEdges = false; }
+
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+    {
+        if (!e.Item.Enabled) e.TextColor = Color.FromArgb(154, 161, 174);
+        else if (e.Item.ForeColor != Color.Empty) e.TextColor = e.Item.ForeColor;
+        if (e.TextFormat.HasFlag(TextFormatFlags.Right)) e.TextColor = Color.FromArgb(124, 131, 144); // shortcut column
+        base.OnRenderItemText(e);
+    }
+
+    protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
+    {
+        // A simple check mark instead of the boxed default.
+        Rectangle r = e.ImageRectangle;
+        using (Pen p = new Pen(Color.FromArgb(91, 140, 255), 2f))
+        {
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            e.Graphics.DrawLines(p, new[] { new Point(r.Left + 3, r.Top + r.Height / 2), new Point(r.Left + r.Width / 2 - 1, r.Bottom - 4), new Point(r.Right - 3, r.Top + 4) });
+        }
     }
 }

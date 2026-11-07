@@ -6,9 +6,10 @@ It's a lighter take on the DeskThing idea.
 
 ## Install
 
-Run **`PhoneDesk-Setup-1.1.0.exe`**. It installs for your Windows account only and needs no admin rights. Node.js comes bundled, so you don't need to install it.
+Run **`PhoneDesk-Setup-1.2.0.exe`**. It installs for your Windows account only and needs no admin rights. Node.js comes bundled, so you don't need to install it.
 
-- PhoneDesk lives in the **system tray**, near the clock. Left-click the icon for the dashboard; right-click it for the menu (phone address, start with Windows, restart, quit).
+- PhoneDesk opens as its **own window** (it uses the Edge WebView2 engine that comes with Windows 11). Closing the window keeps PhoneDesk running in the **tray**, near the clock; click the tray icon to bring it back, right-click it for the menu.
+- The window has: **Overview** (a live preview of what the phone shows, its connection, latency and battery), **Shortcuts** (edit the buttons by clicking them on a phone-shaped grid, record keys by pressing them), **Phone display** (theme, accent, clock, dimming, screens, battery icon, album-art lookup), **Connection** and **Activity**.
 - It starts with Windows and runs quietly in the background. If the server ever crashes, the tray app restarts it.
 - The installer offers to let phones on your Wi-Fi through Windows Firewall. That's the only step where Windows asks for permission.
 - To update, run a newer setup. Your settings are kept.
@@ -64,6 +65,15 @@ Other things that keep it fast on old phones:
 - No blur, backdrop filters or large shadows.
 - Volume drags are throttled, and play/pause flips the icon instantly before the PC confirms.
 
+## Phone on a charger (no cable to the PC)
+
+- **Screen always on:** once the phone has been plugged in by USB with PhoneDesk running, Android's *Stay awake* setting is switched on. It stays on afterwards, so the screen never sleeps while the phone is charging.
+- **Battery icon and auto-reopen over Wi-Fi:** turn on *Developer options → ADB over network* (LineageOS) or *Wireless debugging*. When the phone opens PhoneDesk over Wi-Fi, the PC links to it, shows its battery, keeps the screen on and reopens PhoneDesk on it after a restart. Accept the "Allow debugging" prompt once.
+
+## Album art
+
+PhoneDesk shows the picture the music app gives Windows (Spotify, Media Player, …). When an app gives none (YouTube in a browser), PhoneDesk looks the song up in the iTunes catalog by artist and title, and only uses a result whose artist matches. Turn it off in *Phone display → Extras*.
+
 ## Shortcuts
 
 In the dashboard, open the **Shortcuts** tab. Each button can do one of three things:
@@ -79,6 +89,8 @@ server/bridge-win.ps1  Windows media (SMTC), volume and key presses; its own pro
 server/bridge.js       Restarts the bridge if it crashes or hangs
 server/adb.js          USB auto-connect (adb reverse)
 server/mdns.js         Answers "phonedesk.local" on the local network
+server/artwork.js      Finds album art online when the app gives none
+installer/Window.cs    The PhoneDesk window (WebView2)
 installer/Tray.cs      PhoneDesk.exe: tray app, server supervisor, uninstaller
 installer/Setup.cs     PhoneDesk-Setup.exe
 build/build.ps1        Builds the installer

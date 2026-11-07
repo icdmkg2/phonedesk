@@ -11,6 +11,9 @@ const FILE = path.join(DIR, 'config.json');
 const DEFAULTS = {
   port: 8765,
   port80: true,
+  artLookup: true,
+  showBattery: true,
+  ignoreApps: ['discord'],
   name: 'phonedesk',
   autoUsb: true,
   clock24: true,
@@ -54,6 +57,11 @@ function sanitize(c) {
   const out = {};
   out.port = Number.isInteger(+c.port) && +c.port > 0 && +c.port < 65536 ? +c.port : DEFAULTS.port;
   out.port80 = c.port80 !== false;
+  out.artLookup = c.artLookup !== false;
+  out.showBattery = c.showBattery !== false;
+  // Apps whose sound isn't "now playing" (voice chat). Matched against the app's id, case-insensitive.
+  out.ignoreApps = (Array.isArray(c.ignoreApps) ? c.ignoreApps : ['discord'])
+    .map((s) => String(s).toLowerCase().replace(/[^a-z0-9._-]/g, '')).filter(Boolean).slice(0, 20);
   out.name = String(c.name || 'phonedesk').toLowerCase().replace(/\.local$/, '').replace(/[^a-z0-9-]/g, '').slice(0, 40) || 'phonedesk';
   out.autoUsb = c.autoUsb !== false;
   out.clock24 = c.clock24 !== false;

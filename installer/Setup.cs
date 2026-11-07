@@ -13,8 +13,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("PhoneDesk Setup")]
 [assembly: AssemblyProduct("PhoneDesk")]
 [assembly: AssemblyDescription("PhoneDesk Setup")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 static class SetupProgram
 {

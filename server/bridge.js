@@ -68,6 +68,7 @@ class Bridge extends EventEmitter {
       // If it ran fine for a while, reset backoff; otherwise grow it (cap 30s).
       this.backoff = Date.now() - this.startedAt > 60000 ? 1000 : Math.min(this.backoff * 2, 30000);
       log.warn(`media bridge exited (code ${code})${err ? ': ' + err : ''}; restarting in ${this.backoff / 1000}s`);
+      log.event('problem', 'Media bridge stopped and was restarted');
       this.emit('message', { t: 'media', active: false });
       this.restarts++;
       setTimeout(() => this._spawn(), this.backoff);

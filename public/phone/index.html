@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#0e0f12">
+<meta name="theme-color" content="#0b0c0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>PhoneDesk</title>
 <link rel="manifest" href="/phone/manifest.webmanifest">
 <link rel="icon" href="/phone/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/phone/icon-192.png">
 <link rel="stylesheet" href="/phone/app.css">
 </head>
 <body class="theme-dark">
@@ -55,7 +56,7 @@
       </div>
       <div class="info">
         <div class="meta">
-          <div class="app" id="m-app"></div>
+          <div class="app"><span class="app-ic" id="m-app-ic"></span><span id="m-app"></span></div>
           <div class="title" id="m-title">Nothing playing</div>
           <div class="artist" id="m-artist">Play something on your PC</div>
         </div>
@@ -123,6 +124,10 @@
 </main>
 
 <nav id="dots" aria-label="Screens"></nav>
+<div id="batt" class="batt" hidden aria-label="Battery">
+  <svg viewBox="0 0 28 14" aria-hidden="true"><rect x="0.75" y="0.75" width="23" height="12.5" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="25" y="4.5" width="2.2" height="5" rx="1" fill="currentColor"/><rect id="batt-fill" x="2.75" y="2.75" width="19" height="8.5" rx="1.6" fill="currentColor"/><path id="batt-bolt" d="M13.6 1.8 9.2 7.6h3.3l-1.2 4.6 4.6-6.1h-3.3l1-4.3z" fill="#fff" stroke="#000" stroke-width=".6" stroke-linejoin="round"/></svg>
+  <span id="batt-n"></span>
+</div>
 <button id="fs" class="fs" aria-label="Full screen"><svg><use href="#i-expand"/></svg></button>
 
 <div id="offline" class="offline" hidden>
@@ -133,6 +138,7 @@
   <div class="o-status"><i class="pulse"></i><span id="o-sub">Reconnecting to your PC…</span></div>
 </div>
 <div id="dim" class="dim" hidden></div>
+<div id="identify" class="identify" hidden><div class="identify-name" id="identify-name"></div><div class="identify-sub">Connected to PhoneDesk</div></div>
 <div id="toast" class="toast"></div>
 </div>
 
