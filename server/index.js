@@ -549,6 +549,7 @@ function handleClientMessage(client, m) {
     case 'like': spotify.toggleLike(config.get()).catch((e) => log.warn('spotify like: ' + e.message)); return;
     case 'shortcut': return runShortcut(String(m.id || ''));
     case 'screen': client.info.screen = String(m.v || '').slice(0, 20); return;
+    case 'diag': log.info('phone info: ' + JSON.stringify(m.d || {}).slice(0, 300)); return;
     case 'battery':
       if (Number.isFinite(+m.level)) { client.ownBattery = true; client.info.battery = { level: Math.round(+m.level * 100), charging: !!m.charging }; }
       return;
