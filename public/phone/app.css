@@ -1,4 +1,7 @@
-/* PhoneDesk phone UI.
+/* PhoneDesk phone UI. Landscape only.
+   If the phone is held upright, #app is rotated 90deg so the layout stays landscape.
+   Sizes use --aw / --ah (the app's own width/height, set by JS) instead of vw/vh, because vw/vh
+   follow the physical screen and would be the wrong way round while rotated.
    Performance rules for old phones: no backdrop-filter, no big blurs or shadows, no layout-driven
    animation. Anything that moves uses transform/opacity only. Hidden screens are display:none. */
 
@@ -11,9 +14,11 @@
   --fg2: #a3a8b3;
   --fg3: #6b717d;
   --accent: #5b8cff;
-  --accent-fg: #fff;
   --tint: 91, 140, 255;
   --radius: 14px;
+  --aw: 100vw;
+  --ah: 100vh;
+  --sw: 100vw;
 }
 body.theme-black { --bg: #000; --bg2: #0b0b0c; --card: #121214; --line: #222226; }
 body.theme-light {
@@ -30,11 +35,17 @@ body {
   -webkit-font-smoothing: antialiased;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
+  touch-action: none;
   overscroll-behavior: none;
 }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 svg { width: 100%; height: 100%; display: block; }
+
+/* The whole app lives in #app. Fixed children are positioned against it, so rotating #app
+   rotates everything, overlays included. */
+#app { position: fixed; top: 0; left: 0; width: var(--aw); height: var(--ah); overflow: hidden; background: var(--bg); }
+/* Same direction as Android's normal landscape: phone turned counter-clockwise, top edge on the left. */
+html.rot #app { transform-origin: 0 0; transform: translateX(var(--sw)) rotate(90deg); }
 
 /* Static tint from the album art. A gradient is painted once; nothing animates it per-frame. */
 #bg {
@@ -42,7 +53,6 @@ svg { width: 100%; height: 100%; display: block; }
   background:
     radial-gradient(120% 90% at 15% 20%, rgba(var(--tint), .34), transparent 60%),
     radial-gradient(90% 80% at 100% 100%, rgba(var(--tint), .14), transparent 70%);
-  transition: opacity .6s;
 }
 body.theme-light #bg { opacity: .55; }
 
@@ -50,32 +60,32 @@ body.theme-light #bg { opacity: .55; }
 .screen {
   position: absolute; inset: 0;
   display: none;
-  padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 30px max(18px, env(safe-area-inset-left));
+  padding: 14px 22px 30px;
 }
 .screen.on { display: flex; animation: fadein .18s ease-out; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------------------------------------------------------------- media */
-.media { flex: 1; display: flex; align-items: center; gap: 5vw; min-width: 0; }
+.media { flex: 1; display: flex; align-items: center; gap: calc(var(--aw) * .05); min-width: 0; }
 .art-wrap {
   position: relative; flex: none;
-  width: min(74vh, 42vw); aspect-ratio: 1 / 1;
+  width: min(calc(var(--ah) * .74), calc(var(--aw) * .42));
+  height: min(calc(var(--ah) * .74), calc(var(--aw) * .42));
   border-radius: var(--radius); overflow: hidden;
   background: var(--card);
 }
-@supports not (aspect-ratio: 1 / 1) { .art-wrap { height: min(74vh, 42vw); } }
 .art-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--fg3); }
 .art-ph svg { width: 34%; height: 34%; }
 .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s; }
 .art.ok { opacity: 1; }
 
-.info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3.2vh; }
+.info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: calc(var(--ah) * .032); }
 .app { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); min-height: 13px; }
 .title {
-  font-size: clamp(18px, 6.4vh, 34px); font-weight: 700; line-height: 1.15; margin-top: 4px;
+  font-size: clamp(18px, calc(var(--ah) * .064), 34px); font-weight: 700; line-height: 1.15; margin-top: 4px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;
 }
-.artist { font-size: clamp(13px, 4.2vh, 20px); color: var(--fg2); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.artist { font-size: clamp(13px, calc(var(--ah) * .042), 20px); color: var(--fg2); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .progress { padding-top: 2px; }
 .track { position: relative; height: 22px; display: flex; align-items: center; cursor: pointer; }
@@ -102,7 +112,7 @@ body.theme-light #bg { opacity: .55; }
 .btn.rep1 .one { display: block; }
 
 .volume { display: flex; align-items: center; gap: 10px; max-width: 420px; }
-.slider { position: relative; flex: 1; height: 30px; display: flex; align-items: center; touch-action: none; }
+.slider { position: relative; flex: 1; height: 30px; display: flex; align-items: center; }
 .slider::before { content: ""; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--line); }
 .slider .fill { position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--fg2); transform-origin: 0 50%; transform: scaleX(0); }
 .slider .knob { position: absolute; left: -8px; width: 16px; height: 16px; border-radius: 50%; background: var(--fg); transform: translateX(0); }
@@ -111,46 +121,34 @@ body.theme-light #bg { opacity: .55; }
 
 body.idle .controls, body.idle .progress, body.idle .volume { opacity: .4; pointer-events: none; }
 
-/* Portrait: stack art above info. */
-@media (orientation: portrait) {
-  .media { flex-direction: column; justify-content: center; gap: 4vh; }
-  .art-wrap { width: min(78vw, 46vh); }
-  .info { width: 100%; flex: none; gap: 2.6vh; }
-  .title { font-size: clamp(20px, 6.4vw, 30px); }
-  .artist { font-size: clamp(14px, 4.2vw, 19px); }
-  .controls, .volume { max-width: none; }
-}
-
-/* ---------------------------------------------------------------- clock */
+/* ---------------------------------------------------------------- clock (screen + offline) */
 .clock { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 1s; }
-.clock .time { font-size: min(36vh, 22vw); font-weight: 200; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.clock .time { font-size: min(calc(var(--ah) * .36), calc(var(--aw) * .22)); font-weight: 200; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .clock .time small { font-size: .28em; font-weight: 400; margin-left: .2em; color: var(--fg2); letter-spacing: 0; }
-.clock .date { font-size: min(6vh, 5vw); color: var(--fg2); margin-top: 2vh; }
-.clock .mini { display: flex; align-items: center; gap: 8px; margin-top: 5vh; color: var(--fg3); font-size: 14px; max-width: 80vw; }
+.clock .date { font-size: min(calc(var(--ah) * .06), calc(var(--aw) * .05)); color: var(--fg2); margin-top: calc(var(--ah) * .02); }
+.clock .mini { display: flex; align-items: center; gap: 8px; margin-top: calc(var(--ah) * .05); color: var(--fg3); font-size: 14px; max-width: calc(var(--aw) * .8); }
 .clock .mini svg { width: 16px; height: 16px; flex: none; color: var(--accent); }
 .clock .mini span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .clock .mini.hide { visibility: hidden; }
 
 /* ---------------------------------------------------------------- stats */
-.stats { flex: 1; display: flex; flex-direction: column; gap: 3vh; min-width: 0; }
+.stats { flex: 1; display: flex; flex-direction: column; gap: calc(var(--ah) * .03); min-width: 0; }
 .stats .host { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--fg3); }
 .cards { display: flex; gap: 12px; }
 .card { flex: 1; min-width: 0; background: var(--card); border-radius: var(--radius); padding: 14px 16px; }
 .card .label { font-size: 12px; color: var(--fg2); font-weight: 600; }
-.card .big { font-size: clamp(26px, 11vh, 52px); font-weight: 700; line-height: 1.1; margin: 4px 0 10px; font-variant-numeric: tabular-nums; }
+.card .big { font-size: clamp(26px, calc(var(--ah) * .11), 52px); font-weight: 700; line-height: 1.1; margin: 4px 0 10px; font-variant-numeric: tabular-nums; }
 .card .big small { font-size: .45em; font-weight: 500; color: var(--fg3); margin-left: 2px; }
 .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .bar .fill { height: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform .6s ease-out; }
 .card .sub { font-size: 11px; color: var(--fg3); margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .graph { flex: 1; width: 100%; min-height: 40px; background: var(--card); border-radius: var(--radius); }
-@media (orientation: portrait) { .cards { flex-direction: column; } .graph { min-height: 120px; } }
 
 /* ---------------------------------------------------------------- shortcuts */
 .pad {
   flex: 1; display: grid; gap: 10px;
   grid-template-columns: repeat(4, 1fr); grid-auto-rows: 1fr; align-content: stretch;
 }
-@media (orientation: portrait) { .pad { grid-template-columns: repeat(2, 1fr); } }
 .key {
   background: var(--card); border-radius: var(--radius); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 8px; padding: 8px; min-height: 0; overflow: hidden;
@@ -159,9 +157,9 @@ body.idle .controls, body.idle .progress, body.idle .volume { opacity: .4; point
 }
 .key:active { transform: scale(.95); }
 .key.hit { background: var(--kc, var(--accent)); color: #fff; }
-.key .ic { width: clamp(22px, 9vh, 40px); height: clamp(22px, 9vh, 40px); color: var(--kc, var(--accent)); }
+.key .ic { width: clamp(22px, calc(var(--ah) * .09), 40px); height: clamp(22px, calc(var(--ah) * .09), 40px); color: var(--kc, var(--accent)); }
 .key.hit .ic { color: #fff; }
-.key .lb { font-size: clamp(11px, 3.6vh, 15px); font-weight: 600; text-align: center; line-height: 1.2; }
+.key .lb { font-size: clamp(11px, calc(var(--ah) * .036), 15px); font-weight: 600; text-align: center; line-height: 1.2; }
 .empty { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; color: var(--fg3); font-size: 14px; text-align: center; }
 
 /* ---------------------------------------------------------------- chrome */
@@ -173,15 +171,17 @@ body.idle .controls, body.idle .progress, body.idle .volume { opacity: .4; point
 .fs { position: fixed; top: 6px; right: 6px; z-index: 3; width: 34px; height: 34px; padding: 8px; color: var(--fg3); opacity: .6; }
 body.fullscreen .fs { display: none; }
 
-.offline {
-  position: fixed; inset: 0; z-index: 10; background: var(--bg);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 20px;
-}
+/* Disconnected: a full-screen clock, so the phone is still useful while the PC is off/asleep. */
+.offline { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: flex; flex-direction: column; }
 .offline[hidden] { display: none; }
-.o-title { font-size: 18px; font-weight: 600; }
-.o-sub { font-size: 13px; color: var(--fg2); max-width: 420px; }
-.spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin .9s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.offline .clock { padding: 0 22px; }
+.o-status {
+  position: absolute; left: 0; right: 0; bottom: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 12px; color: var(--fg3); padding: 0 20px; text-align: center;
+}
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: #e5a000; flex: none; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
 
 .dim { position: fixed; inset: 0; z-index: 9; background: #000; opacity: .82; }
 .dim[hidden] { display: none; }

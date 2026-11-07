@@ -13,6 +13,30 @@
     set: function (k, v) { try { localStorage.setItem('pd.' + k, JSON.stringify(v)); } catch (e) {} },
   };
 
+  /* ============================================================ landscape-only layout
+     If the screen is taller than wide, #app is rotated 90deg (see app.css) so the UI is always
+     landscape. Touch coordinates then need mapping from the screen into the app's own space. */
+  var rotated = false;
+  function layout() {
+    var W = window.innerWidth, H = window.innerHeight;
+    rotated = H > W;
+    document.documentElement.classList.toggle('rot', rotated);
+    var st = document.documentElement.style;
+    st.setProperty('--aw', (rotated ? H : W) + 'px');
+    st.setProperty('--ah', (rotated ? W : H) + 'px');
+    st.setProperty('--sw', W + 'px');
+  }
+  layout();
+  // A pointer event's position in app coordinates (x along the landscape width).
+  function pt(e) {
+    return rotated ? { x: e.clientY, y: window.innerWidth - e.clientX } : { x: e.clientX, y: e.clientY };
+  }
+  // An element's box in app coordinates.
+  function appRect(el) {
+    var r = el.getBoundingClientRect();
+    return rotated ? { left: r.top, top: window.innerWidth - r.right, width: r.height, height: r.width } : r;
+  }
+
   var state = {
     media: { active: false },
     volume: { level: 0, muted: false },
@@ -65,10 +89,10 @@
     // Brief blips (Wi-Fi roaming) shouldn't flash a full-screen overlay.
     setTimeout(function () {
       if (ws && ws.readyState === 1) return;
-      $('offline').hidden = false;
       $('o-sub').textContent = everConnected
-        ? 'Lost connection. Reconnecting automatically…'
-        : 'Make sure PhoneDesk is running on the PC and this phone is on the same network (or plugged in by USB).';
+        ? 'PC disconnected · reconnecting…'
+        : 'Waiting for PhoneDesk on your PC · same Wi-Fi, or plug in by USB';
+      if ($('offline').hidden) { $('offline').hidden = false; offlineShift = -1; renderOfflineClock(); }
     }, everConnected ? 1500 : 0);
   }
 
@@ -217,10 +241,10 @@
   // Seek by tapping or dragging the progress bar.
   (function () {
     var t = el.track, rect = null, frac = 0;
-    function at(e) { return Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)); }
+    function at(e) { return Math.min(1, Math.max(0, (pt(e).x - rect.left) / rect.width)); }
     t.addEventListener('pointerdown', function (e) {
       if (!state.media.active || !state.media.duration) return;
-      seeking = true; rect = t.getBoundingClientRect(); frac = at(e);
+      seeking = true; rect = appRect(t); frac = at(e);
       t.setPointerCapture(e.pointerId);
       show();
     });
@@ -260,7 +284,7 @@
   }
   (function () {
     var rect = null, lastSent = 0, pending = null, timer = null;
-    function at(e) { return Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)); }
+    function at(e) { return Math.min(1, Math.max(0, (pt(e).x - rect.left) / rect.width)); }
     function push(v, force) {
       pending = v;
       var now = Date.now();
@@ -268,7 +292,7 @@
       else if (!timer) timer = setTimeout(function () { timer = null; if (pending != null) push(pending, true); }, 70);
     }
     vol.slider.addEventListener('pointerdown', function (e) {
-      vol.dragging = true; rect = vol.slider.getBoundingClientRect();
+      vol.dragging = true; rect = appRect(vol.slider);
       vol.slider.setPointerCapture(e.pointerId);
       vol.slider.classList.add('drag');
       var v = at(e); drawVolume(v, false); push(v);
@@ -287,7 +311,9 @@
     vol.slider.addEventListener('pointercancel', end);
   })();
   $('b-mute').addEventListener('click', function () { buzz(); send({ t: 'mute' }); });
-  window.addEventListener('resize', function () { drawVolume(state.volume.level, state.volume.muted); renderProgress(); sizeGraph(); });
+  function onResize() { layout(); drawVolume(state.volume.level, state.volume.muted); renderProgress(); sizeGraph(); }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', function () { setTimeout(onResize, 150); });
 
   /* ============================================================ accent color from album art */
   var DEFAULT_TINT = [91, 140, 255];
@@ -339,23 +365,35 @@
   /* ============================================================ clock */
   var clockEl = { time: $('c-time'), date: $('c-date'), mini: $('c-mini'), miniT: $('c-mini-t'), box: $('clock') };
   var lastClock = '', shiftMin = -1;
+  function clockHtml(d) {
+    var h = d.getHours(), mi = d.getMinutes();
+    if (state.config.clock24) return (h < 10 ? '0' : '') + h + ':' + (mi < 10 ? '0' : '') + mi;
+    return ((h % 12) || 12) + ':' + (mi < 10 ? '0' : '') + mi + '<small>' + (h < 12 ? 'AM' : 'PM') + '</small>';
+  }
+  function dateText(d) { return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }); }
+  // Nudge a clock a few pixels each minute so a static screen doesn't burn in.
+  function nudge(box) { box.style.transform = 'translate(' + (Math.random() * 16 - 8).toFixed(0) + 'px,' + (Math.random() * 12 - 6).toFixed(0) + 'px)'; }
   function renderClock() {
     var d = new Date(Date.now() + state.clockOffset);
-    var h = d.getHours(), mi = d.getMinutes();
-    var html;
-    if (state.config.clock24) html = (h < 10 ? '0' : '') + h + ':' + (mi < 10 ? '0' : '') + mi;
-    else html = ((h % 12) || 12) + ':' + (mi < 10 ? '0' : '') + mi + '<small>' + (h < 12 ? 'AM' : 'PM') + '</small>';
+    var html = clockHtml(d);
     if (html !== lastClock) {
       lastClock = html;
       clockEl.time.innerHTML = html;
-      clockEl.date.textContent = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+      clockEl.date.textContent = dateText(d);
     }
-    // Nudge the clock a few pixels each minute so a static screen doesn't burn in.
-    if (mi !== shiftMin) {
-      shiftMin = mi;
-      clockEl.box.style.transform = 'translate(' + (Math.random() * 16 - 8).toFixed(0) + 'px,' + (Math.random() * 12 - 6).toFixed(0) + 'px)';
-    }
+    if (d.getMinutes() !== shiftMin) { shiftMin = d.getMinutes(); nudge(clockEl.box); }
   }
+
+  // Disconnected clock: the phone's own time, corrected by the last known PC offset.
+  var offlineLast = '', offlineShift = -1;
+  function renderOfflineClock() {
+    if ($('offline').hidden) return;
+    var d = new Date(Date.now() + state.clockOffset);
+    var html = clockHtml(d);
+    if (html !== offlineLast) { offlineLast = html; $('o-time').innerHTML = html; $('o-date').textContent = dateText(d); }
+    if (d.getMinutes() !== offlineShift) { offlineShift = d.getMinutes(); nudge($('o-clock')); }
+  }
+  setInterval(function () { if (document.visibilityState === 'visible') renderOfflineClock(); }, 1000);
   function renderClockMini() {
     var m = state.media;
     toggle(clockEl.mini, 'hide', !m.active || !m.title);
@@ -437,10 +475,8 @@
       frag.appendChild(b);
     });
     pad.appendChild(frag);
-    var cols = window.matchMedia('(orientation: portrait)').matches ? 2 : 4;
-    pad.style.gridTemplateRows = 'repeat(' + Math.max(1, Math.ceil(list.length / cols)) + ', 1fr)';
+    pad.style.gridTemplateRows = 'repeat(' + Math.max(1, Math.ceil(list.length / 4)) + ', 1fr)';
   }
-  window.matchMedia('(orientation: portrait)').addListener(renderPad);
 
   /* ============================================================ screens + navigation */
   function screens() { return state.config.screens && state.config.screens.length ? state.config.screens : ['media']; }
@@ -488,12 +524,12 @@
     var root = $('screens');
     root.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.slider, .track')) { active = false; return; }
-      active = true; sx = e.clientX; sy = e.clientY; st = Date.now();
+      var p = pt(e); active = true; sx = p.x; sy = p.y; st = Date.now();
     });
     root.addEventListener('pointerup', function (e) {
       if (!active) return;
       active = false;
-      var dx = e.clientX - sx, dy = e.clientY - sy;
+      var p = pt(e), dx = p.x - sx, dy = p.y - sy;
       if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4 && Date.now() - st < 700) step(dx < 0 ? 1 : -1);
     });
     root.addEventListener('pointercancel', function () { active = false; });
@@ -523,10 +559,25 @@
         if (p && p.catch) p.catch(function () {});
       } catch (e) {}
     }
+    lockLandscape();
+  }
+  // Browsers only allow this in full screen. When it works the page is natively landscape and the
+  // CSS rotation switches itself off; when it doesn't, the CSS rotation keeps the app landscape.
+  function lockLandscape() {
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {}
   }
+  // First tap anywhere: go full screen and lock to landscape. It's a desk display.
+  var autoFs = false;
+  document.addEventListener('pointerup', function () {
+    if (autoFs) return;
+    autoFs = true;
+    goFullscreen();
+  }, true);
   fsBtn.addEventListener('click', function (e) { e.stopPropagation(); goFullscreen(); });
-  document.addEventListener('fullscreenchange', function () { toggle(document.body, 'fullscreen', !!document.fullscreenElement); });
+  document.addEventListener('fullscreenchange', function () {
+    toggle(document.body, 'fullscreen', !!document.fullscreenElement);
+    if (document.fullscreenElement) lockLandscape();
+  });
   document.addEventListener('webkitfullscreenchange', function () { toggle(document.body, 'fullscreen', !!document.webkitFullscreenElement); });
   // In standalone (added to home screen) mode there is no browser bar anyway.
   if (window.matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) document.body.classList.add('fullscreen');

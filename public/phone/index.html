@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0e0f12">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -42,6 +42,7 @@
   </defs>
 </svg>
 
+<div id="app">
 <div id="bg" aria-hidden="true"></div>
 
 <main id="screens">
@@ -125,12 +126,15 @@
 <button id="fs" class="fs" aria-label="Full screen"><svg><use href="#i-expand"/></svg></button>
 
 <div id="offline" class="offline" hidden>
-  <div class="spinner"></div>
-  <div class="o-title">Connecting to your PC…</div>
-  <div class="o-sub" id="o-sub">Make sure PhoneDesk is running on the PC.</div>
+  <div class="clock" id="o-clock">
+    <div class="time" id="o-time">--:--</div>
+    <div class="date" id="o-date"></div>
+  </div>
+  <div class="o-status"><i class="pulse"></i><span id="o-sub">Reconnecting to your PC…</span></div>
 </div>
 <div id="dim" class="dim" hidden></div>
 <div id="toast" class="toast"></div>
+</div>
 
 <script src="/phone/app.js"></script>
 </body>
