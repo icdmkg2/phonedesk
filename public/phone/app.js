@@ -768,6 +768,19 @@
     }).catch(function () {});
   }
 
+  // Fully Kiosk Browser (and similar kiosk apps) expose the battery through their own JavaScript interface.
+  function kioskBattery() {
+    try {
+      var f = window.fully;
+      if (!f || !f.getBatteryLevel) return;
+      var lvl = +f.getBatteryLevel();
+      if (!(lvl >= 0)) return;
+      battery = { level: Math.min(1, lvl / 100), charging: !!(f.isPlugged && f.isPlugged()) };
+      reportBattery();
+    } catch (e) {}
+  }
+  if (!navigator.getBattery) { kioskBattery(); setInterval(kioskBattery, 30000); }
+
   // "Identify" from the PC app: flash this phone so you know which one it is.
   function identify(name) {
     var el = $('identify');
