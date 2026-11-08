@@ -50,13 +50,13 @@ async function check(cfg, current) {
     if (!/^[a-f0-9]{64}$/i.test(sha)) throw new Error('the release has no SHA-256 checksum, so it was not downloaded');
     const file = path.join(DIR, asset.name);
     if (!(fs.existsSync(file) && hash(fs.readFileSync(file)) === sha.toLowerCase())) {
-      set({ state: 'downloading', version, notes: String(rel.body || '').slice(0, 2000) });
+      set({ state: 'downloading', version, url: rel.html_url || '', notes: String(rel.body || '').slice(0, 2000) });
       const buf = await get(asset.browser_download_url);
       if (hash(buf) !== sha.toLowerCase()) throw new Error('the download did not match its checksum');
       fs.mkdirSync(DIR, { recursive: true });
       fs.writeFileSync(file, buf);
     }
-    set({ state: 'ready', version, file, notes: String(rel.body || '').slice(0, 2000), checkedAt: Date.now() });
+    set({ state: 'ready', version, file, url: rel.html_url || '', notes: String(rel.body || '').slice(0, 2000), checkedAt: Date.now() });
     log.event('info', `PhoneDesk ${version} is ready to install`);
   } catch (e) {
     set({ state: 'error', error: e.message, checkedAt: Date.now() });

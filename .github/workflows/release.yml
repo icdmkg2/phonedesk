@@ -1,0 +1,77 @@
+# Publishes GitHub Releases from CHANGELOG.md.
+# - New version in package.json on main: builds PhoneDesk-Setup-<version>.exe (+ .sha256) on Windows and creates
+#   release v<version> with that version's patch notes. The in-app updater downloads it from there.
+# - Every version in CHANGELOG.md without a release gets a notes-only release, tagged at the last commit with that
+#   version (older versions have no installer attached; only the newest one is built).
+# - Existing releases get their notes refreshed, so editing CHANGELOG.md (or its screenshots) updates them.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json, CHANGELOG.md, 'docs/changelog/**', .github/workflows/release.yml, build/release.js]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Current version
+        id: v
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" --repo "$REPO" > /dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+          node build/release.js notes "$version" > /dev/null # fail early if CHANGELOG.md has no section for it
+
+      - name: Build installer
+        if: steps.v.outputs.exists == 'false'
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File build\build.ps1
+
+      - name: Publish current version
+        shell: bash
+        run: |
+          v="${{ steps.v.outputs.version }}"
+          node build/release.js notes "$v" "$REPO" "$GITHUB_SHA" > notes.md
+          if [ "${{ steps.v.outputs.exists }}" = "true" ]; then
+            gh release edit "v$v" --repo "$REPO" --title "PhoneDesk $v" --notes-file notes.md
+          else
+            gh release create "v$v" "dist/PhoneDesk-Setup-$v.exe" "dist/PhoneDesk-Setup-$v.exe.sha256" \
+              --repo "$REPO" --target "$GITHUB_SHA" --title "PhoneDesk $v" --notes-file notes.md --latest
+          fi
+
+      - name: Older versions (notes only)
+        shell: bash
+        run: |
+          current="${{ steps.v.outputs.version }}"
+          # oldest first, so the release list reads in order
+          for v in $(node build/release.js versions | tac); do
+            [ "$v" = "$current" ] && continue
+            node build/release.js notes "$v" "$REPO" "$GITHUB_SHA" > notes.md
+            if gh release view "v$v" --repo "$REPO" > /dev/null 2>&1; then
+              gh release edit "v$v" --repo "$REPO" --title "PhoneDesk $v" --notes-file notes.md
+            else
+              commit=$(node build/release.js commit "$v")
+              gh release create "v$v" --repo "$REPO" --target "$commit" --title "PhoneDesk $v" --notes-file notes.md --latest=false
+            fi
+          done

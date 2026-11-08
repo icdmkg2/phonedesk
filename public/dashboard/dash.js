@@ -696,6 +696,7 @@
   $('sp-disconnect').addEventListener('click', async () => { await api('spotify/disconnect', {}); loadSpotify(); });
 
   /* ------------------------------------------------------------ updates */
+  const DEFAULT_REPO = 'icdmkg2/phonedesk';
   function renderUpdate() {
     const u = state.update || {};
     const badge = $('up-badge'), text = $('up-text');
@@ -717,6 +718,12 @@
     setText(badge, b);
     badge.className = 'badge' + (u.state === 'ready' ? ' usb' : u.state === 'error' ? ' warn' : '');
     setText(text, t);
+    // Patch notes live on GitHub Releases (one per version, from CHANGELOG.md).
+    const repo = /^[\w.-]+\/[\w.-]+$/.test((state.config && state.config.updateRepo) || '') ? state.config.updateRepo : DEFAULT_REPO;
+    const shown = u.state === 'ready' || u.state === 'downloading' ? u.version : state.status && state.status.version;
+    $('up-notes').href = u.url && shown === u.version ? u.url : `https://github.com/${repo}/releases/tag/v${shown || ''}`;
+    setText($('up-notes'), u.state === 'ready' || u.state === 'downloading' ? `What's new in ${u.version}` : `What's new in ${shown ? 'v' + shown : 'this version'}`);
+    $('up-all').href = `https://github.com/${repo}/releases`;
   }
   $('up-check').addEventListener('click', async () => { state.update = await api('update/check', {}).catch((e) => ({ state: 'error', error: e.message })); renderUpdate(); });
   $('up-install').addEventListener('click', async () => { await api('update/install', {}).catch((e) => toast(e.message)); });
@@ -728,6 +735,7 @@
     const c = state.config;
     $('up-auto').checked = c.autoUpdate !== false;
     if (document.activeElement !== $('up-repo')) $('up-repo').value = c.updateRepo || '';
+    renderUpdate();
   }
 
   /* ------------------------------------------------------------ first-run setup */
