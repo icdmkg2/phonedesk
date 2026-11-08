@@ -221,6 +221,7 @@
   var pc = { pos: 0, at: 0, playing: false, key: '' };
   function pcPos(now) { return pc.pos + (pc.playing ? (now - pc.at) / 1000 : 0); }
   function mediaClock(m) {
+    $('ly-music').classList.toggle('paused', !m || m.status !== 'Playing');
     if (!m || !m.active) { pc.at = 0; return; }
     var now = Date.now() + state.clockOffset, playing = m.status === 'Playing';
     var key = (m.app || '') + '|' + (m.title || '') + '|' + (m.artist || '') + '|' + Math.round(m.duration || 0);
@@ -961,11 +962,14 @@
     list.style.transform = 'translateY(0)';
     if (!d || !d.lines || !d.lines.length) {
       list.innerHTML = '';
-      $('ly-msg').hidden = false;
-      setText($('ly-msg'), !state.media.active ? 'Play a song on your PC' : !d ? 'Looking for lyrics…' : d.instrumental ? 'Instrumental' : 'No lyrics found for this song');
+      lyMusicOn = false; lyMusicTxt = '#';
+      if (!state.media.active) { lyMusic(''); $('ly-msg').hidden = false; setText($('ly-msg'), 'Play a song on your PC'); return; }
+      $('ly-msg').hidden = true;
+      lyMusic(!d ? 'Looking for lyrics…' : d.instrumental ? 'Instrumental' : 'No lyrics for this song');
       return;
     }
     $('ly-msg').hidden = true;
+    lyMusicOn = true; lyMusicTxt = '#'; lyMusic('');
     var frag = document.createDocumentFragment();
     d.lines.forEach(function (l) {
       var div = document.createElement('div');
@@ -1013,6 +1017,28 @@
     var expected = Math.max(1.5, (len / 10) * 1.7);
     return Math.max(0.8, Math.min(gap * 0.92, expected));
   }
+  // The melody indicator: bars that dance while the music plays but nobody is singing (intro, instrumental break, outro),
+  // or when there are no lyrics for the song.
+  var lyMusicOn = false, lyMusicTxt = '';
+  function lyMusic(txt) {
+    var on = !!txt;
+    if (on === lyMusicOn && txt === lyMusicTxt) return;
+    lyMusicOn = on; lyMusicTxt = txt;
+    $('ly-music').classList.toggle('show', on);
+    if (on) setText($('ly-music-t'), txt);
+    $('ly-list').classList.toggle('idle', on && !!lyr && !!lyr.lines && lyr.lines.length > 0);
+  }
+  // '' while someone is singing, otherwise what the music is doing.
+  function lyIdleLabel(idx, pos) {
+    var L = lyr.lines;
+    if (lyr.estimated || !L.length) return '';
+    if (idx < 0) return L[0].t - pos > 2.0 ? 'Intro' : '';
+    var ln = L[idx], next = L[idx + 1];
+    if (!ln.text) return 'Instrumental';
+    var gap = (next ? next.t : ln.t + 999) - ln.t, end = ln.t + lySung(ln.text.length, gap);
+    if (pos > end + 1.2 && (!next || next.t - pos > 2.0)) return next ? 'Instrumental' : 'Outro';
+    return '';
+  }
   function lyIndexAt(pos) {
     var L = lyr.lines, lo = 0, hi = L.length - 1, ans = -1;
     while (lo <= hi) { var mid = (lo + hi) >> 1; if (L[mid].t <= pos) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
@@ -1047,6 +1073,7 @@
     if (document.body.classList.contains('ly-kinetic')) return kinTick(force);
     if (!lyr.synced) { if (force && lines[0]) $('ly-list').style.transform = 'translateY(0)'; return; }
     var pos = currentPos() + lyLead(), idx = lyIndexAt(pos);
+    lyMusic(lyIdleLabel(idx, pos));
     if (idx !== lyrIndex || force) {
       var from = Math.max(0, Math.min(lyrIndex, idx) - 3), to = Math.min(lines.length - 1, Math.max(lyrIndex, idx) + 3);
       if (force) { from = 0; to = lines.length - 1; }
@@ -1303,6 +1330,7 @@
   }
   function kinTick(force) {
     var L = lyr.lines, pos = currentPos() + lyLead(), idx = lyIndexAt(pos);
+    lyMusic(lyIdleLabel(idx, pos));
     if (idx !== kinIdx || force) {
       if (force && idx === kinIdx && kinEl) { /* same line, just re-measure below */ }
       kinIdx = idx;
@@ -1325,7 +1353,7 @@
     }
     // A long pause before the next line: let the words go and leave the screen quiet.
     var nextT = L[idx + 1] ? L[idx + 1].t : start + 99;
-    var gone = pos > start + el._sung + 3.2 && nextT - pos > 2.5;
+    var gone = pos > start + el._sung + 1.2 && nextT - pos > 2.0;
     if (gone !== kinGone) { kinGone = gone; toggle(el, 'out', gone); if (kinFxEl) toggle(kinFxEl, 'out', gone); }
   }
   function lyricsVisible() { return (state.screen === 'lyrics' || document.body.classList.contains('ly-open')) && document.visibilityState === 'visible'; }
