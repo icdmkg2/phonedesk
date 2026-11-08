@@ -655,3 +655,6 @@ body:not(.ly-kinetic) .ly-head { display: none; }
 body:not(.ly-kinetic) .ly-view { margin-top: 24px; }
 body:not(.ly-kinetic) #s-lyrics { --sidew: min(calc(var(--ah) * .44), calc(var(--aw) * .23)); }
 body:not(.ly-kinetic) .ly-side { top: 34px; padding-bottom: 54px; }
+
+.ly-nudge .ly-off { align-self: center; min-width: 52px; text-align: center; font-size: 12px; font-weight: 700; color: var(--fg2); font-variant-numeric: tabular-nums; }
+body.ly-kinetic:not(.ly-dark).ly-ready .ly-nudge .ly-off, body.ly-kinetic:not(.ly-dark).scr-lyrics .ly-nudge .ly-off { color: #1a2523; }

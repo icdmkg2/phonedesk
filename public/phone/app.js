@@ -75,7 +75,16 @@
     var sock;
     try { sock = new WebSocket(wsUrl()); } catch (e) { return scheduleReconnect(); }
     ws = sock;
+    var giveUp = setTimeout(function () {
+      if (ws !== sock || sock.readyState === 1) return;
+      ws = null;
+      sock.onopen = sock.onmessage = sock.onclose = sock.onerror = null;
+      try { sock.close(); } catch (e) {}
+      showOffline();
+      scheduleReconnect();
+    }, 3000);
     sock.onopen = function () {
+      clearTimeout(giveUp);
       retry = 0; lastMsg = Date.now(); everConnected = true; hostFails = 0;
       $('offline').hidden = true;
       reportBattery();
@@ -87,6 +96,7 @@
       onMessage(m);
     };
     sock.onclose = function () {
+      clearTimeout(giveUp);
       if (ws !== sock) return;
       ws = null;
       showOffline();
@@ -95,11 +105,18 @@
     sock.onerror = function () { try { sock.close(); } catch (e) {} };
   }
 
+  window.pdReconnect = function () {
+    if (ws && ws.readyState === 1) return;
+    if (ws) { try { ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null; ws.close(); } catch (e) {} ws = null; }
+    retry = 0; hostFails = 0; connect();
+  };
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') window.pdReconnect(); });
+
   function scheduleReconnect() {
     clearTimeout(connectTimer);
     // Two misses on one address: try the next one (USB -> Wi-Fi name -> IP -> back again).
     if (++hostFails >= 2 && hosts.length > 1) { nextHost(); retry = Math.min(retry, 2); }
-    var delay = Math.min(4000, 400 * Math.pow(1.6, retry++));
+    var delay = Math.min(2500, 400 * Math.pow(1.5, retry++));
     connectTimer = setTimeout(connect, delay);
   }
 
@@ -982,6 +999,7 @@
       else { img.removeAttribute('src'); img.hidden = true; $('ly-noart').hidden = false; }
     }
     setText($('ly-t'), m.active ? (m.title || '') : '');
+    lyShowOffset();
     setText($('ly-a'), m.active ? (m.artist || '') : '');
     if (lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
     setText($('ly-song'), m.active ? (m.title || '') + (m.artist ? ' — ' + m.artist : '') : '');
@@ -1004,22 +1022,24 @@
   var lyTrackOff = store.get('lyoff', {}) || {};
   function lyTrackKey() { var m = state.media; return m && m.active ? (m.title || '') + '|' + (m.artist || '') : ''; }
   function lyTotalOffset() { return (state.config.lyricsOffset || 0) + (lyTrackOff[lyTrackKey()] || 0); }
-  function lyLead() { return 0.25 - lyTotalOffset() / 1000; }
+  function lyLead() { return 0.4 - lyTotalOffset() / 1000; }
   // The two buttons on the lyrics screen: shift this song's lyrics earlier or later (remembered per song on this phone).
   function lyNudge(ms) {
     var k = lyTrackKey();
     if (!k) return;
-    lyTrackOff[k] = Math.max(-4000, Math.min(4000, (lyTrackOff[k] || 0) + ms));
+    lyTrackOff[k] = Math.max(-5000, Math.min(5000, (lyTrackOff[k] || 0) + ms));
     var keys = Object.keys(lyTrackOff);
     if (keys.length > 200) delete lyTrackOff[keys[0]];
     store.set('lyoff', lyTrackOff);
     var t = lyTotalOffset();
+    lyShowOffset();
     toast(t === 0 ? 'Lyrics: in sync' : 'Lyrics ' + (Math.abs(t) / 1000).toFixed(2) + ' s ' + (t > 0 ? 'later' : 'earlier'));
     buzz();
     lyrIndex = -2; kinIdx = -2; lyFillAt = 0;
   }
-  $('ly-earlier').addEventListener('click', function () { lyNudge(-250); });
-  $('ly-later').addEventListener('click', function () { lyNudge(250); });
+  function lyShowOffset() { var t = lyTotalOffset(); setText($('ly-off'), (t > 0 ? '+' : '') + (t / 1000).toFixed(2) + 's'); }
+  $('ly-earlier').addEventListener('click', function () { lyNudge(-150); });
+  $('ly-later').addEventListener('click', function () { lyNudge(150); });
   var lyFillAt = 0;
   function lyricTick(force) {
     if (!lyr || !lyr.lines.length || !lyricsVisible()) return;
