@@ -2,6 +2,7 @@
 // Synced lyrics from LRCLIB (https://lrclib.net), a free, open lyrics database. No account or key.
 // Only the artist, title, album and length are sent.
 const log = require('./log');
+const spicy = require('./spicylyrics');
 
 const cache = new Map();
 const MAX = 100;
@@ -39,11 +40,12 @@ async function getJson(url) {
   } finally { clearTimeout(timer); }
 }
 
+const LRCLIB = { provider: 'LRCLIB', source: 'lrclib' };
 function toResult(r) {
   if (!r) return null;
-  if (r.instrumental) return { synced: false, instrumental: true, lines: [] };
-  if (r.syncedLyrics) return { synced: true, lines: parseLrc(r.syncedLyrics) };
-  if (r.plainLyrics) return { synced: false, lines: r.plainLyrics.split(/\r?\n/).map((text) => ({ t: -1, text: text.trim() })) };
+  if (r.instrumental) return { synced: false, instrumental: true, lines: [], credit: LRCLIB };
+  if (r.syncedLyrics) return { synced: true, lines: parseLrc(r.syncedLyrics), credit: LRCLIB };
+  if (r.plainLyrics) return { synced: false, lines: r.plainLyrics.split(/\r?\n/).map((text) => ({ t: -1, text: text.trim() })), credit: LRCLIB };
   return null;
 }
 
@@ -79,8 +81,8 @@ async function lookup(artist, title, album, duration) {
 }
 
 module.exports = {
-  /** Resolves to { synced, lines:[{t,text}] } or null. Never throws. */
-  find(media) {
+  /** Resolves to { synced, lines:[{t,text,...}], credit } or null. Never throws. `cfg` is the PhoneDesk config. */
+  find(media, cfg) {
     let artist = clean(media.artist);
     let title = clean(media.title);
     if (!artist) {
@@ -88,10 +90,20 @@ module.exports = {
       if (m) { artist = m[1].trim(); title = m[2].trim(); }
     }
     if (!artist || !title) return Promise.resolve(null);
-    const key = (artist + '|' + title).toLowerCase();
+    const key = (artist + '|' + title).toLowerCase() + ((cfg && cfg.spicyKey) ? '|s' : '');
     if (cache.has(key)) return cache.get(key);
-    const p = lookup(artist, title, clean(media.album), media.duration || 0)
-      .catch((e) => { log.warn('lyrics lookup failed: ' + e.message); cache.delete(key); return null; });
+    let transient = false;
+    const run = async () => {
+      if (cfg && cfg.spicyKey) {
+        try {
+          const r = await spicy.find({ title, artist, album: clean(media.album), duration: media.duration || 0 }, cfg.spicyKey);
+          if (r) return r;
+        } catch (e) { transient = true; log.warn('Spicy Lyrics: ' + e.message); }
+      }
+      return lookup(artist, title, clean(media.album), media.duration || 0);
+    };
+    const p = run().catch((e) => { log.warn('lyrics lookup failed: ' + e.message); cache.delete(key); return null; })
+      .then((r) => { if (transient) cache.delete(key); return r; });
     cache.set(key, p);
     if (cache.size > MAX) cache.delete(cache.keys().next().value);
     return p;
