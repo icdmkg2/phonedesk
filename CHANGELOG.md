@@ -7,7 +7,7 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
-## [1.6.2] — 2026-11-08
+## [1.7.2] — 2026-11-08
 
 Release notes, linked from the app.
 
@@ -24,7 +24,66 @@ Release notes, linked from the app.
 - The updater keeps the release page address of a downloaded update, so the link goes straight to its notes.
 
 ### Screenshots
-![Connection → Updates with the new release links](docs/changelog/1.6.2/dashboard-updates.png)
+![Connection → Updates with the new release links](docs/changelog/1.7.2/dashboard-updates.png)
+
+## [1.7.1] — 2026-11-08
+
+Word-by-word lyrics from Spicy Lyrics. (This version's commit is titled "1.7.0"; it shipped as 1.7.1.)
+
+### Added
+- **Spicy Lyrics as the first lyrics source**, when you add a key: community word-by-word syncs first, then Apple
+  Music and Spotify lyrics. LRCLIB stays as the fallback, and is used when Spicy Lyrics has nothing, is rate-limited or
+  is down (it's then left alone for a while).
+- New **Spicy Lyrics** card under *Connection*: paste your secret key (`sl_sk_…`), **Save and check** tests it, and
+  "Where do I get a key?" explains how. The key stays on the PC; phones never see it. The card shows where the current
+  lyrics came from.
+- **Real word timings:** with word-synced lyrics, each word fills exactly while it's sung, in the scrolling and
+  Kinetic styles, and lines last as long as they're actually sung.
+- **Lyrics credit** (required by the providers): "Lyrics: Spicy Lyrics · uploaded by … · made by …" under the cover
+  in scrolling lyrics, and along the bottom in Kinetic.
+
+### Changed
+- The exact recording is matched by length (within 4 s) across its releases, so the timings fit the version playing.
+- Only the title, artist, album and length are sent to the lyrics services.
+
+### Screenshots
+<p>
+<img src="docs/changelog/1.7.1/phone-lyrics-credit.png" width="49%" alt="Word-synced lyrics with the credit under the cover">
+<img src="docs/changelog/1.7.1/phone-kinetic-credit.png" width="49%" alt="Kinetic lyrics with the credit along the bottom">
+</p>
+
+![Spicy Lyrics key in Connection](docs/changelog/1.7.1/dashboard-spicy-lyrics.png)
+
+## [1.6.4] — 2026-11-08
+
+### Added
+- **Melody indicator:** dancing bars with a label while music plays but nobody sings: **Intro**, **Instrumental**
+  (breaks) and **Outro**, and for songs with no lyrics (**No lyrics for this song**, **Instrumental**, **Looking for
+  lyrics…**). The bars pause with the song, and the lyrics fade back while they show.
+
+### Changed
+- Kinetic lines clear sooner after they're sung (1.2 s instead of 3.2 s) when a gap follows.
+
+### Screenshots
+<p>
+<img src="docs/changelog/1.6.4/phone-melody-intro.png" width="49%" alt="Melody indicator during the intro">
+<img src="docs/changelog/1.6.4/phone-melody-no-lyrics.png" width="49%" alt="Melody indicator for a song without lyrics">
+</p>
+
+## [1.6.3] — 2026-11-08
+
+### Changed
+- **Fast reconnect:** a connection attempt gives up after 3 s and the next try comes sooner (at most every 2.5 s);
+  returning to the page reconnects at once. The phone app checks the PC every 5 s (was 15 s) and pokes the page as
+  soon as the PC is back.
+- **Lyrics timing:** lines light 0.4 s early (was 0.25 s); Earlier/Later move in 0.15 s steps up to ±5 s, and the
+  current shift is shown between the buttons (e.g. `+0.30s`).
+
+### Fixed
+- Reading the volume no longer fails now and then with "Unable to cast … MMDeviceEnumeratorComObject".
+
+### Screenshots
+![Lyrics timing shift shown between Earlier and Later](docs/changelog/1.6.3/phone-lyrics-offset.png)
 
 ## [1.6.1] — 2026-11-07
 
@@ -458,7 +517,10 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
-[1.6.2]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.6.2
+[1.7.2]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.2
+[1.7.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.1
+[1.6.4]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.6.4
+[1.6.3]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.6.3
 [1.6.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.6.1
 [1.6.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.6.0
 [1.5.9]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.5.9

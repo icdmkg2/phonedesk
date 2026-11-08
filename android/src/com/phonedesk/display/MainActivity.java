@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     private volatile String base = null;
     private volatile boolean running = true;
     private volatile boolean discovering = false;
+    private volatile boolean down = false;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -153,9 +154,17 @@ public class MainActivity extends Activity {
         new Thread(new Runnable() {
             public void run() {
                 while (running) {
-                    try { Thread.sleep(15000); } catch (InterruptedException e) { return; }
+                    try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
                     String cur = base;
-                    if (cur == null || ok(cur)) continue;
+                    if (cur != null && ok(cur)) {
+                        if (down) {
+                            down = false;
+                            ui.post(new Runnable() { public void run() { web.evaluateJavascript("window.pdReconnect && pdReconnect()", null); } });
+                        }
+                        continue;
+                    }
+                    if (cur == null) continue;
+                    down = true;
                     String ip = Mdns.resolve(MainActivity.this, "phonedesk.local");
                     if (ip == null) continue;
                     final String n = "http://" + ip;

@@ -42,8 +42,8 @@ function notes(version, repo, ref) {
 }
 
 function commitOf(version) {
-  // The newest commit on this branch whose package.json has that version (a version can span several commits).
-  const shas = execFileSync('git', ['log', '--first-parent', '--format=%H'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
+  // The newest commit (merged branches included) whose package.json has that version; a version can span several commits.
+  const shas = execFileSync('git', ['log', '--format=%H'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
   for (const sha of shas) {
     let v = null;
     try { v = JSON.parse(execFileSync('git', ['show', `${sha}:package.json`], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).version; } catch {}

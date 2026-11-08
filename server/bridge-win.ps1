@@ -28,7 +28,8 @@ interface IMMDeviceEnumerator { int f(); int GetDefaultAudioEndpoint(int dataFlo
 
 public static class PdAudio {
   static IAudioEndpointVolume Vol() {
-    var en = new MMDeviceEnumeratorComObject() as IMMDeviceEnumerator;
+    // Created by CLSID each time; a plain `new ... as` cast fails now and then with "Unable to cast ... MMDeviceEnumeratorComObject".
+    var en = (IMMDeviceEnumerator)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")));
     IMMDevice dev = null;
     Marshal.ThrowExceptionForHR(en.GetDefaultAudioEndpoint(0, 1, out dev));
     IAudioEndpointVolume epv = null;

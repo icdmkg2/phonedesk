@@ -337,6 +337,22 @@
           <div class="row"><button class="btn primary" id="sp-connect">Connect Spotify</button><button class="btn" id="sp-disconnect" hidden>Disconnect</button><span class="small muted" id="sp-state"></span></div>
         </section>
 
+        <section class="card" aria-label="Lyrics source">
+          <div class="card-head"><h3>Spicy Lyrics</h3><span class="badge" id="sl-badge">Off</span></div>
+          <p class="small muted">Word-by-word synced lyrics from the community, Apple Music and Spotify. LRCLIB stays as the fallback.</p>
+          <label class="field">Secret key<input type="password" id="sl-key" placeholder="sl_sk_…" maxlength="200" class="mono" autocomplete="off"></label>
+          <div class="row"><button class="btn primary" id="sl-save">Save and check</button><button class="btn ghost" id="sl-clear" hidden>Remove key</button><span class="small muted" id="sl-state"></span></div>
+          <details class="more">
+            <summary>Where do I get a key?</summary>
+            <ol class="small steps">
+              <li>Open <a href="https://developers.spicylyrics.org/dashboard/applications" target="_blank" rel="noopener">developers.spicylyrics.org</a> and sign in.</li>
+              <li>Create an application. Copy its <b>secret key</b> (shown once).</li>
+              <li>Paste it above. It stays on this PC; phones never see it.</li>
+            </ol>
+          </details>
+          <div class="small muted" id="sl-credit"></div>
+        </section>
+
         <section class="card" aria-label="Updates">
           <div class="card-head"><h3>Updates</h3><span class="badge" id="up-badge">–</span></div>
           <p class="small muted" id="up-text">Checking…</p>

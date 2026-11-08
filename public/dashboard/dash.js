@@ -597,12 +597,39 @@
       return `<div class="dev"><span class="dot ${st[0]}"></span>${esc(d.model)}<span class="badge${d.via === 'USB' ? ' usb' : ''}">${esc(d.via || 'USB')}</span><small>${st[1]}</small></div>`;
     }).join('');
     if ($('cn-usb').innerHTML !== usb) $('cn-usb').innerHTML = usb;
+    renderSpicy();
     setText($('cn-bridge-info'), s.bridge.ready ? 'Running' + (s.bridge.restarts ? ` · restarted ${s.bridge.restarts}×` : '') : 'Starting…');
   }
   $('cn-phones').addEventListener('click', (e) => {
     const b = e.target.closest('[data-identify]');
     if (b) api(`phones/${b.dataset.identify}/identify`, {}).catch((er) => toast(er.message));
   });
+  // Spicy Lyrics key
+  function renderSpicy() {
+    const c = state.config || {}, s = state.status;
+    const on = !!c.spicyKey;
+    $('sl-badge').textContent = on ? 'On' : 'Off';
+    $('sl-badge').className = 'badge' + (on ? ' usb' : '');
+    $('sl-clear').hidden = !on;
+    if (document.activeElement !== $('sl-key')) $('sl-key').value = c.spicyKey || '';
+    const cr = s && s.lyrics && s.lyrics.credit;
+    let html = '';
+    if (cr) {
+      const link = (p) => p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>` : esc(p.name);
+      html = 'Current lyrics: ' + esc(cr.provider) + (s.lyrics.wordSynced ? ' (word by word)' : '') + (cr.uploader ? ' · uploaded by ' + link(cr.uploader) : '') + (cr.maker ? ' · made by ' + link(cr.maker) : '');
+    }
+    if ($('sl-credit').innerHTML !== html) $('sl-credit').innerHTML = html;
+  }
+  $('sl-save').addEventListener('click', async () => {
+    const key = $('sl-key').value.trim();
+    setText($('sl-state'), 'Checking…');
+    const r = await api('spicy/check', { key }).catch((e) => ({ ok: false, error: e.message }));
+    if (r.ok) { await saveConfig({ spicyKey: key }); setText($('sl-state'), 'Key works. New songs will use it.'); }
+    else setText($('sl-state'), r.error || 'That key was not accepted.');
+    renderSpicy();
+  });
+  $('sl-clear').addEventListener('click', async () => { await saveConfig({ spicyKey: '' }); setText($('sl-state'), 'Removed.'); renderSpicy(); });
+
   function renderConnectionSettings() {
     const c = state.config;
     $('cn-autousb').checked = c.autoUsb;

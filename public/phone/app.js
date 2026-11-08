@@ -75,7 +75,16 @@
     var sock;
     try { sock = new WebSocket(wsUrl()); } catch (e) { return scheduleReconnect(); }
     ws = sock;
+    var giveUp = setTimeout(function () {
+      if (ws !== sock || sock.readyState === 1) return;
+      ws = null;
+      sock.onopen = sock.onmessage = sock.onclose = sock.onerror = null;
+      try { sock.close(); } catch (e) {}
+      showOffline();
+      scheduleReconnect();
+    }, 3000);
     sock.onopen = function () {
+      clearTimeout(giveUp);
       retry = 0; lastMsg = Date.now(); everConnected = true; hostFails = 0;
       $('offline').hidden = true;
       reportBattery();
@@ -87,6 +96,7 @@
       onMessage(m);
     };
     sock.onclose = function () {
+      clearTimeout(giveUp);
       if (ws !== sock) return;
       ws = null;
       showOffline();
@@ -95,11 +105,18 @@
     sock.onerror = function () { try { sock.close(); } catch (e) {} };
   }
 
+  window.pdReconnect = function () {
+    if (ws && ws.readyState === 1) return;
+    if (ws) { try { ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null; ws.close(); } catch (e) {} ws = null; }
+    retry = 0; hostFails = 0; connect();
+  };
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') window.pdReconnect(); });
+
   function scheduleReconnect() {
     clearTimeout(connectTimer);
     // Two misses on one address: try the next one (USB -> Wi-Fi name -> IP -> back again).
     if (++hostFails >= 2 && hosts.length > 1) { nextHost(); retry = Math.min(retry, 2); }
-    var delay = Math.min(4000, 400 * Math.pow(1.6, retry++));
+    var delay = Math.min(2500, 400 * Math.pow(1.5, retry++));
     connectTimer = setTimeout(connect, delay);
   }
 
@@ -204,6 +221,7 @@
   var pc = { pos: 0, at: 0, playing: false, key: '' };
   function pcPos(now) { return pc.pos + (pc.playing ? (now - pc.at) / 1000 : 0); }
   function mediaClock(m) {
+    $('ly-music').classList.toggle('paused', !m || m.status !== 'Playing');
     if (!m || !m.active) { pc.at = 0; return; }
     var now = Date.now() + state.clockOffset, playing = m.status === 'Playing';
     var key = (m.app || '') + '|' + (m.title || '') + '|' + (m.artist || '') + '|' + Math.round(m.duration || 0);
@@ -926,7 +944,18 @@
 
   /* ============================================================ lyrics screen */
   var lyr = null, lyrIndex = -2;
+  function renderCredit(d) {
+    var t = '';
+    if (d && d.credit && d.lines && d.lines.length) {
+      var c = d.credit;
+      t = 'Lyrics: ' + c.provider;
+      if (c.uploader) t += ' · uploaded by ' + c.uploader.name;
+      if (c.maker) t += ' · made by ' + c.maker.name;
+    }
+    setText($('ly-credit'), t); setText($('ly-credit2'), t);
+  }
   function setLyrics(d) {
+    renderCredit(d);
     // Plain lyrics (no timestamps): spread the lines over the song by their length so they still scroll and light up.
     // Approximate; the Earlier/Later buttons fine-tune it.
     if (d && !d.synced && !d.instrumental && d.lines && d.lines.length > 2 && state.media.active && state.media.duration > 30) {
@@ -944,11 +973,14 @@
     list.style.transform = 'translateY(0)';
     if (!d || !d.lines || !d.lines.length) {
       list.innerHTML = '';
-      $('ly-msg').hidden = false;
-      setText($('ly-msg'), !state.media.active ? 'Play a song on your PC' : !d ? 'Looking for lyrics…' : d.instrumental ? 'Instrumental' : 'No lyrics found for this song');
+      lyMusicOn = false; lyMusicTxt = '#';
+      if (!state.media.active) { lyMusic(''); $('ly-msg').hidden = false; setText($('ly-msg'), 'Play a song on your PC'); return; }
+      $('ly-msg').hidden = true;
+      lyMusic(!d ? 'Looking for lyrics…' : d.instrumental ? 'Instrumental' : 'No lyrics for this song');
       return;
     }
     $('ly-msg').hidden = true;
+    lyMusicOn = true; lyMusicTxt = '#'; lyMusic('');
     var frag = document.createDocumentFragment();
     d.lines.forEach(function (l) {
       var div = document.createElement('div');
@@ -964,6 +996,9 @@
           if (k < words.length - 1) div.appendChild(document.createTextNode(' '));
           spans.push(sp); wf.push(acc / total); acc += w.length + 1;
         });
+        if (l.words && l.words.length === words.length && l.dur > 0) {
+          wf = l.words.map(function (w) { return Math.max(0, Math.min(0.98, (w.t - l.t) / l.dur)); });
+        }
         div._w = spans; div._wf = wf; div._cur = -2;
       }
       else div.innerHTML = '<i></i><i></i><i></i>';
@@ -982,6 +1017,7 @@
       else { img.removeAttribute('src'); img.hidden = true; $('ly-noart').hidden = false; }
     }
     setText($('ly-t'), m.active ? (m.title || '') : '');
+    lyShowOffset();
     setText($('ly-a'), m.active ? (m.artist || '') : '');
     if (lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
     setText($('ly-song'), m.active ? (m.title || '') + (m.artist ? ' — ' + m.artist : '') : '');
@@ -995,6 +1031,28 @@
     var expected = Math.max(1.5, (len / 10) * 1.7);
     return Math.max(0.8, Math.min(gap * 0.92, expected));
   }
+  // The melody indicator: bars that dance while the music plays but nobody is singing (intro, instrumental break, outro),
+  // or when there are no lyrics for the song.
+  var lyMusicOn = false, lyMusicTxt = '';
+  function lyMusic(txt) {
+    var on = !!txt;
+    if (on === lyMusicOn && txt === lyMusicTxt) return;
+    lyMusicOn = on; lyMusicTxt = txt;
+    $('ly-music').classList.toggle('show', on);
+    if (on) setText($('ly-music-t'), txt);
+    $('ly-list').classList.toggle('idle', on && !!lyr && !!lyr.lines && lyr.lines.length > 0);
+  }
+  // '' while someone is singing, otherwise what the music is doing.
+  function lyIdleLabel(idx, pos) {
+    var L = lyr.lines;
+    if (lyr.estimated || !L.length) return '';
+    if (idx < 0) return L[0].t - pos > 2.0 ? 'Intro' : '';
+    var ln = L[idx], next = L[idx + 1];
+    if (!ln.text) return 'Instrumental';
+    var gap = (next ? next.t : ln.t + 999) - ln.t, end = ln.t + (ln.dur > 0 ? ln.dur : lySung(ln.text.length, gap));
+    if (pos > end + 1.2 && (!next || next.t - pos > 2.0)) return next ? 'Instrumental' : 'Outro';
+    return '';
+  }
   function lyIndexAt(pos) {
     var L = lyr.lines, lo = 0, hi = L.length - 1, ans = -1;
     while (lo <= hi) { var mid = (lo + hi) >> 1; if (L[mid].t <= pos) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
@@ -1004,22 +1062,24 @@
   var lyTrackOff = store.get('lyoff', {}) || {};
   function lyTrackKey() { var m = state.media; return m && m.active ? (m.title || '') + '|' + (m.artist || '') : ''; }
   function lyTotalOffset() { return (state.config.lyricsOffset || 0) + (lyTrackOff[lyTrackKey()] || 0); }
-  function lyLead() { return 0.25 - lyTotalOffset() / 1000; }
+  function lyLead() { return 0.4 - lyTotalOffset() / 1000; }
   // The two buttons on the lyrics screen: shift this song's lyrics earlier or later (remembered per song on this phone).
   function lyNudge(ms) {
     var k = lyTrackKey();
     if (!k) return;
-    lyTrackOff[k] = Math.max(-4000, Math.min(4000, (lyTrackOff[k] || 0) + ms));
+    lyTrackOff[k] = Math.max(-5000, Math.min(5000, (lyTrackOff[k] || 0) + ms));
     var keys = Object.keys(lyTrackOff);
     if (keys.length > 200) delete lyTrackOff[keys[0]];
     store.set('lyoff', lyTrackOff);
     var t = lyTotalOffset();
+    lyShowOffset();
     toast(t === 0 ? 'Lyrics: in sync' : 'Lyrics ' + (Math.abs(t) / 1000).toFixed(2) + ' s ' + (t > 0 ? 'later' : 'earlier'));
     buzz();
     lyrIndex = -2; kinIdx = -2; lyFillAt = 0;
   }
-  $('ly-earlier').addEventListener('click', function () { lyNudge(-250); });
-  $('ly-later').addEventListener('click', function () { lyNudge(250); });
+  function lyShowOffset() { var t = lyTotalOffset(); setText($('ly-off'), (t > 0 ? '+' : '') + (t / 1000).toFixed(2) + 's'); }
+  $('ly-earlier').addEventListener('click', function () { lyNudge(-150); });
+  $('ly-later').addEventListener('click', function () { lyNudge(150); });
   var lyFillAt = 0;
   function lyricTick(force) {
     if (!lyr || !lyr.lines.length || !lyricsVisible()) return;
@@ -1027,6 +1087,7 @@
     if (document.body.classList.contains('ly-kinetic')) return kinTick(force);
     if (!lyr.synced) { if (force && lines[0]) $('ly-list').style.transform = 'translateY(0)'; return; }
     var pos = currentPos() + lyLead(), idx = lyIndexAt(pos);
+    lyMusic(lyIdleLabel(idx, pos));
     if (idx !== lyrIndex || force) {
       var from = Math.max(0, Math.min(lyrIndex, idx) - 3), to = Math.min(lines.length - 1, Math.max(lyrIndex, idx) + 3);
       if (force) { from = 0; to = lines.length - 1; }
@@ -1052,7 +1113,7 @@
       if (force || now - lyFillAt > 45) {
         lyFillAt = now;
         var start = L[idx].t, gap = (L[idx + 1] ? L[idx + 1].t : start + 6) - start;
-        var sung = L[idx].text ? lySung(L[idx].text.length, gap) : gap;
+        var sung = L[idx].dur > 0 ? L[idx].dur : (L[idx].text ? lySung(L[idx].text.length, gap) : gap);
         var p = Math.max(0, Math.min(1, (pos - start) / sung));
         var ln = lines[idx];
         if (ln._w) {
@@ -1213,7 +1274,7 @@
     kinFxClear();
     if (!ln || !ln.text) return;
     var gap = (L[idx + 1] ? L[idx + 1].t : ln.t + 6) - ln.t, len = ln.text.length;
-    var cps = len / Math.min(gap, Math.max(1.1, len * 0.085)), sung = lySung(len, gap);
+    var cps = ln.dur > 0 ? len / ln.dur : len / Math.min(gap, Math.max(1.1, len * 0.085)), sung = ln.dur > 0 ? ln.dur : lySung(len, gap);
     var mood = cps > 14 ? 'hot' : cps < 8 ? 'calm' : 'mid';
     var words = ln.text.split(/\s+/);
     var rtl = isRtl(ln.text);
@@ -1274,6 +1335,13 @@
       kd.appendChild(row);
     });
     el.appendChild(kd);
+    // Real word timings (word-synced lyrics): each word fills exactly while it is sung.
+    if (ln.words && ln.words.length === spans.length && ln.dur > 0) {
+      for (var wi2 = 0; wi2 < spans.length; wi2++) {
+        wf[wi2] = Math.max(0, Math.min(0.98, (ln.words[wi2].t - ln.t) / ln.dur));
+        spans[wi2].style.setProperty('--fd', Math.max(0.12, (ln.words[wi2].e || ln.words[wi2].t) - ln.words[wi2].t).toFixed(2) + 's');
+      }
+    }
     el._w = spans; el._wf = wf; el._cur = -2; el._sung = sung;
     stage.appendChild(el);
     kinFit(el, stage, fs);
@@ -1283,6 +1351,7 @@
   }
   function kinTick(force) {
     var L = lyr.lines, pos = currentPos() + lyLead(), idx = lyIndexAt(pos);
+    lyMusic(lyIdleLabel(idx, pos));
     if (idx !== kinIdx || force) {
       if (force && idx === kinIdx && kinEl) { /* same line, just re-measure below */ }
       kinIdx = idx;
@@ -1305,7 +1374,7 @@
     }
     // A long pause before the next line: let the words go and leave the screen quiet.
     var nextT = L[idx + 1] ? L[idx + 1].t : start + 99;
-    var gone = pos > start + el._sung + 3.2 && nextT - pos > 2.5;
+    var gone = pos > start + el._sung + 1.2 && nextT - pos > 2.0;
     if (gone !== kinGone) { kinGone = gone; toggle(el, 'out', gone); if (kinFxEl) toggle(kinFxEl, 'out', gone); }
   }
   function lyricsVisible() { return (state.screen === 'lyrics' || document.body.classList.contains('ly-open')) && document.visibilityState === 'visible'; }

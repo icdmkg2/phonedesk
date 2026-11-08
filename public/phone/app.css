@@ -655,3 +655,35 @@ body:not(.ly-kinetic) .ly-head { display: none; }
 body:not(.ly-kinetic) .ly-view { margin-top: 24px; }
 body:not(.ly-kinetic) #s-lyrics { --sidew: min(calc(var(--ah) * .44), calc(var(--aw) * .23)); }
 body:not(.ly-kinetic) .ly-side { top: 34px; padding-bottom: 54px; }
+
+.ly-nudge .ly-off { align-self: center; min-width: 52px; text-align: center; font-size: 12px; font-weight: 700; color: var(--fg2); font-variant-numeric: tabular-nums; }
+body.ly-kinetic:not(.ly-dark).ly-ready .ly-nudge .ly-off, body.ly-kinetic:not(.ly-dark).scr-lyrics .ly-nudge .ly-off { color: #1a2523; }
+
+/* ---------------------------------------------------------------- melody indicator */
+.ly-music { position: absolute; left: 0; right: 0; top: 30px; bottom: 54px; z-index: 1; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  visibility: hidden; opacity: 0; transition: opacity .5s ease, visibility 0s .5s; color: var(--ink, var(--fg)); }
+.ly-music.show { visibility: visible; opacity: 1; transition: opacity .5s ease; }
+body:not(.ly-kinetic) .ly-music { left: calc(var(--sidew) + 34px); }
+.ly-music .eq { display: flex; align-items: flex-end; gap: 8px; height: 52px; }
+.ly-music .eq i { width: 8px; height: 100%; border-radius: 4px; background: currentColor; opacity: .85; transform-origin: 50% 100%; transform: scaleY(.3);
+  animation: lyeq 1.05s ease-in-out infinite; }
+.ly-music .eq i:nth-child(2) { animation-duration: .8s; animation-delay: -.3s; }
+.ly-music .eq i:nth-child(3) { animation-duration: 1.2s; animation-delay: -.6s; }
+.ly-music .eq i:nth-child(4) { animation-duration: .9s; animation-delay: -.2s; }
+.ly-music .eq i:nth-child(5) { animation-duration: 1.1s; animation-delay: -.8s; }
+.ly-music.paused .eq i { animation-play-state: paused; }
+@keyframes lyeq { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+.ly-music-t { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; opacity: .6; }
+.ly-list { transition: transform .5s cubic-bezier(.25, .8, .25, 1), opacity .5s ease; }
+.ly-list.idle { opacity: .06; }
+
+/* ---------------------------------------------------------------- lyrics credit (required by the lyrics providers) */
+.ly-credit { margin-top: 8px; font-size: 10.5px; line-height: 1.35; color: var(--fg3); unicode-bidi: plaintext; text-align: left; max-width: 100%; }
+.ly-credit2 { display: none; }
+body.ly-kinetic .ly-credit2 { display: block; position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font-size: 10px; letter-spacing: .02em;
+  color: var(--ink, var(--fg)); opacity: .4; pointer-events: none; padding: 0 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ly-side > * { flex: none; }
+body:not(.ly-kinetic) #s-lyrics { --sidew: min(calc(var(--ah) * .38), calc(var(--aw) * .21)); }
+body:not(.ly-kinetic) .ly-side { top: 30px; padding-bottom: 50px; gap: 3px; }
+.ly-credit { font-size: 10px; }

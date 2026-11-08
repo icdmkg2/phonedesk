@@ -33,6 +33,7 @@ const DEFAULTS = {
   nowStyle: 'immersive',
   lyricsMode: 'scroll',
   lyricsFont: 'serif',
+  spicyKey: '',
   lyricsOffset: 0,
   lyricsLines: 'off',
   screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
@@ -89,6 +90,7 @@ function sanitize(c) {
   out.lyricsMode = ['scroll', 'kinetic', 'kinetic-dark'].includes(c.lyricsMode) ? c.lyricsMode : 'scroll';
   out.lyricsOffset = Math.max(-2000, Math.min(2000, Math.round(+c.lyricsOffset || 0)));
   out.lyricsLines = ['off', 'curve', 'straight', 'glass'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
+  out.spicyKey = /^sl_[sp]k_[A-Za-z0-9_-]{10,200}$/.test(String(c.spicyKey || '').trim()) ? String(c.spicyKey).trim() : '';
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';
   out.screens = Array.isArray(c.screens) ? c.screens.filter((s) => SCREENS.includes(s)) : DEFAULTS.screens.slice();
   if (!out.screens.length) out.screens = ['media'];
