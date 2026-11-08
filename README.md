@@ -162,6 +162,9 @@ server/weather.js      Weather (Open-Meteo)
 server/spotify.js      Spotify up next + like (Web API, PKCE)
 server/notify.js       Reads new Windows notifications
 server/updater.js      Auto-update from GitHub Releases
+server/calendar.js     Upcoming events from an iCal (.ics) address
+server/changelog.js    Patch notes for What's new (and the website)
+server/diagnostics.js  The diagnostics zip for bug reports
 server/firewall.js     Wi-Fi firewall check for first-run setup
 installer/Window.cs    The PhoneDesk window (WebView2)
 installer/Tray.cs      PhoneDesk.exe: tray app, server supervisor, uninstaller
@@ -170,6 +173,7 @@ build/build.ps1        Builds the installer
 build/release.js       Release notes from CHANGELOG.md for GitHub Releases
 .github/workflows/     release.yml: builds and publishes GitHub Releases
 CHANGELOG.md           Patch notes for every version (screenshots in docs/changelog/)
+site/                  The website (node site/build.js → site/dist, published to GitHub Pages)
 public/phone/          The phone app
 public/dashboard/      The PC dashboard
 data/config.json       Your settings when running from source (installed: %APPDATA%\PhoneDesk)

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhoneDesk · Your old phone, your desk's best screen</title>
+<meta name="description" content="PhoneDesk turns an old Android phone into a desk display for your Windows PC: now playing with synced lyrics, a clock with weather and your calendar, live PC stats and shortcut buttons. Free and open source.">
+<meta name="theme-color" content="#07080b">
+<meta property="og:title" content="PhoneDesk">
+<meta property="og:description" content="Turn an old Android phone into a desk display for your Windows PC.">
+<meta property="og:image" content="https://icdmkg2.github.io/phonedesk/shots/1.5.8/phone-album-card.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/SpaceGrotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/style.css?v={{VERSION}}">
+</head>
+<body>
+
+<header class="nav" id="top">
+  <div class="wrap nav-in">
+    <a class="brand" href="./"><img src="assets/favicon.svg" alt="" width="28" height="28"><span>PhoneDesk</span></a>
+    <nav class="links" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#lyrics">Lyrics</a>
+      <a href="#setup">Setup</a>
+      <a href="changelog.html">Changelog</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="gh" href="https://github.com/icdmkg2/phonedesk" aria-label="PhoneDesk on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+      <a class="btn sm primary dl-link" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ============================================================ hero -->
+<section class="hero">
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div class="wrap hero-in">
+    <div class="hero-copy reveal">
+      <a class="pill" href="changelog.html"><b>New in {{VERSION}}</b><span class="pill-t">{{HEADLINE}}</span><span aria-hidden="true">→</span></a>
+      <h1>Your old phone,<br><span class="grad">your desk's best screen.</span></h1>
+      <p class="lead">PhoneDesk turns an Android phone you no longer use into a fast, always-on display for your Windows PC: what's playing with lyrics that light up word by word, a clock with weather and your calendar, live PC stats, and buttons that do things on your PC.</p>
+      <div class="cta">
+        <a class="btn lg primary dl-link" href="https://github.com/icdmkg2/phonedesk/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3zm8.5-1.3L21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zm8.5 0H21V21l-9.5-1.3z" fill="currentColor"/></svg>
+          <span>Download for Windows<small class="dl-meta">v{{VERSION}} · free</small></span>
+        </a>
+        <a class="btn lg ghost" href="#how">How it works</a>
+      </div>
+      <ul class="ticks">
+        <li>Free and open source</li><li>Windows 10 &amp; 11</li><li>Any Android 7+ phone</li><li>USB or Wi-Fi</li>
+      </ul>
+    </div>
+    <div class="hero-visual reveal">
+      <div class="phone tilt" id="hero-phone">
+        <div class="phone-screen">
+          <img class="cycle on" src="shots/1.8.0/phone-now-playing.png" alt="Now playing on the phone" width="1600" height="740">
+          <img class="cycle" src="shots/1.7.1/phone-lyrics-credit.png" alt="Lyrics lighting up word by word" width="1600" height="740" loading="lazy">
+          <img class="cycle" src="shots/1.8.0/phone-clock-agenda.png" alt="Clock with forecast and calendar" width="1600" height="740" loading="lazy">
+          <img class="cycle" src="shots/1.8.0/phone-stats-history.png" alt="PC stats with the last hour" width="1600" height="740" loading="lazy">
+          <img class="cycle" src="shots/1.5.1/phone-kinetic-dark.png" alt="Kinetic lyrics" width="1600" height="740" loading="lazy">
+        </div>
+        <i class="cam" aria-hidden="true"></i>
+      </div>
+      <div class="cycle-dots" id="hero-dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <div class="desk-shadow" aria-hidden="true"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ features -->
+<section class="sec" id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker">Everything at a glance</span>
+      <h2>One small screen. Six things you'd otherwise alt-tab for.</h2>
+      <p>Swipe between screens on the phone, or let it switch by itself. Everything runs on your PC; the phone only shows it, so even a 2020 budget phone stays smooth.</p>
+    </div>
+    <div class="bento">
+      <article class="tile big reveal">
+        <div class="tile-txt"><h3>Now playing</h3><p>Cover art, controls, volume, and up next. Works with Spotify, YouTube in any browser, Media Player and anything else that talks to Windows' media controls. A ♥ saves the song to your Spotify likes.</p></div>
+        <div class="shot"><img src="shots/1.8.0/phone-now-playing.png" alt="Now playing" loading="lazy" width="1600" height="740"></div>
+      </article>
+      <article class="tile reveal">
+        <div class="tile-txt"><h3>Clock, weather, calendar</h3><p>Digital, analog or big. A 5-day forecast, and what's next from Google, Outlook or iCloud.</p></div>
+        <div class="shot"><img src="shots/1.8.0/phone-clock-analog.png" alt="Analog clock with agenda" loading="lazy" width="1600" height="740"></div>
+      </article>
+      <article class="tile reveal">
+        <div class="tile-txt"><h3>PC stats</h3><p>CPU and every core, memory, GPU temperature and power, network speed, and the last hour as a graph.</p></div>
+        <div class="shot"><img src="shots/1.8.0/phone-stats-history.png" alt="PC stats" loading="lazy" width="1600" height="740"></div>
+      </article>
+      <article class="tile reveal">
+        <div class="tile-txt"><h3>Shortcut pad</h3><p>Big buttons for key combos, links and apps. Mute the mic, lock the PC, open Spotify.</p></div>
+        <div class="shot"><img src="shots/1.8.0/phone-shortcuts.png" alt="Shortcut buttons" loading="lazy" width="1600" height="740"></div>
+      </article>
+      <article class="tile reveal">
+        <div class="tile-txt"><h3>Mixer &amp; notifications</h3><p>Per-app volume, and your PC's notifications as banners, with a private mode.</p></div>
+        <div class="shot"><img src="shots/1.8.0/phone-mixer.png" alt="Volume mixer" loading="lazy" width="1600" height="740"></div>
+      </article>
+      <article class="tile big reveal">
+        <div class="tile-txt"><h3>Night mode</h3><p>A dim red clock at night, on a schedule or when the room goes dark, and the phone app turns the screen itself down. Burn-in protection keeps screens that never sleep free of ghost images.</p></div>
+        <div class="shot"><img src="shots/1.8.0/phone-night-red.png" alt="Night mode" loading="lazy" width="1600" height="740"></div>
+      </article>
+      <a class="tile reveal" href="#lyrics">
+        <div class="tile-txt"><h3>Lyrics, word by word</h3><p>Scrolling or Kinetic, light or dark, left to right or right to left. See the styles →</p></div>
+        <div class="shot"><img src="shots/1.5.1/phone-kinetic-light.png" alt="Kinetic lyrics" loading="lazy" width="1600" height="740"></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ lyrics -->
+<section class="sec lyrics-sec" id="lyrics">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker">Lyrics</span>
+      <h2>Sing along. Every word lights up on time.</h2>
+      <p>Word-by-word timing from Spicy Lyrics (community, Apple Music and Spotify syncs), with LRCLIB as the fallback. Hebrew and Arabic read right to left. Off by a beat? Nudge it earlier or later, per song.</p>
+    </div>
+    <div class="ly-show reveal">
+      <div class="ly-tabs" role="tablist" aria-label="Lyrics styles">
+        <button role="tab" aria-selected="true" data-i="0"><b>Scrolling</b><small>The whole song, the current line lit</small></button>
+        <button role="tab" aria-selected="false" data-i="1"><b>Kinetic · light</b><small>One big line, glass-display look</small></button>
+        <button role="tab" aria-selected="false" data-i="2"><b>Kinetic · dark</b><small>Light type on black</small></button>
+        <button role="tab" aria-selected="false" data-i="3"><b>Linked lines</b><small>Words and lines joined by a thread</small></button>
+        <button role="tab" aria-selected="false" data-i="4"><b>Right to left</b><small>Hebrew &amp; Arabic, with proper fonts</small></button>
+        <button role="tab" aria-selected="false" data-i="5"><b>Melody</b><small>Bars for intros and breaks</small></button>
+      </div>
+      <div class="phone flat">
+        <div class="phone-screen" id="ly-screens">
+          <img class="cycle on" src="shots/1.7.1/phone-lyrics-credit.png" alt="Scrolling lyrics" loading="lazy" width="1600" height="740">
+          <img class="cycle" src="shots/1.5.1/phone-kinetic-light.png" alt="Kinetic lyrics, light" loading="lazy" width="1600" height="740">
+          <img class="cycle" src="shots/1.5.1/phone-kinetic-dark.png" alt="Kinetic lyrics, dark" loading="lazy" width="1600" height="740">
+          <img class="cycle" src="shots/1.5.4/phone-kinetic-linked-lines.png" alt="Kinetic lyrics with linked lines" loading="lazy" width="1600" height="740">
+          <img class="cycle" src="shots/1.6.0/phone-hebrew-lyrics.png" alt="Hebrew lyrics" loading="lazy" width="1600" height="740">
+          <img class="cycle" src="shots/1.6.4/phone-melody-intro.png" alt="Melody indicator" loading="lazy" width="1600" height="740">
+        </div>
+        <i class="cam" aria-hidden="true"></i>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ how -->
+<section class="sec" id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker">How it works</span>
+      <h2>Three minutes from drawer to desk.</h2>
+    </div>
+    <ol class="steps">
+      <li class="reveal"><span class="n">1</span><h3>Install on your PC</h3><p>Run the setup. No admin rights, no Node.js to install. PhoneDesk lives in the tray, starts with Windows and updates itself.</p></li>
+      <li class="reveal"><span class="n">2</span><h3>Open it on the phone</h3><p>Scan the QR code, or install the small phone app: it finds your PC by itself, keeps the screen on and stays full screen.</p></li>
+      <li class="reveal"><span class="n">3</span><h3>Make it yours</h3><p>Pick the screens, styles, clock face and shortcuts in the PhoneDesk window. Every change shows on the phone instantly.</p></li>
+    </ol>
+    <div class="window reveal">
+      <div class="win-bar"><i></i><i></i><i></i><span>PhoneDesk</span></div>
+      <img src="shots/1.8.0/dashboard-overview.png" alt="The PhoneDesk window on the PC" loading="lazy" width="2560" height="1600">
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ privacy -->
+<section class="sec slim">
+  <div class="wrap">
+    <div class="trio">
+      <div class="reveal"><h3>Private by design</h3><p>Everything runs on your own PC and network. Keys, tokens and your calendar address never leave the PC; lyric and weather lookups send only what they need.</p></div>
+      <div class="reveal"><h3>Light on old phones</h3><p>Plain JavaScript, no frameworks, GPU-friendly animations. Built and tuned on a Samsung Galaxy A11.</p></div>
+      <div class="reveal"><h3>Always up to date</h3><p>Updates are checked against GitHub Releases, verified by SHA-256, and installed in seconds. The notes show once after each update.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ setup / FAQ -->
+<section class="sec" id="setup">
+  <div class="wrap narrow">
+    <div class="sec-head reveal">
+      <span class="kicker">Setup &amp; questions</span>
+      <h2>Good to know</h2>
+    </div>
+    <div class="faq reveal">
+      <details open><summary>What do I need?</summary><p>A Windows 10 or 11 PC and any Android phone from the last several years (Android 7 or newer). The PhoneDesk window uses Edge WebView2, which comes with Windows 11 and most Windows 10 PCs. The phone connects over your Wi-Fi or a USB cable.</p></details>
+      <details><summary>Windows says "Windows protected your PC"</summary><p>The setup isn't code-signed yet, so SmartScreen asks first. Choose <b>More info → Run anyway</b>. The installer is built by GitHub Actions from this repository, and every release has its SHA-256 checksum.</p></details>
+      <details><summary>Connecting the phone</summary><p><b>Wi-Fi:</b> open the address the PhoneDesk window shows (usually <code>http://phonedesk.local</code>) or scan its QR code.<br><b>Phone app (recommended):</b> open <code>/phone/PhoneDesk.apk</code> on the phone and install it. It's full screen, keeps the screen awake and shares the battery level.<br><b>USB:</b> turn on Developer options → USB debugging, plug in, and PhoneDesk opens on the phone by itself.</p></details>
+      <details><summary>Which music apps work?</summary><p>Anything that shows up in Windows' media controls: Spotify, YouTube and other sites in Chrome, Edge or Firefox, Apple Music, Media Player, VLC, and most games' music. Spotify extras (♥ and up next) need a free Spotify developer app; the PhoneDesk window walks you through it.</p></details>
+      <details><summary>How do I show my calendar?</summary><p>Paste your calendar's private iCal address in <b>Phone display → Clock screen</b>. Google: Settings → your calendar → <i>Secret address in iCal format</i>. Outlook: Settings → Calendar → Shared calendars → <i>Publish a calendar</i> → ICS link. The address stays on your PC.</p></details>
+      <details><summary>Something isn't working</summary><p>Open <b>Activity → Save diagnostics</b> in the PhoneDesk window and attach the zip to a <a href="https://github.com/icdmkg2/phonedesk/issues/new/choose">bug report</a>. It has the logs and your settings, with every key, token and calendar address removed.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ changelog teaser -->
+<section class="sec" id="changes">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker">Changelog</span>
+      <h2>Shipping all the time</h2>
+      <p>{{VERSION_COUNT}} versions so far. Every one has notes and screenshots.</p>
+    </div>
+    <div class="recent reveal">
+{{RECENT}}
+    </div>
+    <p class="center reveal"><a class="btn ghost" href="changelog.html">See every version →</a></p>
+  </div>
+</section>
+
+<!-- ============================================================ final CTA -->
+<section class="final">
+  <div class="glow g3"></div>
+  <div class="wrap center reveal">
+    <h2>Give that phone in the drawer a job.</h2>
+    <p class="lead">Free, open source, and set up in minutes.</p>
+    <div class="cta center-cta">
+      <a class="btn lg primary dl-link" href="https://github.com/icdmkg2/phonedesk/releases/latest"><span>Download for Windows<small class="dl-meta">v{{VERSION}} · free</small></span></a>
+      <a class="btn lg ghost" href="https://github.com/icdmkg2/phonedesk">Star on GitHub</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="brand"><img src="assets/favicon.svg" alt="" width="22" height="22"><span>PhoneDesk</span></div>
+    <nav aria-label="Footer">
+      <a href="https://github.com/icdmkg2/phonedesk">GitHub</a>
+      <a href="https://github.com/icdmkg2/phonedesk/releases">Releases</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="https://github.com/icdmkg2/phonedesk/issues/new/choose">Report a problem</a>
+    </nav>
+    <p class="fine">Screenshots show a made-up song with placeholder lyrics. Lyrics in PhoneDesk come from Spicy Lyrics and LRCLIB, weather from Open-Meteo.</p>
+  </div>
+</footer>
+
+<script src="assets/main.js?v={{VERSION}}" defer></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changelog · PhoneDesk</title>
+<meta name="description" content="Every PhoneDesk version, with patch notes and screenshots.">
+<meta name="theme-color" content="#07080b">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css?v={{VERSION}}">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="./"><img src="assets/favicon.svg" alt="" width="28" height="28"><span>PhoneDesk</span></a>
+    <nav class="links" aria-label="Sections">
+      <a href="./#features">Features</a>
+      <a href="./#lyrics">Lyrics</a>
+      <a href="./#setup">Setup</a>
+      <a href="changelog.html" aria-current="page">Changelog</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn sm primary dl-link" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download</a>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <section class="cl-hero">
+    <span class="kicker">Changelog</span>
+    <h1>Every version, <span class="grad">every change.</span></h1>
+    <p class="lead">{{VERSION_COUNT}} versions with notes and screenshots of what changed. Each one is also a <a href="https://github.com/icdmkg2/phonedesk/releases">GitHub Release</a>.</p>
+  </section>
+  <div class="cl-layout">
+    <nav class="cl-toc" aria-label="Versions">
+{{TOC}}
+    </nav>
+    <div class="cl-list">
+{{RELEASES}}
+    </div>
+  </div>
+</main>
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="brand"><img src="assets/favicon.svg" alt="" width="22" height="22"><span>PhoneDesk</span></div>
+    <nav aria-label="Footer">
+      <a href="./">Home</a>
+      <a href="https://github.com/icdmkg2/phonedesk">GitHub</a>
+      <a href="https://github.com/icdmkg2/phonedesk/releases">Releases</a>
+    </nav>
+    <p class="fine">Screenshots show a made-up song with placeholder lyrics.</p>
+  </div>
+</footer>
+<script src="assets/main.js?v={{VERSION}}" defer></script>
+</body>
+</html>

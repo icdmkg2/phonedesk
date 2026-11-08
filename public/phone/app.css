@@ -778,3 +778,5 @@ body.night .batt, body.night .np-top, body.night #dots { opacity: .35; }
 
 /* ---------------------------------------------------------------- burn-in protection */
 #screens, .batt, .np-top, #dots, .fs { translate: var(--bx, 0px) var(--by, 0px); transition: translate 4s ease-in-out; }
+/* the battery pill sits above the shortcut grid, not on it */
+body:not(.fullscreen) #s-shortcuts, #s-shortcuts { padding-top: 46px; }
