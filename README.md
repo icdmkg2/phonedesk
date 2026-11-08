@@ -89,6 +89,17 @@ PhoneDesk can update itself from a GitHub repository's releases. Set *Connection
 Each release needs the `PhoneDesk-Setup-x.y.z.exe` that `build\build.ps1` makes; GitHub adds a SHA-256 digest automatically
 (or upload the `.sha256` file next to it). PhoneDesk refuses downloads whose checksum doesn't match.
 
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md) (with screenshots of interface changes) and on
+[GitHub Releases](https://github.com/icdmkg2/phonedesk/releases). *Connection → Updates* links to the notes of the version
+you run and of a downloaded update.
+
+Releases are published by `.github/workflows/release.yml`: bump the version in `package.json` and
+`installer/Common.cs`, add a `## [x.y.z] — date` section to `CHANGELOG.md` (screenshots go in
+`docs/changelog/x.y.z/`), and merge to `main`. The workflow builds the installer on Windows and creates release
+`vx.y.z` with those notes and the `.exe` + `.sha256`. Versions in the changelog without a release get a notes-only
+release, and editing the changelog refreshes existing release notes. `node build/release.js notes x.y.z` prints a
+version's notes.
+
 ## Phone on a charger (no cable to the PC)
 
 - **Screen always on:** once the phone has been plugged in by USB with PhoneDesk running, Android's *Stay awake* setting is switched on. It stays on afterwards, so the screen never sleeps while the phone is charging.
@@ -124,6 +135,9 @@ installer/Window.cs    The PhoneDesk window (WebView2)
 installer/Tray.cs      PhoneDesk.exe: tray app, server supervisor, uninstaller
 installer/Setup.cs     PhoneDesk-Setup.exe
 build/build.ps1        Builds the installer
+build/release.js       Release notes from CHANGELOG.md for GitHub Releases
+.github/workflows/     release.yml: builds and publishes GitHub Releases
+CHANGELOG.md           Patch notes for every version (screenshots in docs/changelog/)
 public/phone/          The phone app
 public/dashboard/      The PC dashboard
 data/config.json       Your settings when running from source (installed: %APPDATA%\PhoneDesk)
