@@ -1,6 +1,6 @@
 {
   "name": "phonedesk",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Turn an old Android phone into a fast desk display / media controller for your Windows PC",
   "main": "server/index.js",
   "private": true,

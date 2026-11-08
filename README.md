@@ -85,7 +85,7 @@ open *Connection → Spotify* in PhoneDesk and follow the three steps there. Sig
 
 ## Updates
 
-PhoneDesk can update itself from a GitHub repository's releases. Set *Connection → Updates → Release source* to `owner/repo`.
+PhoneDesk updates itself from the releases of [icdmkg2/phonedesk](https://github.com/icdmkg2/phonedesk/releases) by default (checked a minute after start and every 6 hours). To use a fork, set *Connection → Updates → GitHub repository* to `owner/repo`; an empty field means the official releases, and *Check automatically* turns updates off.
 Each release needs the `PhoneDesk-Setup-x.y.z.exe` that `build\build.ps1` makes; GitHub adds a SHA-256 digest automatically
 (or upload the `.sha256` file next to it). PhoneDesk refuses downloads whose checksum doesn't match.
 

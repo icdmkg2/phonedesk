@@ -7,6 +7,20 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.7.3] — 2026-11-08
+
+Updates work out of the box.
+
+### Changed
+- **Official releases by default:** PhoneDesk now updates from
+  [icdmkg2/phonedesk](https://github.com/icdmkg2/phonedesk/releases) without any setup. Existing installs with an
+  empty *GitHub repository* field switch to it too; a fork you entered is kept.
+- An empty *GitHub repository* field means the official releases; turn off **Check automatically** to stop updates.
+  The field explains this under it.
+
+### Screenshots
+![Updates card with the official repository filled in](docs/changelog/1.7.3/dashboard-updates-default.png)
+
 ## [1.7.2] — 2026-11-08
 
 Release notes, linked from the app.
@@ -517,6 +531,7 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
+[1.7.3]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.3
 [1.7.2]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.2
 [1.7.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.1
 [1.6.4]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.6.4
