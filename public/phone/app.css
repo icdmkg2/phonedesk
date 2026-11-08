@@ -677,3 +677,13 @@ body:not(.ly-kinetic) .ly-music { left: calc(var(--sidew) + 34px); }
 .ly-music-t { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; opacity: .6; }
 .ly-list { transition: transform .5s cubic-bezier(.25, .8, .25, 1), opacity .5s ease; }
 .ly-list.idle { opacity: .06; }
+
+/* ---------------------------------------------------------------- lyrics credit (required by the lyrics providers) */
+.ly-credit { margin-top: 8px; font-size: 10.5px; line-height: 1.35; color: var(--fg3); unicode-bidi: plaintext; text-align: left; max-width: 100%; }
+.ly-credit2 { display: none; }
+body.ly-kinetic .ly-credit2 { display: block; position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font-size: 10px; letter-spacing: .02em;
+  color: var(--ink, var(--fg)); opacity: .4; pointer-events: none; padding: 0 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ly-side > * { flex: none; }
+body:not(.ly-kinetic) #s-lyrics { --sidew: min(calc(var(--ah) * .38), calc(var(--aw) * .21)); }
+body:not(.ly-kinetic) .ly-side { top: 30px; padding-bottom: 50px; gap: 3px; }
+.ly-credit { font-size: 10px; }

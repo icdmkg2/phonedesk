@@ -56,7 +56,7 @@ bridge.on('message', (m) => {
       broadcast({ t: 'lyrics', d: null });
       if (m.active) {
         const wanted = key;
-        lyrics.find(m).then((l) => {
+        lyrics.find(m, config.get()).then((l) => {
           if (trackKey !== wanted) return;
           state.lyrics = l ? Object.assign({ key: wanted }, l) : { key: wanted, none: true, lines: [] };
           broadcast({ t: 'lyrics', d: state.lyrics });
@@ -294,6 +294,7 @@ async function handleApi(req, res, url) {
         port80: port80Ok,
         clients: [...clients].filter((c) => c.role === 'phone').map((c) => c.info),
         bridge: bridge.status(),
+        lyrics: state.lyrics && state.lyrics.lines && state.lyrics.lines.length ? { credit: state.lyrics.credit || null, wordSynced: !!state.lyrics.wordSynced, synced: !!state.lyrics.synced } : null,
         adb: adb.status(),
         media: state.media,
         volume: state.volume,
@@ -305,6 +306,10 @@ async function handleApi(req, res, url) {
       return send(res, 200, svg, 'image/svg+xml');
     }
     if (p === '/api/config' && req.method === 'GET') return send(res, 200, config.get());
+    if (p === '/api/spicy/check' && req.method === 'POST') {
+      const body = await readBody(req);
+      return send(res, 200, await require('./spicylyrics').check(String(body.key || config.get().spicyKey || '')));
+    }
     if (p === '/api/config' && req.method === 'POST') {
       const body = await readBody(req);
       const before = config.get();

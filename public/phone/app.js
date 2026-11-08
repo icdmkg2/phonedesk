@@ -944,7 +944,18 @@
 
   /* ============================================================ lyrics screen */
   var lyr = null, lyrIndex = -2;
+  function renderCredit(d) {
+    var t = '';
+    if (d && d.credit && d.lines && d.lines.length) {
+      var c = d.credit;
+      t = 'Lyrics: ' + c.provider;
+      if (c.uploader) t += ' · uploaded by ' + c.uploader.name;
+      if (c.maker) t += ' · made by ' + c.maker.name;
+    }
+    setText($('ly-credit'), t); setText($('ly-credit2'), t);
+  }
   function setLyrics(d) {
+    renderCredit(d);
     // Plain lyrics (no timestamps): spread the lines over the song by their length so they still scroll and light up.
     // Approximate; the Earlier/Later buttons fine-tune it.
     if (d && !d.synced && !d.instrumental && d.lines && d.lines.length > 2 && state.media.active && state.media.duration > 30) {
@@ -985,6 +996,9 @@
           if (k < words.length - 1) div.appendChild(document.createTextNode(' '));
           spans.push(sp); wf.push(acc / total); acc += w.length + 1;
         });
+        if (l.words && l.words.length === words.length && l.dur > 0) {
+          wf = l.words.map(function (w) { return Math.max(0, Math.min(0.98, (w.t - l.t) / l.dur)); });
+        }
         div._w = spans; div._wf = wf; div._cur = -2;
       }
       else div.innerHTML = '<i></i><i></i><i></i>';
@@ -1035,7 +1049,7 @@
     if (idx < 0) return L[0].t - pos > 2.0 ? 'Intro' : '';
     var ln = L[idx], next = L[idx + 1];
     if (!ln.text) return 'Instrumental';
-    var gap = (next ? next.t : ln.t + 999) - ln.t, end = ln.t + lySung(ln.text.length, gap);
+    var gap = (next ? next.t : ln.t + 999) - ln.t, end = ln.t + (ln.dur > 0 ? ln.dur : lySung(ln.text.length, gap));
     if (pos > end + 1.2 && (!next || next.t - pos > 2.0)) return next ? 'Instrumental' : 'Outro';
     return '';
   }
@@ -1099,7 +1113,7 @@
       if (force || now - lyFillAt > 45) {
         lyFillAt = now;
         var start = L[idx].t, gap = (L[idx + 1] ? L[idx + 1].t : start + 6) - start;
-        var sung = L[idx].text ? lySung(L[idx].text.length, gap) : gap;
+        var sung = L[idx].dur > 0 ? L[idx].dur : (L[idx].text ? lySung(L[idx].text.length, gap) : gap);
         var p = Math.max(0, Math.min(1, (pos - start) / sung));
         var ln = lines[idx];
         if (ln._w) {
@@ -1260,7 +1274,7 @@
     kinFxClear();
     if (!ln || !ln.text) return;
     var gap = (L[idx + 1] ? L[idx + 1].t : ln.t + 6) - ln.t, len = ln.text.length;
-    var cps = len / Math.min(gap, Math.max(1.1, len * 0.085)), sung = lySung(len, gap);
+    var cps = ln.dur > 0 ? len / ln.dur : len / Math.min(gap, Math.max(1.1, len * 0.085)), sung = ln.dur > 0 ? ln.dur : lySung(len, gap);
     var mood = cps > 14 ? 'hot' : cps < 8 ? 'calm' : 'mid';
     var words = ln.text.split(/\s+/);
     var rtl = isRtl(ln.text);
@@ -1321,6 +1335,13 @@
       kd.appendChild(row);
     });
     el.appendChild(kd);
+    // Real word timings (word-synced lyrics): each word fills exactly while it is sung.
+    if (ln.words && ln.words.length === spans.length && ln.dur > 0) {
+      for (var wi2 = 0; wi2 < spans.length; wi2++) {
+        wf[wi2] = Math.max(0, Math.min(0.98, (ln.words[wi2].t - ln.t) / ln.dur));
+        spans[wi2].style.setProperty('--fd', Math.max(0.12, (ln.words[wi2].e || ln.words[wi2].t) - ln.words[wi2].t).toFixed(2) + 's');
+      }
+    }
     el._w = spans; el._wf = wf; el._cur = -2; el._sung = sung;
     stage.appendChild(el);
     kinFit(el, stage, fs);
