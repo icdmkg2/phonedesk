@@ -687,3 +687,94 @@ body.ly-kinetic .ly-credit2 { display: block; position: absolute; left: 0; right
 body:not(.ly-kinetic) #s-lyrics { --sidew: min(calc(var(--ah) * .38), calc(var(--aw) * .21)); }
 body:not(.ly-kinetic) .ly-side { top: 30px; padding-bottom: 50px; gap: 3px; }
 .ly-credit { font-size: 10px; }
+
+/* ---------------------------------------------------------------- stats: history, cores, network */
+.st-bottom { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.st-hist, .st-cores { background: var(--card); border-radius: var(--radius); padding: 10px 12px 8px; display: flex; flex-direction: column; min-width: 0; }
+.st-hist { flex: 1; }
+.st-cores { flex: 0 0 min(30%, 260px); }
+.st-cores[hidden] { display: none; }
+.st-hist .graph { flex: 1; min-height: 30px; background: none; border-radius: 0; }
+.st-hist-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 11px; font-weight: 600; color: var(--fg3); margin-bottom: 6px; white-space: nowrap; }
+.st-legend { display: flex; align-items: center; gap: 5px; font-weight: 500; }
+.st-legend i { width: 8px; height: 8px; border-radius: 2px; margin-left: 8px; }
+.st-legend i[hidden], .st-legend span[hidden] { display: none; }
+.st-legend .l-cpu { background: var(--accent); }
+.st-legend .l-mem { background: #a78bfa; }
+.st-legend .l-gpu { background: #34d399; }
+.cores { flex: 1; min-height: 20px; display: grid; grid-template-columns: repeat(min(var(--n, 8), 16), 1fr); grid-auto-rows: 1fr; gap: 3px; }
+.cores i { position: relative; background: rgba(127, 127, 127, .14); border-radius: 3px; overflow: hidden; }
+.cores i b { position: absolute; inset: 0; background: var(--accent); transform-origin: 50% 100%; transform: scaleY(.02); transition: transform .6s ease, opacity .6s ease; }
+.card .big small#st-rx-u { margin-left: 4px; }
+.stats .host { text-align: center; }
+.card .label small { font-weight: 500; color: var(--fg3); margin-left: 4px; }
+
+/* ---------------------------------------------------------------- clock screen: faces, forecast, agenda */
+.clock .c-main { display: flex; align-items: center; justify-content: center; gap: calc(var(--aw) * .05); min-width: 0; }
+.clock .c-text { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+#s-clock .clock { flex-direction: row; gap: calc(var(--aw) * .04); padding: 0 28px; }
+.analog { display: none; width: min(calc(var(--ah) * .72), calc(var(--aw) * .36)); height: auto; flex: none; overflow: visible; }
+.analog .a-face { fill: var(--card); stroke: rgba(127, 127, 127, .18); stroke-width: 1.5; }
+.analog .a-tk { stroke: var(--fg3); stroke-width: 1.2; stroke-linecap: round; }
+.analog .a-tk.big { stroke: var(--fg); stroke-width: 3; }
+.analog .a-h { stroke: var(--fg); stroke-width: 6.5; stroke-linecap: round; }
+.analog .a-m { stroke: var(--fg); stroke-width: 4; stroke-linecap: round; }
+.analog .a-s { stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+.analog .a-hub { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+
+/* analog: the face on the left, date and weather beside it */
+#s-clock.face-analog .analog { display: block; }
+#s-clock.face-analog .c-text { align-items: flex-start; }
+#s-clock.face-analog .time { font-size: min(calc(var(--ah) * .13), calc(var(--aw) * .07)); font-weight: 300; }
+#s-clock.face-analog .date { margin-top: 4px; }
+
+/* big: only the time, as large as the screen allows */
+#s-clock.face-big .time { font-size: min(calc(var(--ah) * .62), calc(var(--aw) * .3)); font-weight: 200; letter-spacing: -.045em; }
+#s-clock.face-big .wx, #s-clock.face-big .mini, #s-clock.face-big .fc { display: none; }
+
+/* with an agenda, the clock takes the left part and gets a little smaller */
+#s-clock.has-agenda .clock { justify-content: space-between; }
+#s-clock.has-agenda .c-main { flex: 1; }
+#s-clock.has-agenda:not(.face-analog) .time { font-size: min(calc(var(--ah) * .3), calc(var(--aw) * .14)); }
+#s-clock.has-agenda.face-analog .analog { width: min(calc(var(--ah) * .6), calc(var(--aw) * .26)); }
+#s-clock.has-agenda .c-text { align-items: flex-start; }
+
+/* forecast row */
+.fc { display: flex; gap: 6px; margin-top: calc(var(--ah) * .035); }
+.fc[hidden] { display: none; }
+.fc-d { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 52px; padding: 7px 8px 6px; border-radius: 12px; background: var(--card); font-size: 12px; color: var(--fg2); }
+.fc-d svg { width: 24px; height: 24px; }
+.fc-n { font-weight: 600; font-size: 11px; color: var(--fg3); text-transform: uppercase; letter-spacing: .04em; }
+.fc-t { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fc-t b { color: var(--fg); font-weight: 600; }
+#s-clock.face-analog .fc, #s-clock.has-agenda .fc { justify-content: flex-start; }
+
+/* agenda */
+.agenda { flex: 0 0 min(38%, 330px); align-self: stretch; margin: 50px 0 40px; padding: 14px 16px; border-radius: var(--radius); background: var(--card);
+  display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.agenda[hidden] { display: none; }
+.ag-head { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--fg3); margin-bottom: 4px; }
+.ag-list { display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow: hidden; }
+.ag-day { font-size: 12px; font-weight: 600; color: var(--accent); margin-top: 8px; }
+.ag-ev { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; padding: 4px 0 4px 10px; border-left: 2px solid rgba(127, 127, 127, .25); }
+.ag-ev.on { border-left-color: var(--accent); }
+.ag-t { font-size: 12px; color: var(--fg2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ag-n { font-size: 14px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-w { grid-column: 2; font-size: 11px; color: var(--fg3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#s-clock .wx { white-space: nowrap; }
+#s-clock.has-agenda.face-analog .fc { display: none; }
+#s-clock.has-agenda.face-analog .wx span, #s-clock.has-agenda.face-analog .wx small { display: none; }
+#s-clock.has-agenda.face-analog .date { max-width: 9em; }
+#s-clock.has-agenda .mini { max-width: 100%; }
+
+/* ---------------------------------------------------------------- night mode */
+body.night { --bg: #000; --card: #0b0b0c; --fg: #8a8a8e; --fg2: #5e5e62; --fg3: #3d3d40; background: #000; }
+body.night #bg { opacity: 0 !important; }
+body.night-red { --fg: #b3261e; --fg2: #7a1a15; --fg3: #4d110e; --accent: #b3261e; --card: #0d0303; }
+body.night-red .analog .a-tk.big, body.night-red .analog .a-h, body.night-red .analog .a-m { stroke: #b3261e; }
+body.night img, body.night .art-wrap, body.night .fc-d svg, body.night .wx svg { opacity: .45; }
+body.night #s-clock .time { font-weight: 200; }
+body.night .batt, body.night .np-top, body.night #dots { opacity: .35; }
+
+/* ---------------------------------------------------------------- burn-in protection */
+#screens, .batt, .np-top, #dots, .fs { translate: var(--bx, 0px) var(--by, 0px); transition: translate 4s ease-in-out; }

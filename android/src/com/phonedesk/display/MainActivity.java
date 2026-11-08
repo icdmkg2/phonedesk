@@ -6,6 +6,10 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -34,6 +38,13 @@ public class MainActivity extends Activity {
     private WebView web;
     private SharedPreferences prefs;
     private final Handler ui = new Handler(Looper.getMainLooper());
+    // Ambient light (lux) for the page's night mode; -1 when the phone has no light sensor.
+    private volatile float lux = -1f;
+    private SensorManager sensors;
+    private final SensorEventListener light = new SensorEventListener() {
+        @Override public void onSensorChanged(SensorEvent e) { if (e.values != null && e.values.length > 0) lux = e.values[0]; }
+        @Override public void onAccuracyChanged(Sensor s, int a) { }
+    };
     private volatile String base = null;
     private volatile boolean running = true;
     private volatile boolean discovering = false;
@@ -203,8 +214,24 @@ public class MainActivity extends Activity {
             startDiscovery();
         }
 
+        /** Ambient light in lux, or -1 without a light sensor. */
         @JavascriptInterface
-        public String version() { return "1"; }
+        public float getLux() { return lux; }
+
+        /** Screen brightness for this window: 0.01 to 1, or below 0 to follow the system setting again. */
+        @JavascriptInterface
+        public void setBrightness(final float v) {
+            ui.post(new Runnable() {
+                public void run() {
+                    WindowManager.LayoutParams lp = getWindow().getAttributes();
+                    lp.screenBrightness = v < 0 ? WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE : Math.max(0.01f, Math.min(1f, v));
+                    getWindow().setAttributes(lp);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String version() { return "2"; }
     }
 
     @Override
@@ -222,10 +249,20 @@ public class MainActivity extends Activity {
     public void onBackPressed() { /* kiosk: Back does nothing */ }
 
     @Override
-    protected void onResume() { super.onResume(); web.onResume(); }
+    protected void onResume() {
+        super.onResume();
+        web.onResume();
+        if (sensors == null) sensors = (SensorManager) getSystemService(SENSOR_SERVICE);
+        Sensor s = sensors == null ? null : sensors.getDefaultSensor(Sensor.TYPE_LIGHT);
+        if (s != null) sensors.registerListener(light, s, SensorManager.SENSOR_DELAY_NORMAL);
+    }
 
     @Override
-    protected void onPause() { super.onPause(); web.onPause(); }
+    protected void onPause() {
+        super.onPause();
+        web.onPause();
+        if (sensors != null) sensors.unregisterListener(light);
+    }
 
     @Override
     protected void onDestroy() { running = false; super.onDestroy(); }

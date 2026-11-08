@@ -22,7 +22,7 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 $app = Join-Path $stage 'app'
 New-Item -ItemType Directory -Force -Path $app | Out-Null
 Copy-Item server, public -Destination $app -Recurse
-Copy-Item package.json, package-lock.json -Destination $app
+Copy-Item package.json, package-lock.json, CHANGELOG.md -Destination $app
 Push-Location $app
 & npm ci --omit=dev --no-audit --no-fund --loglevel=error
 if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }

@@ -39,8 +39,8 @@ async function refresh(cfg) {
     const p = await locate(cfg.weatherCity);
     const unit = cfg.weatherUnit === 'f' ? 'fahrenheit' : 'celsius';
     const r = await getJson('https://api.open-meteo.com/v1/forecast?' + new URLSearchParams({
-      latitude: p.lat, longitude: p.lon, timezone: 'auto', temperature_unit: unit, forecast_days: '1',
-      current: 'temperature_2m,weather_code,is_day', daily: 'temperature_2m_max,temperature_2m_min',
+      latitude: p.lat, longitude: p.lon, timezone: 'auto', temperature_unit: unit, forecast_days: '5',
+      current: 'temperature_2m,weather_code,is_day', daily: 'temperature_2m_max,temperature_2m_min,weather_code',
     }));
     latest = {
       city: p.city,
@@ -50,6 +50,8 @@ async function refresh(cfg) {
       day: !!r.current.is_day,
       hi: Math.round(r.daily.temperature_2m_max[0]),
       lo: Math.round(r.daily.temperature_2m_min[0]),
+      // The next days for the forecast row: { d: 'YYYY-MM-DD', code, hi, lo }
+      days: (r.daily.time || []).map((d, i) => ({ d, code: r.daily.weather_code[i], hi: Math.round(r.daily.temperature_2m_max[i]), lo: Math.round(r.daily.temperature_2m_min[i]) })),
       at: Date.now(),
     };
     onUpdate(latest);

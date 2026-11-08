@@ -514,6 +514,20 @@
       return `<li class="${on ? '' : 'off'}" draggable="true" data-s="${s}"><span class="grip" aria-hidden="true">⋮⋮</span><span class="name">${SCREEN_NAMES[s]}</span><span class="desc">${SCREEN_DESC[s]}</span>` +
         `<span class="switch"><input type="checkbox" ${on ? 'checked' : ''} ${on && c.screens.length === 1 ? 'disabled' : ''} aria-label="Show ${SCREEN_NAMES[s]}"><span></span></span></li>`;
     }).join('');
+    $$('#ds-cface .theme').forEach((b) => { const on = b.dataset.v === (c.clockFace || 'digital'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    $('ds-fc').checked = c.clockForecast !== false;
+    $('ds-cal-badge').textContent = c.calendarUrl ? 'On' : 'Off';
+    $('ds-cal-badge').className = 'badge' + (c.calendarUrl ? ' usb' : '');
+    $('ds-cal-clear').hidden = !c.calendarUrl;
+    if (document.activeElement !== $('ds-cal')) $('ds-cal').value = c.calendarUrl || '';
+    $$('#ds-night button').forEach((b) => b.classList.toggle('on', b.dataset.v === (c.nightMode || 'off')));
+    $('ds-night-times').hidden = c.nightMode !== 'schedule';
+    if (document.activeElement !== $('ds-night-from')) $('ds-night-from').value = c.nightFrom || '22:00';
+    if (document.activeElement !== $('ds-night-to')) $('ds-night-to').value = c.nightTo || '07:00';
+    setText($('ds-night-hint'), c.nightMode === 'sensor' ? 'Uses the light sensor through the PhoneDesk phone app. In a browser it falls back to the schedule.' : '');
+    $('ds-night-red').checked = c.nightRed !== false;
+    $('ds-night-clock').checked = c.nightClock !== false;
+    $('ds-burn').checked = c.burnIn !== false;
     $('ds-batt').checked = c.showBattery !== false;
     $('ds-wx').checked = c.weather !== false;
     $('ds-wx-row').hidden = c.weather === false;
@@ -526,6 +540,23 @@
     $$('#ds-pills button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.previewScreen));
     setText($('ds-prev-label'), state.previewScreen === 'offline' ? 'When the PC is off' : SCREEN_NAMES[state.previewScreen]);
   }
+  $('ds-cface').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ clockFace: b.dataset.v }); });
+  $('ds-fc').addEventListener('change', (e) => saveConfig({ clockForecast: e.target.checked }));
+  $('ds-cal-save').addEventListener('click', async () => {
+    const url = $('ds-cal').value.trim();
+    setText($('ds-cal-state'), 'Checking…');
+    const r = await api('calendar/check', { url }).catch((e) => ({ ok: false, error: e.message }));
+    if (!r.ok) return setText($('ds-cal-state'), r.error || 'That address did not work.');
+    await saveConfig({ calendarUrl: url });
+    setText($('ds-cal-state'), r.count ? `Works. ${r.count} event${r.count === 1 ? '' : 's'} in the next 7 days.` : 'Works. Nothing in the next 7 days.');
+  });
+  $('ds-cal-clear').addEventListener('click', async () => { await saveConfig({ calendarUrl: '' }); setText($('ds-cal-state'), 'Removed.'); });
+  $('ds-night').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) saveConfig({ nightMode: b.dataset.v }); });
+  $('ds-night-from').addEventListener('change', (e) => saveConfig({ nightFrom: e.target.value }));
+  $('ds-night-to').addEventListener('change', (e) => saveConfig({ nightTo: e.target.value }));
+  $('ds-night-red').addEventListener('change', (e) => saveConfig({ nightRed: e.target.checked }));
+  $('ds-night-clock').addEventListener('change', (e) => saveConfig({ nightClock: e.target.checked }));
+  $('ds-burn').addEventListener('change', (e) => saveConfig({ burnIn: e.target.checked }));
   $('ds-batt').addEventListener('change', (e) => saveConfig({ showBattery: e.target.checked }));
   $('ds-wx').addEventListener('change', (e) => saveConfig({ weather: e.target.checked }));
   $('ds-wx-city').addEventListener('change', (e) => saveConfig({ weatherCity: e.target.value.trim() }).then(() => toast('Weather updated')));
@@ -738,6 +769,25 @@
     renderUpdate();
   }
 
+  /* ------------------------------------------------------------ What's new */
+  // After an update, the new version's notes (from the CHANGELOG.md that ships with the app) show once.
+  async function whatsNew(force) {
+    const w = await api('whatsnew').catch(() => null);
+    if (!w || !w.html || (!force && !w.show)) { if (force) window.open(`https://github.com/icdmkg2/phonedesk/releases`, '_blank'); return; }
+    setText($('wn-ver'), w.version);
+    setText($('wn-date'), w.date ? 'Released ' + w.date : '');
+    $('wn-body').innerHTML = w.html; // rendered and escaped by the server from our own changelog
+    $('wn-gh').href = w.url;
+    $('whatsnew').hidden = false;
+  }
+  function closeWhatsNew() { $('whatsnew').hidden = true; api('whatsnew/seen', {}).catch(() => {}); }
+  $('wn-ok').addEventListener('click', closeWhatsNew);
+  $('wn-x').addEventListener('click', closeWhatsNew);
+  $('whatsnew').addEventListener('click', (e) => { if (e.target === $('whatsnew')) closeWhatsNew(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('whatsnew').hidden) closeWhatsNew(); });
+  $('st-ver').addEventListener('click', () => whatsNew(true));
+  setTimeout(() => { if ($('onboard').hidden) whatsNew(false); }, 900);
+
   /* ------------------------------------------------------------ first-run setup */
   let obStep = 0, fwState = null;
   function openOnboarding() {
@@ -786,7 +836,7 @@
     checkFirewall();
   });
   async function finishOnboarding() {
-    const patch = { onboarded: true, weather: $('ob-wx').checked, weatherCity: $('ob-wx-city').value.trim(), notifications: $('ob-nt').checked };
+    const patch = { onboarded: true, seenVersion: state.status ? state.status.version : '', weather: $('ob-wx').checked, weatherCity: $('ob-wx-city').value.trim(), notifications: $('ob-nt').checked };
     await saveConfig(patch);
     if (!$('ob-as-row').hidden) await api('autostart', { enabled: $('ob-as').checked }).then(loadAutostart).catch(() => {});
     $('onboard').hidden = true;

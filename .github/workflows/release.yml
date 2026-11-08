@@ -4,6 +4,9 @@
 # - Every version in CHANGELOG.md without a release gets a notes-only release, tagged at the last commit with that
 #   version (older versions have no installer attached; only the newest one is built).
 # - Existing releases get their notes refreshed, so editing CHANGELOG.md (or its screenshots) updates them.
+# - The phone app (PhoneDesk.apk) is rebuilt and bundled when the ANDROID_KEYSTORE_B64 secret holds the signing key
+#   (base64 of build\.cache\phonedesk.keystore). Without it the committed APK is used, because an APK signed with a
+#   different key won't install over the one people already have.
 name: Release
 
 on:
@@ -34,6 +37,11 @@ jobs:
         with:
           node-version: 22
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
       - name: Current version
         id: v
         shell: bash
@@ -42,6 +50,23 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if gh release view "v$version" --repo "$REPO" > /dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
           node build/release.js notes "$version" > /dev/null # fail early if CHANGELOG.md has no section for it
+
+      - name: Build phone app
+        if: steps.v.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if (-not $env:KEYSTORE_B64) {
+            Write-Output "::notice::No ANDROID_KEYSTORE_B64 secret, so the committed public/phone/PhoneDesk.apk is bundled as it is."
+            exit 0
+          }
+          $ks = Join-Path $env:RUNNER_TEMP 'phonedesk.keystore'
+          [IO.File]::WriteAllBytes($ks, [Convert]::FromBase64String($env:KEYSTORE_B64))
+          $env:PHONEDESK_KEYSTORE = $ks
+          powershell -ExecutionPolicy Bypass -File build\android.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'android build failed' }
+          Remove-Item $ks
 
       - name: Build installer
         if: steps.v.outputs.exists == 'false'
@@ -56,7 +81,8 @@ jobs:
           if [ "${{ steps.v.outputs.exists }}" = "true" ]; then
             gh release edit "v$v" --repo "$REPO" --title "PhoneDesk $v" --notes-file notes.md
           else
-            gh release create "v$v" "dist/PhoneDesk-Setup-$v.exe" "dist/PhoneDesk-Setup-$v.exe.sha256" \
+            cp public/phone/PhoneDesk.apk "dist/PhoneDesk-$v.apk"
+            gh release create "v$v" "dist/PhoneDesk-Setup-$v.exe" "dist/PhoneDesk-Setup-$v.exe.sha256" "dist/PhoneDesk-$v.apk" \
               --repo "$REPO" --target "$GITHUB_SHA" --title "PhoneDesk $v" --notes-file notes.md --latest
           fi
 

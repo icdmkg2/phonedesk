@@ -12,6 +12,11 @@ $androidJar = Join-Path $plat.FullName 'android.jar'
 $jdk = if ($env:JAVA_HOME) { $env:JAVA_HOME } else { Split-Path -Parent (Split-Path -Parent (Get-Command javac).Source) }
 $javac = "$jdk\bin\javac.exe"; $keytool = "$jdk\bin\keytool.exe"
 
+# Version name/code from package.json (1.8.0 -> 10800), so a newer app installs over an older one.
+$version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+$vp = $version.Split('.') | ForEach-Object { [int]$_ }
+$versionCode = $vp[0] * 10000 + $vp[1] * 100 + $vp[2]
+
 $out = Join-Path $root 'build\.cache\android'
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Force -Path "$out\classes", "$out\res\mipmap-xxhdpi" | Out-Null
@@ -33,7 +38,7 @@ if ($LASTEXITCODE -ne 0) { throw 'd8 failed' }
 & "$($bt.FullName)\aapt2.exe" compile --dir "$out\res" -o "$out\res.zip"
 if ($LASTEXITCODE -ne 0) { throw 'aapt2 compile failed' }
 & "$($bt.FullName)\aapt2.exe" link -o "$out\base.apk" --manifest android\AndroidManifest.xml -I $androidJar -A android\assets `
-  --min-sdk-version 24 --target-sdk-version 33 --version-code 1 --version-name 1.0 "$out\res.zip"
+  --min-sdk-version 24 --target-sdk-version 33 --version-code $versionCode --version-name $version "$out\res.zip"
 if ($LASTEXITCODE -ne 0) { throw 'aapt2 link failed' }
 
 # 3. add classes.dex
@@ -42,8 +47,9 @@ $zip = [System.IO.Compression.ZipFile]::Open("$out\base.apk", 'Update')
 [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, "$out\classes.dex", 'classes.dex')
 $zip.Dispose()
 
-# 4. align + sign (a fixed key kept in build\.cache, so updates install over older versions)
-$ks = Join-Path $root 'build\.cache\phonedesk.keystore'
+# 4. align + sign (a fixed key kept in build\.cache, so updates install over older versions;
+#    the release workflow passes the same key in PHONEDESK_KEYSTORE)
+$ks = if ($env:PHONEDESK_KEYSTORE) { $env:PHONEDESK_KEYSTORE } else { Join-Path $root 'build\.cache\phonedesk.keystore' }
 if (-not (Test-Path $ks)) {
   $ErrorActionPreference = 'Continue'
   & $keytool -genkeypair -keystore $ks -storepass phonedesk -keypass phonedesk -alias phonedesk -keyalg RSA -keysize 2048 `

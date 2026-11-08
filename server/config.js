@@ -36,6 +36,16 @@ const DEFAULTS = {
   spicyKey: '',
   lyricsOffset: 0,
   lyricsLines: 'off',
+  clockFace: 'digital',        // 'digital' | 'analog' | 'big'
+  clockForecast: true,         // 5-day forecast under the clock
+  calendarUrl: '',             // private iCal address (secret: never sent to phones)
+  nightMode: 'off',            // 'off' | 'schedule' | 'sensor' (phone app's light sensor)
+  nightFrom: '22:00',
+  nightTo: '07:00',
+  nightRed: true,              // red clock at night (easier on the eyes)
+  nightClock: true,            // switch to the clock screen at night
+  burnIn: true,                // shift the picture a few pixels now and then
+  seenVersion: '',             // notes of this version were shown (What's new)
   screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
   shortcuts: [
     { id: 'mute-mic', label: 'Mute mic', type: 'keys', value: 'ctrl+shift+m', icon: 'mic', color: '#e5484d' },
@@ -89,6 +99,17 @@ function sanitize(c) {
   out.nowStyle = c.nowStyle === 'classic' ? 'classic' : 'immersive';
   out.lyricsMode = ['scroll', 'kinetic', 'kinetic-dark'].includes(c.lyricsMode) ? c.lyricsMode : 'scroll';
   out.lyricsOffset = Math.max(-2000, Math.min(2000, Math.round(+c.lyricsOffset || 0)));
+  out.clockFace = ['digital', 'analog', 'big'].includes(c.clockFace) ? c.clockFace : 'digital';
+  out.clockForecast = c.clockForecast !== false;
+  out.calendarUrl = /^(https?|webcal):\/\/\S{4,1000}$/i.test(String(c.calendarUrl || '').trim()) ? String(c.calendarUrl).trim() : '';
+  out.nightMode = ['off', 'schedule', 'sensor'].includes(c.nightMode) ? c.nightMode : 'off';
+  const hm = (v, d) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || '')) ? String(v) : d);
+  out.nightFrom = hm(c.nightFrom, '22:00');
+  out.nightTo = hm(c.nightTo, '07:00');
+  out.nightRed = c.nightRed !== false;
+  out.nightClock = c.nightClock !== false;
+  out.burnIn = c.burnIn !== false;
+  out.seenVersion = /^\d+\.\d+\.\d+$/.test(c.seenVersion || '') ? c.seenVersion : '';
   out.lyricsLines = ['off', 'curve', 'straight', 'glass'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
   out.spicyKey = /^sl_[sp]k_[A-Za-z0-9_-]{10,200}$/.test(String(c.spicyKey || '').trim()) ? String(c.spicyKey).trim() : '';
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';

@@ -19,6 +19,7 @@ const autostart = require('./autostart');
 const artwork = require('./artwork');
 const lyrics = require('./lyrics');
 const weather = require('./weather');
+const calendar = require('./calendar');
 const spotify = require('./spotify');
 const notify = require('./notify');
 const updater = require('./updater');
@@ -109,6 +110,8 @@ bridge.on('message', (m) => {
     broadcastMixer();
   } else if (m.t === 'gpu') {
     state.gpu = { load: m.load, temp: m.temp, hotspot: m.hotspot, fan: m.fan, power: m.power, vram: m.vram };
+  } else if (m.t === 'net') {
+    stats.setNet(+m.rx, +m.tx);
   } else if (m.t === 'log') {
     log.warn('[bridge] ' + m.msg);
   } else if (m.t === 'ready') {
@@ -306,6 +309,29 @@ async function handleApi(req, res, url) {
       return send(res, 200, svg, 'image/svg+xml');
     }
     if (p === '/api/config' && req.method === 'GET') return send(res, 200, config.get());
+    if (p === '/api/diagnostics' && req.method === 'GET') {
+      const z = require('./diagnostics').build({
+        version: VERSION, config: config.get(), log, update: updater.status(), bridge: bridge.status ? bridge.status() : null,
+        phones: [...clients].filter((c) => c.role === 'phone').map((c) => c.info),
+      });
+      res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${z.name}"`, 'Content-Length': z.data.length, 'Cache-Control': 'no-store' });
+      log.event('info', 'Saved a diagnostics file');
+      return res.end(z.data);
+    }
+    if (p === '/api/whatsnew' && req.method === 'GET') {
+      const c = config.get();
+      const notes = require('./changelog').forVersion(VERSION);
+      // Shown once after an update; a fresh install sees first-run setup instead.
+      return send(res, 200, Object.assign({ version: VERSION, show: !!notes && c.onboarded && c.seenVersion !== VERSION }, notes || {}));
+    }
+    if (p === '/api/whatsnew/seen' && req.method === 'POST') {
+      config.update({ seenVersion: VERSION });
+      return send(res, 200, { ok: true });
+    }
+    if (p === '/api/calendar/check' && req.method === 'POST') {
+      const body = await readBody(req);
+      return send(res, 200, await calendar.check(String(body.url || '').trim()));
+    }
     if (p === '/api/spicy/check' && req.method === 'POST') {
       const body = await readBody(req);
       return send(res, 200, await require('./spicylyrics').check(String(body.key || config.get().spicyKey || '')));
@@ -317,6 +343,7 @@ async function handleApi(req, res, url) {
       broadcast({ t: 'config', d: publicConfig() });
       if (next.autoUsb !== before.autoUsb) adb.setAuto(next.autoUsb, next.port);
       if (next.ignoreApps.join(',') !== before.ignoreApps.join(',')) bridge.send('ignore ' + next.ignoreApps.join(','));
+      if (next.calendarUrl !== before.calendarUrl) calendar.reload(next);
       if (next.weather !== before.weather || next.weatherCity !== before.weatherCity || next.weatherUnit !== before.weatherUnit) weather.reload(next);
       return send(res, 200, next);
     }
@@ -464,6 +491,14 @@ function publicConfig() {
     lyricsFont: c.lyricsFont,
     lyricsLines: c.lyricsLines,
     lyricsOffset: c.lyricsOffset,
+    clockFace: c.clockFace,
+    clockForecast: c.clockForecast,
+    nightMode: c.nightMode,
+    nightFrom: c.nightFrom,
+    nightTo: c.nightTo,
+    nightRed: c.nightRed,
+    nightClock: c.nightClock,
+    burnIn: c.burnIn,
     showBattery: c.showBattery,
     weather: c.weather,
     notifications: c.notifications,
@@ -511,9 +546,11 @@ wss.on('connection', (ws, req) => {
   sendTo(ws, { t: 'media', d: state.media });
   sendTo(ws, { t: 'volume', d: state.volume });
   sendTo(ws, { t: 'stats', d: Object.assign({}, stats.latest(), { gpu: state.gpu }) });
+  sendTo(ws, { t: 'history', d: stats.history() });
   sendTo(ws, { t: 'mixer', d: mixerView() });
   sendTo(ws, { t: 'lyrics', d: state.lyrics });
   sendTo(ws, { t: 'weather', d: weather.latest() });
+  sendTo(ws, { t: 'calendar', d: calendar.latest() });
   sendTo(ws, { t: 'spotify', d: spotify.latest() });
   if (role === 'dashboard') sendTo(ws, { t: 'update', d: updater.status() });
 
@@ -589,11 +626,14 @@ setInterval(() => {
 }, 10000).unref();
 
 // PC stats: only computed while someone is listening.
-stats.start((s) => broadcast({ t: 'stats', d: Object.assign({}, s, { gpu: state.gpu }) }), () => clients.size > 0);
+stats.start((s) => broadcast({ t: 'stats', d: Object.assign({}, s, { gpu: state.gpu }) }), () => clients.size > 0,
+  () => (state.gpu && state.gpu.load >= 0 ? state.gpu.load : -1),
+  (point) => broadcast({ t: 'histPoint', d: point }));
 
 // Extras that run on their own schedule.
 function spotifyRedirect() { return `http://127.0.0.1:${config.get().port}/spotify/callback`; }
 weather.start(() => config.get(), (w) => broadcast({ t: 'weather', d: w }));
+calendar.start(() => config.get(), (c) => broadcast({ t: 'calendar', d: c }));
 spotify.start(() => config.get(), () => /spotify/i.test(state.mediaRaw), (s) => broadcast({ t: 'spotify', d: s }));
 notify.start(() => config.get().notifications && clients.size > 0, onNotification);
 updater.start(() => config.get(), VERSION, (s) => broadcast({ t: 'update', d: s }, 'dashboard'));

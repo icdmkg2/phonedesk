@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup guide and features
+    url: https://icdmkg2.github.io/phonedesk/#setup
+    about: How to install PhoneDesk and connect a phone.
+  - name: What's new
+    url: https://github.com/icdmkg2/phonedesk/blob/main/CHANGELOG.md
+    about: Every version's patch notes, with screenshots.
