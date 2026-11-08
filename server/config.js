@@ -21,7 +21,7 @@ const DEFAULTS = {
   notifyPrivate: false,
   notifyIgnore: [],
   spotifyClientId: '',
-  updateRepo: '',
+  updateRepo: 'icdmkg2/phonedesk', // official releases; an empty field falls back to this
   autoUpdate: true,
   onboarded: false,
   name: 'phonedesk',
@@ -110,7 +110,7 @@ function sanitize(c) {
   out.notifyPrivate = c.notifyPrivate === true;
   out.notifyIgnore = (Array.isArray(c.notifyIgnore) ? c.notifyIgnore : []).map((s) => String(s).slice(0, 120)).slice(0, 50);
   out.spotifyClientId = /^[a-f0-9]{32}$/i.test(c.spotifyClientId || '') ? c.spotifyClientId : '';
-  out.updateRepo = /^[\w.-]+\/[\w.-]+$/.test(c.updateRepo || '') ? c.updateRepo : '';
+  out.updateRepo = /^[\w.-]+\/[\w.-]+$/.test(c.updateRepo || '') ? c.updateRepo : DEFAULTS.updateRepo;
   out.autoUpdate = c.autoUpdate !== false;
   out.onboarded = c.onboarded === true;
   out.shortcuts = (Array.isArray(c.shortcuts) ? c.shortcuts : []).slice(0, 24).map((s) => ({
