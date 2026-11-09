@@ -128,6 +128,31 @@
   .footer .closing__links, .closing__links { padding-top: var(--s-7); }
   .footer__legal { margin-top: var(--s-6); }
   .footer.footer--dark { background: var(--p-bg); }
+
+  /* sections are as tall as their content, not a fixed number of screens */
+  main > section:not(.hero), main > .section:not(.hero) { height: auto !important; min-height: 0 !important; padding-block: clamp(56px, 8vw, 104px) !important; }
+  main > section:not(.hero) > .wrap, main > section:not(.hero) > .container { height: auto !important; display: block; }
+  main > section.g2 > .wrap { display: block; }
+  main > section:not(.hero) > .wrap > .grid, main > section > .wrap > .group > .grid { align-items: start; }
+  .group { display: block; }
+  .group > .grid, .card, .panel { align-self: start; height: auto; }
+  .card { flex: none; }
+  .panel { flex: none; margin-top: var(--s-3); }
+  [data-moment="counter-rolls"] { margin-top: var(--s-7); }
+  #lyrics .grid, #night .grid, #faq .grid { align-items: center; }
+  main > section:not(.hero) h2 { margin-bottom: var(--s-5); }
+  .group { padding: 0 !important; margin: 0; }
+  .group + .group { margin-top: var(--s-5); }
+  #setup .phone-shot img, #setup .pc-shot img { aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; }
+  main > section.g2 > .wrap { display: flex !important; flex-direction: column; row-gap: var(--s-6) !important; grid-template-rows: none !important; }
+  main > section.g2 > .wrap > .grid, main > section.g2 > .wrap > .group { height: auto !important; }
+  #setup .grid:not([data-moment]) { align-items: stretch; }
+  .closing .btn--xl, .closing .btn--wide { width: auto; align-self: flex-start; }
+  .closing__cta { padding-block: var(--s-7); }
+  #faq .faq-shot .pc-shot img { aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; }
+  footer.closing .btn--xl, footer.closing .btn--wide { width: auto !important; max-width: 100%; display: inline-flex !important; justify-self: start; gap: var(--s-4); }
+  footer.closing .closing__cta { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-6); }
+  .closing__cta.close--type > .btn--xl { align-self: flex-start !important; width: auto !important; justify-content: center; gap: var(--s-5); padding-inline: var(--s-7); }
 </style>
 </head>
 <body>
@@ -370,7 +395,7 @@
         <h2 id="close-h">Download PhoneDesk for Windows</h2>
         <p>Free and open source. Windows 10 and 11, Android 7 or newer.</p>
       </div>
-      <a class="btn btn--primary btn--xl btn--wide" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
+      <a class="btn btn--primary btn--xl" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
     </div>
     <div class="closing__links">
       <div class="grid">
