@@ -9,7 +9,18 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 ## [1.8.1] — 2026-11-09
 
-Fixes for first-run setup and updates.
+Fixes for first-run setup and updates, and a redesigned shortcuts screen.
+
+## Added
+- **Shortcuts screen, redesigned:** wide rounded buttons with the icon beside the label, grouped under headings with a
+  tab for each group (*All*, *Audio*, *System*, *Apps*…). A button can show live state under its label: the playing
+  track (*Playing · Paper Lanterns*) or whether the PC's sound is muted. Set the group and what a button shows in the
+  dashboard's *Shortcuts* page. Buttons without a group look like before, in one grid; new installs start with the
+  groups above.
+
+<p>
+<img src="docs/changelog/1.8.1/phone-shortcuts-groups.png" width="49%" alt="Shortcuts grouped under Audio, System and Apps">
+</p>
 
 ## Fixed
 - The first-run setup's *Connect your phone* step kept showing *Waiting for your phone…* after a phone had connected.

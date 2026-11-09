@@ -168,8 +168,8 @@
         state.clockOffset = m.d.serverTime - Date.now();
         if (m.d.hosts) { store.set('hosts', m.d.hosts); hosts = uniq([activeHost, location.host].concat(m.d.hosts)); }
         break;
-      case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); break;
-      case 'volume': state.volume = m.d; renderVolume(); break;
+      case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); renderLive(); break;
+      case 'volume': state.volume = m.d; renderVolume(); renderLive(); break;
       case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); break;
       case 'history': setHistory(m.d); break;
       case 'histPoint': addHistory(m.d); break;
@@ -731,32 +731,89 @@
 
   /* ============================================================ shortcuts */
   var ICONS = ['mic', 'desktop', 'lock', 'camera', 'music', 'play', 'chart', 'folder', 'bolt', 'globe', 'game', 'code', 'chat', 'power', 'vol', 'next'];
+  // Buttons are laid out by group (Audio, System, Apps...): a tab for each group, or all groups together.
+  // A button can show live state under its label: the playing track, or whether the PC's sound is muted.
+  var padTab = store.get('padTab', '');
+  var liveKeys = []; // [{ el, sub, kind }]
+  function padGroups(list) {
+    var names = [];
+    list.forEach(function (sc) { if (sc.group && names.indexOf(sc.group) < 0) names.push(sc.group); });
+    return names;
+  }
+  function makeKey(sc) {
+    var b = document.createElement('button');
+    b.className = 'key';
+    b.style.setProperty('--kc', sc.color);
+    var icon = ICONS.indexOf(sc.icon) >= 0 ? sc.icon : 'bolt';
+    b.innerHTML = '<svg class="ic"><use href="#i-' + icon + '"/></svg><span class="tx"><span class="lb"></span><span class="sub" hidden></span></span><i class="dot" hidden></i>';
+    b.querySelector('.lb').textContent = sc.label;
+    b.addEventListener('click', function () {
+      buzz();
+      if (!send({ t: 'shortcut', id: sc.id })) return toast('Not connected');
+      b.classList.add('hit');
+      setTimeout(function () { b.classList.remove('hit'); }, 180);
+    });
+    if (sc.live === 'media' || sc.live === 'sound') liveKeys.push({ el: b, kind: sc.live });
+    return b;
+  }
   function renderPad() {
     var pad = $('pad'), list = state.config.shortcuts || [];
     pad.textContent = '';
+    liveKeys = [];
     if (!list.length) {
       var e = document.createElement('div'); e.className = 'empty';
       e.textContent = 'No shortcuts yet. Add some in the PhoneDesk dashboard on your PC.';
       pad.appendChild(e); return;
     }
-    var frag = document.createDocumentFragment();
-    list.forEach(function (sc) {
-      var b = document.createElement('button');
-      b.className = 'key';
-      b.style.setProperty('--kc', sc.color);
-      var icon = ICONS.indexOf(sc.icon) >= 0 ? sc.icon : 'bolt';
-      b.innerHTML = '<svg class="ic"><use href="#i-' + icon + '"/></svg><span class="lb"></span>';
-      b.querySelector('.lb').textContent = sc.label;
-      b.addEventListener('click', function () {
-        buzz();
-        if (!send({ t: 'shortcut', id: sc.id })) return toast('Not connected');
-        b.classList.add('hit');
-        setTimeout(function () { b.classList.remove('hit'); }, 180);
+    var names = padGroups(list);
+    if (padTab && names.indexOf(padTab) < 0) padTab = '';
+    pad.classList.toggle('grouped', names.length > 0);
+    if (names.length) {
+      var tabs = document.createElement('div'); tabs.className = 'pad-tabs'; tabs.setAttribute('role', 'tablist');
+      ['All'].concat(names).forEach(function (n, i) {
+        var t = document.createElement('button');
+        t.setAttribute('role', 'tab');
+        t.textContent = n;
+        var val = i === 0 ? '' : n;
+        t.setAttribute('aria-selected', val === padTab ? 'true' : 'false');
+        t.addEventListener('click', function () { padTab = val; store.set('padTab', val); renderPad(); });
+        tabs.appendChild(t);
       });
-      frag.appendChild(b);
+      pad.appendChild(tabs);
+    }
+    var body = document.createElement('div'); body.className = 'pad-body';
+    var sections = names.length ? names.concat(['']) : [''];
+    sections.forEach(function (g) {
+      if (names.length && padTab && g !== padTab) return;
+      var items = list.filter(function (sc) { return (sc.group || '') === g; });
+      if (!items.length) return;
+      var sec = document.createElement('div'); sec.className = 'pad-sec';
+      if (names.length && padTab === '') { var h = document.createElement('div'); h.className = 'pad-h'; h.textContent = g || 'Other'; sec.appendChild(h); }
+      var grid = document.createElement('div'); grid.className = 'pad-grid';
+      grid.style.setProperty('--n', Math.min(items.length, 4));
+      items.forEach(function (sc) { grid.appendChild(makeKey(sc)); });
+      sec.appendChild(grid);
+      body.appendChild(sec);
     });
-    pad.appendChild(frag);
-    pad.style.gridTemplateRows = 'repeat(' + Math.max(1, Math.ceil(list.length / 4)) + ', 1fr)';
+    pad.appendChild(body);
+    renderLive();
+  }
+  function renderLive() {
+    liveKeys.forEach(function (k) {
+      var sub = k.el.querySelector('.sub'), dot = k.el.querySelector('.dot'), text = '', color = '', alert = false;
+      if (k.kind === 'media') {
+        var m = state.media;
+        if (m.active && m.status === 'Playing') { text = 'Playing' + (m.title ? ' · ' + m.title : ''); color = '#4fd98a'; }
+        else if (m.active) { text = 'Paused' + (m.title ? ' · ' + m.title : ''); color = '#e5a000'; }
+        else text = 'Nothing playing';
+      } else {
+        var muted = !!(state.volume && state.volume.muted);
+        text = muted ? 'Sound muted · tap to unmute' : 'Sound on'; color = muted ? '#ef6a6a' : '#4fd98a'; alert = muted;
+      }
+      sub.hidden = !text; setText(sub, text);
+      dot.hidden = !color; if (color) dot.style.background = color;
+      toggle(k.el, 'alert', alert);
+    });
   }
 
   /* ============================================================ screens + navigation */

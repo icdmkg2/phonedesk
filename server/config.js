@@ -48,19 +48,20 @@ const DEFAULTS = {
   seenVersion: '',             // notes of this version were shown (What's new)
   screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
   shortcuts: [
-    { id: 'mute-mic', label: 'Mute mic', type: 'keys', value: 'ctrl+shift+m', icon: 'mic', color: '#e5484d' },
-    { id: 'desktop', label: 'Show desktop', type: 'keys', value: 'win+d', icon: 'desktop', color: '#3e63dd' },
-    { id: 'lock', label: 'Lock PC', type: 'keys', value: 'win+l', icon: 'lock', color: '#8e4ec6' },
-    { id: 'screenshot', label: 'Screenshot', type: 'keys', value: 'win+shift+s', icon: 'camera', color: '#12a594' },
-    { id: 'spotify', label: 'Spotify', type: 'url', value: 'spotify:', icon: 'music', color: '#1db954' },
-    { id: 'youtube', label: 'YouTube', type: 'url', value: 'https://youtube.com', icon: 'play', color: '#e5484d' },
-    { id: 'taskmgr', label: 'Task Manager', type: 'keys', value: 'ctrl+shift+esc', icon: 'chart', color: '#f76b15' },
-    { id: 'explorer', label: 'Files', type: 'keys', value: 'win+e', icon: 'folder', color: '#ffb224' },
+    { id: 'mute-mic', label: 'Mute mic', type: 'keys', value: 'ctrl+shift+m', icon: 'mic', color: '#e5484d', group: 'Audio', live: '' },
+    { id: 'spotify', label: 'Spotify', type: 'url', value: 'spotify:', icon: 'music', color: '#1db954', group: 'Audio', live: 'media' },
+    { id: 'desktop', label: 'Show desktop', type: 'keys', value: 'win+d', icon: 'desktop', color: '#3e63dd', group: 'System', live: '' },
+    { id: 'lock', label: 'Lock PC', type: 'keys', value: 'win+l', icon: 'lock', color: '#8e4ec6', group: 'System', live: '' },
+    { id: 'screenshot', label: 'Screenshot', type: 'keys', value: 'win+shift+s', icon: 'camera', color: '#12a594', group: 'System', live: '' },
+    { id: 'taskmgr', label: 'Task Manager', type: 'keys', value: 'ctrl+shift+esc', icon: 'chart', color: '#f76b15', group: 'System', live: '' },
+    { id: 'youtube', label: 'YouTube', type: 'url', value: 'https://youtube.com', icon: 'play', color: '#e5484d', group: 'Apps', live: '' },
+    { id: 'explorer', label: 'Files', type: 'keys', value: 'win+e', icon: 'folder', color: '#ffb224', group: 'Apps', live: '' },
   ],
 };
 
 const SCREENS = ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'];
 const TYPES = ['keys', 'url', 'app'];
+const LIVE = ['', 'media', 'sound']; // what a button shows under its label: nothing, the playing track, or whether the PC's sound is muted
 
 let current = load();
 
@@ -141,6 +142,8 @@ function sanitize(c) {
     value: String(s.value || '').slice(0, 500),
     icon: String(s.icon || 'bolt').slice(0, 20),
     color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#3e63dd',
+    group: String(s.group || '').trim().slice(0, 20),
+    live: LIVE.includes(s.live) ? s.live : '',
   }));
   return out;
 }

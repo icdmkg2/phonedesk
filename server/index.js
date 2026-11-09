@@ -480,7 +480,7 @@ const clients = new Set();
 function publicConfig() {
   const c = config.get();
   return {
-    shortcuts: c.shortcuts.map(({ id, label, icon, color }) => ({ id, label, icon, color })),
+    shortcuts: c.shortcuts.map(({ id, label, icon, color, group, live }) => ({ id, label, icon, color, group, live })),
     clock24: c.clock24,
     theme: c.theme,
     accent: c.accent,

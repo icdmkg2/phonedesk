@@ -169,6 +169,12 @@
         <section class="card editor" id="sc-editor" aria-label="Edit button">
           <div class="editor-title"><span class="ic"><svg><use id="ed-icon-preview" href="#i-bolt"/></svg></span><h2 id="ed-title">Button</h2></div>
           <label class="field">Label<input type="text" id="ed-label" maxlength="40"></label>
+          <label class="field">Group<input type="text" id="ed-group" maxlength="20" list="ed-groups" placeholder="Audio, System, Apps…" autocomplete="off"><datalist id="ed-groups"></datalist><span class="hint">Buttons with the same group sit together on the phone, with a tab for each. Leave empty for none.</span></label>
+          <div class="field">Shows under the label
+            <div class="seg" id="ed-live" role="group" aria-label="Shows under the label">
+              <button data-v="">Nothing</button><button data-v="media">Now playing</button><button data-v="sound">Sound muted</button>
+            </div>
+          </div>
           <div class="field">What it does
             <div class="seg" id="ed-type" role="group" aria-label="What it does">
               <button data-v="keys">Press keys</button><button data-v="url">Open link</button><button data-v="app">Start app</button>
