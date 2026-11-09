@@ -11,7 +11,7 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 Addons: screens and features made by anyone, with a marketplace. Pages and widgets: build your own screens.
 
-## Added
+### Added
 - **Pages made of widgets.** The new *Layouts* page in the PhoneDesk window lets you build your own screens: pick a
   template (*Clock layout*, *Desk overview* or a blank page), then drag widgets onto a 12 by 6 grid and resize them.
   A page joins the phone's swipe row, and the editor shows the real page live, so every change is on the phone as you
@@ -56,7 +56,7 @@ Addons: screens and features made by anyone, with a marketplace. Pages and widge
 <img src="docs/changelog/1.9.0/phone-addon-home.png" width="49%" alt="The Home Assistant addon on the phone">
 </p>
 
-## Fixed
+### Fixed
 - On the offline screen (PC disconnected), the time and weather pills of Now playing no longer sit on top of the
   offline clock and weather.
 
@@ -64,7 +64,7 @@ Addons: screens and features made by anyone, with a marketplace. Pages and widge
 
 Fixes for first-run setup and updates, and a redesigned shortcuts screen.
 
-## Added
+### Added
 - **Shortcuts screen, redesigned:** wide rounded buttons with the icon beside the label, grouped under headings with a
   tab for each group (*All*, *Audio*, *System*, *Apps*…). A button can show live state under its label: the playing
   track (*Playing · Paper Lanterns*) or whether the PC's sound is muted. Set the group and what a button shows in the
@@ -75,7 +75,7 @@ Fixes for first-run setup and updates, and a redesigned shortcuts screen.
 <img src="docs/changelog/1.8.1/phone-shortcuts-groups.png" width="49%" alt="Shortcuts grouped under Audio, System and Apps">
 </p>
 
-## Fixed
+### Fixed
 - The first-run setup's *Connect your phone* step kept showing *Waiting for your phone…* after a phone had connected.
   It now shows the phone's name and how it is connected, and the button changes to *Next*.
 - **Updates:** *Check for updates* showed *Couldn't update: Failed to execute 'json' on 'Response': Unexpected end of JSON
@@ -84,7 +84,7 @@ Fixes for first-run setup and updates, and a redesigned shortcuts screen.
 - An update whose installer didn't start no longer leaves *Installing* on screen: it shows the problem and lets you try
   again.
 
-## Changed
+### Changed
 - The website has a new look (the *Website* screenshot in the 1.8.0 notes now shows it).
 
 ## [1.8.0] — 2026-11-08
