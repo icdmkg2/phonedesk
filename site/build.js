@@ -42,6 +42,25 @@ function copyDir(from, to) {
   }
 }
 
+
+// Screenshots get their real width and height, so the layout does not shift while they load lazily
+// (a shift above the target would stop a jump to an old version short).
+const dimCache = {};
+function pngSize(rel) {
+  if (!(rel in dimCache)) {
+    dimCache[rel] = null;
+    try {
+      const fd = fs.openSync(path.join(ROOT, 'docs', 'changelog', rel), 'r');
+      const b = Buffer.alloc(24); fs.readSync(fd, b, 0, 24, 0); fs.closeSync(fd);
+      if (b.toString('latin1', 1, 4) === 'PNG') dimCache[rel] = [b.readUInt32BE(16), b.readUInt32BE(20)];
+    } catch { /* leave it without */ }
+  }
+  return dimCache[rel];
+}
+function withDims(html) {
+  return html.replace(/<img src="shots\/([\w./-]+)"/g, (m, rel) => { const d = pngSize(rel); return d ? `${m} width="${d[0]}" height="${d[1]}"` : m; });
+}
+
 function fillTemplate(file, vars) {
   let s = fs.readFileSync(path.join(__dirname, file), 'utf8');
   for (const [k, v] of Object.entries(vars)) s = s.split(`{{${k}}}`).join(v);
@@ -76,7 +95,7 @@ const recent = all.slice(0, 3).map((s) => {
 const toc = all.map((s, i) => `      <a href="#v${s.version.replace(/\./g, '-')}">${esc(s.version)}${i === 0 ? ' <small>latest</small>' : ''}</a>`).join('\n');
 const releases = all.map((s, i) => `      <article class="release" id="v${s.version.replace(/\./g, '-')}">
         <div class="rel-head"><h2>${esc(s.version)}</h2><span class="date">${esc(s.date)}</span>${i === 0 ? '<span class="tag">Latest</span>' : ''}<a class="link" href="https://github.com/${changelog.REPO}/releases/tag/v${esc(s.version)}">GitHub release</a></div>
-        <div class="notes">${changelog.render(s.md, opts)}</div>
+        <div class="notes">${withDims(changelog.render(s.md, opts))}</div>
       </article>`).join('\n');
 
 const common = { VERSION: esc(version), VERSION_COUNT: String(all.length) };
