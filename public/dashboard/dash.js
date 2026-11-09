@@ -892,7 +892,7 @@
     $('ad-installed').innerHTML = inst.length ? inst.map((x) => {
       const status = !x.hasServer ? '' : x.running ? '<span class="ad-state ok">Running</span>' : x.enabled ? `<span class="ad-state bad">${esc(x.error || 'Starting…')}</span>` : '';
       return `<div class="ad" data-id="${esc(x.id)}"><div class="ad-main">
-        <div class="ad-title"><b>${esc(x.name)}</b><small>v${esc(x.version)} · ${esc(x.author)}${x.source === 'dev' ? ' · loaded from a folder' : x.source === 'link' ? ' · from a link' : ''}</small></div>
+        <div class="ad-title"><b>${esc(x.name)}</b><small>v${esc(x.version)} · ${esc(x.author)}${x.source === 'dev' ? ' · loaded from a folder' : x.source === 'link' ? ' · from a link' : x.source === 'file' ? ' · from a file' : ''}</small></div>
         <div class="ad-desc">${esc(x.description)}</div>
         <div class="ad-perms">${x.permissions.length ? x.permissions.map(permChip).join('') : '<span class="ad-perm">Needs no permissions</span>'}</div>
         ${status}
@@ -953,6 +953,23 @@
     adOpen({ kicker: 'Install', title: 'Checking…', body: '<p class="small muted">Downloading and checking the addon…</p>', ok: '', cancel: 'Cancel' });
     let p;
     try { p = await api('addons/prepare', body); } catch (e) { adOpen({ kicker: 'Couldn\'t install', title: 'That didn\'t work', body: `<div class="ad-warn">${esc(e.message)}</div>`, cancel: 'Close' }); return; }
+    adShowPrepared(p);
+  }
+  // A .zip from this PC: sent to PhoneDesk, checked like a download, then the same install prompt.
+  async function adInstallFile(file) {
+    if (!file) return;
+    if (!/\.zip$/i.test(file.name)) { adOpen({ kicker: 'Couldn\'t install', title: 'That isn\'t a .zip', body: '<div class="ad-warn">An addon is a .zip file with an addon.json inside.</div>', cancel: 'Close' }); return; }
+    adOpen({ kicker: 'Install', title: 'Checking…', body: `<p class="small muted">Checking ${esc(file.name)}…</p>`, ok: '', cancel: 'Cancel' });
+    let p;
+    try {
+      const res = await fetch('/api/addons/prepare-file', { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: file });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || res.statusText);
+      p = j;
+    } catch (e) { adOpen({ kicker: 'Couldn\'t install', title: 'That didn\'t work', body: `<div class="ad-warn">${esc(e.message)}</div>`, cancel: 'Close' }); return; }
+    adShowPrepared(p);
+  }
+  function adShowPrepared(p) {
     const m = p.manifest;
     adOpen({
       kicker: p.upgradeFrom ? 'Update ' + p.upgradeFrom + ' → ' + m.version : 'Install', title: m.name,
@@ -965,12 +982,29 @@
       onOk: async () => { await api('addons/confirm', { token: p.token, permissions: m.permissions }); await loadAddons(); toast(m.name + (p.upgradeFrom ? ' updated' : ' installed')); },
     });
   }
-  $('ad-link').addEventListener('click', () => adOpen({
-    kicker: 'Install', title: 'Install from a link',
-    body: '<p class="small muted">Paste the link to an addon\'s .zip on GitHub, for example a release download. Addons that are not in the marketplace have not been reviewed.</p><label class="field">Link<input type="text" id="ad-url" placeholder="https://github.com/…/releases/download/…/addon.zip" autocomplete="off" spellcheck="false"></label>',
-    ok: 'Continue', cancel: 'Cancel',
-    onOk: async () => { const url = $('ad-url').value.trim(); if (!url) { setText($('ad-d-msg'), 'Paste a link first.'); return false; } setTimeout(() => adInstall({ url }), 0); },
-  }));
+  function adInstallDialog() {
+    adOpen({
+      kicker: 'Install', title: 'Install an addon',
+      body: `<p class="small muted">Pick an addon's .zip from this PC, or paste a link to one on GitHub. Addons that are not in the marketplace have not been reviewed.</p>
+        <label class="ad-drop" id="ad-drop"><input type="file" id="ad-file" accept=".zip,application/zip" hidden><b>Choose a .zip</b><span class="small muted">or drop it here</span></label>
+        <div class="small muted" style="text-align:center">or</div>
+        <label class="field">Link<input type="text" id="ad-url" placeholder="https://github.com/…/releases/download/…/addon.zip" autocomplete="off" spellcheck="false"></label>`,
+      ok: 'Continue with the link', cancel: 'Cancel',
+      onOk: async () => { const url = $('ad-url').value.trim(); if (!url) { setText($('ad-d-msg'), 'Choose a .zip or paste a link.'); return false; } setTimeout(() => adInstall({ url }), 0); },
+    });
+    const drop = $('ad-drop');
+    $('ad-file').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) setTimeout(() => adInstallFile(f), 0); });
+    ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) setTimeout(() => adInstallFile(f), 0); });
+    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('ad-file').click(); } });
+    drop.tabIndex = 0;
+  }
+  $('ad-link').addEventListener('click', adInstallDialog);
+  // a .zip dropped anywhere on the Addons page
+  const adPage = $('v-addons');
+  adPage.addEventListener('dragover', (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+  adPage.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (!f || $('ad-dialog').hidden === false) return; e.preventDefault(); adInstallFile(f); });
   $('ad-refresh').addEventListener('click', async () => { $('ad-refresh').disabled = true; await loadAddons(true); $('ad-refresh').disabled = false; toast('Checked for updates'); });
   $('ad-auto').addEventListener('change', (e) => saveConfig({ autoUpdateAddons: e.target.checked }));
 

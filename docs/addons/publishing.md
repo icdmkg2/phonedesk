@@ -6,7 +6,7 @@ Getting an addon into the marketplace takes four steps.
 
     node tools/pd-addon.js pack my-addon
 
-This writes `my-addon-1.0.0.zip` and prints its SHA-256 checksum and a registry entry. Packing the same files twice gives the same checksum.
+This writes `my-addon-1.0.0.zip` and prints its SHA-256 checksum and a registry entry. Packing the same files twice gives the same checksum. To try the package exactly as people will get it, install it on your own PC: *Install from a file or link* on the Addons page, then choose the `.zip`.
 
 ## 2. Put the zip on GitHub
 

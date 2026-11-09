@@ -272,6 +272,15 @@ async function prepare(opt) {
   }
   return describePrepared(manifest, files, sha, source, entry);
 }
+/** A .zip the person picked on this PC: checked exactly like a download, marked as not reviewed. */
+function prepareFile(buf) {
+  prune();
+  if (!Buffer.isBuffer(buf) || !buf.length) throw new Error('that file is empty');
+  if (buf.length > MAX_PACKAGE) throw new Error('the package is too large');
+  let pkg;
+  try { pkg = readPackage(buf); } catch (e) { throw new Error('that is not a PhoneDesk addon: ' + e.message); }
+  return describePrepared(pkg.manifest, pkg.files, crypto.createHash('sha256').update(buf).digest('hex'), 'file', null);
+}
 function describePrepared(manifest, files, sha, source, entry) {
   if (cmpVer(api.version, manifest.phonedesk) < 0) throw new Error(`this addon needs PhoneDesk ${manifest.phonedesk} or newer (you have ${api.version})`);
   const old = state[manifest.id];
@@ -283,7 +292,7 @@ function describePrepared(manifest, files, sha, source, entry) {
     permissions: manifest.permissions.map(permissionInfo),
     added: old ? manifest.permissions.filter((p) => !old.permissions.includes(p)) : [],
     upgradeFrom: old ? old.version : null,
-    warnings: source === 'link' ? ['This addon is not in the PhoneDesk registry, so nobody has reviewed it. Only install it if you trust its author.'] : [],
+    warnings: source === 'link' || source === 'file' ? ['This addon is not in the PhoneDesk registry, so nobody has reviewed it. Only install it if you trust its author.'] : [],
   };
 }
 
@@ -654,7 +663,7 @@ module.exports = {
   PERMISSIONS, DOWNLOAD_HOSTS, DEFAULT_REGISTRY,
   validateManifest, validateRegistryEntry, permissionInfo, hostAllowed, cmpVer, readPackage,
   init, startAll, stopAll, loadRegistry, registryView, checkUpdates, prepare, confirm, installLocal, remove, setEnabled, setSettings,
-  list, describe, widgetList, widgetDesc, phoneScreens, screenIds, screenFile, fromPhone, emit, runAction, actionList,
+  prepareFile, list, describe, widgetList, widgetDesc, phoneScreens, screenIds, screenFile, fromPhone, emit, runAction, actionList,
   rpc, // exported for tests
   _state: () => state,
 };

@@ -252,6 +252,16 @@ function serveStatic(req, res, rel) {
   });
 }
 
+/** The raw bytes of a request body (a .zip picked in the PC window), up to max bytes. */
+function readRaw(req, max) {
+  return new Promise((resolve, reject) => {
+    const chunks = []; let n = 0;
+    req.on('data', (c) => { n += c.length; if (n > max) { reject(new Error('that file is too large')); req.destroy(); return; } chunks.push(c); });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -384,6 +394,7 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       return send(res, 200, await addons.prepare({ registryId: typeof body.registryId === 'string' ? body.registryId : '', url: typeof body.url === 'string' ? body.url.trim() : '' }));
     }
+    if (p === '/api/addons/prepare-file' && req.method === 'POST') return send(res, 200, addons.prepareFile(await readRaw(req, 20 * 1024 * 1024)));
     if (p === '/api/addons/confirm' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.confirm(String(b.token || ''), b.permissions)); }
     if (p === '/api/addons/remove' && req.method === 'POST') { const b = await readBody(req); addons.remove(String(b.id || ''), b.keepData === true); return send(res, 200, { ok: true }); }
     if (p === '/api/addons/enable' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.setEnabled(String(b.id || ''), b.enabled !== false)); }

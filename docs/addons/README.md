@@ -7,7 +7,7 @@ Addons add screens and features to PhoneDesk. An addon can:
 - **add widgets** that people place on their own pages, next to the built-in ones (clock, weather, calendar, PC stats...)
 - **add shortcut actions** that any shortcut button can use
 
-People install addons from the **Addons** page of the PhoneDesk window: from the marketplace, or from a link to a package on GitHub. Before anything installs they see exactly what the addon is allowed to do.
+People install addons from the **Addons** page of the PhoneDesk window: from the marketplace, from a link to a package on GitHub, or from a `.zip` file on their PC. Before anything installs they see exactly what the addon is allowed to do.
 
 ## Try one in five minutes
 
