@@ -28,15 +28,18 @@ jobs:
       - name: JavaScript syntax
         shell: bash
         run: |
-          for f in server/*.js public/phone/*.js public/dashboard/*.js build/*.js site/*.js; do
+          for f in server/*.js public/phone/*.js public/dashboard/*.js build/*.js site/*.js tools/*.js registry/*.js test/*.js; do
             [ -f "$f" ] || continue
             node --check "$f" || exit 1
           done
           node -e "require('./server/config'); require('./server/calendar'); require('./server/changelog'); require('./server/diagnostics')"
 
-      - name: Updater tests
+      - name: Updater and addon tests
         shell: bash
-        run: node test/updater.test.js
+        run: |
+          node test/updater.test.js
+          node test/addons.test.js
+          node registry/check.js --offline
 
       - name: Changelog has the current version
         shell: bash

@@ -1,0 +1,21 @@
+name: Addon registry
+
+# Checks registry/index.json when it changes: every entry is well formed, its download exists and matches
+# its checksum, and the package says the same thing as its listing (id, version, permissions).
+on:
+  pull_request:
+    paths: ['registry/**', 'server/addons.js', 'server/zip.js']
+  push:
+    branches: [main]
+    paths: ['registry/**']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the registry
+        run: node registry/check.js

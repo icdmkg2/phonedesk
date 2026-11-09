@@ -109,10 +109,10 @@ body.in-app .brand { display: none; } /* the window title bar already says Phone
 .seg button { height: 30px; padding: 0 14px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-size: 13px; }
 .seg button.on { background: #1F2533; color: var(--fg); font-weight: 600; }
 
-input[type=text], input[type=number] {
+input[type=text], input[type=number], input[type=password] {
   height: 38px; border-radius: 9px; border: 1px solid var(--line2); background: var(--sunk); color: var(--fg); padding: 0 12px; width: 100%; min-width: 0;
 }
-input[type=text]:focus, input[type=number]:focus { border-color: var(--accent); outline: none; }
+input[type=text]:focus, input[type=number]:focus, input[type=password]:focus { border-color: var(--accent); outline: none; }
 input[type=range] { accent-color: var(--accent); width: 100%; }
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--fg2); }
 .hint { font-size: 12px; font-weight: 400; color: var(--dim); }
@@ -395,3 +395,32 @@ button.ver:hover { color: var(--fg); text-decoration: underline; }
 a.btn { text-decoration: none; color: var(--fg); }
 a.btn.primary { color: var(--accent-fg); }
 .head .row { flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------- addons */
+.ad-list { display: flex; flex-direction: column; }
+.ad { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-top: 1px solid var(--line); }
+.ad:first-child { border-top: 0; padding-top: 4px; }
+.ad-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ad-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.ad-title b { font-size: 15px; font-weight: 600; }
+.ad-title small { color: var(--muted); font-size: 12px; }
+.ad-desc { color: var(--fg); font-size: 13px; line-height: 1.5; }
+.ad-perms { display: flex; flex-wrap: wrap; gap: 6px; }
+.ad-perm { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--panel2, #1b1e25); border: 1px solid var(--line); color: var(--muted); }
+.ad-perm.high { color: var(--warn); border-color: #5a4318; }
+.ad-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+.ad-state { font-size: 12px; color: var(--muted); }
+.ad-state.bad { color: #ef6a6a; }
+.ad-state.ok { color: var(--ok-text); }
+.ad-auto { display: inline-flex; gap: 8px; align-items: center; }
+.ad-box { width: min(560px, calc(100vw - 32px)); }
+.ad-body { display: flex; flex-direction: column; gap: 14px; }
+.ad-body .perm-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ad-body .perm-list li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--panel2, #1b1e25); border: 1px solid var(--line); font-size: 13px; }
+.ad-body .perm-list li.high { border-color: #5a4318; }
+.ad-body .perm-list b { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.ad-body .perm-list li.high b { color: var(--warn); }
+.ad-warn { padding: 10px 12px; border-radius: 10px; background: #3A2A10; color: var(--warn); font-size: 13px; line-height: 1.5; }
+.ad-body label.field input[type="text"], .ad-body label.field input[type="password"], .ad-body label.field input[type="number"], .ad-body label.field select, .field select { width: 100%; }
+select { background: var(--panel2, #1b1e25); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; color: var(--fg); }
+@media (max-width: 720px) { .ad { flex-direction: column; } .ad-actions { justify-content: flex-start; } }

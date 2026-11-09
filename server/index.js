@@ -353,11 +353,11 @@ async function handleApi(req, res, url) {
     }
     if (p === '/api/addons' && req.method === 'GET') {
       const reg = await addons.loadRegistry();
-      return send(res, 200, { installed: addons.list(), registry: { entries: reg.entries, error: reg.error, fetchedAt: reg.fetchedAt }, actions: addons.actionList(), version: VERSION });
+      return send(res, 200, { installed: addons.list(), registry: addons.registryView(reg), actions: addons.actionList(), version: VERSION });
     }
     if (p === '/api/addons/refresh' && req.method === 'POST') {
       const reg = await addons.checkUpdates(false);
-      return send(res, 200, { installed: addons.list(), registry: { entries: reg.entries, error: reg.error, fetchedAt: reg.fetchedAt }, actions: addons.actionList(), version: VERSION });
+      return send(res, 200, { installed: addons.list(), registry: addons.registryView(reg), actions: addons.actionList(), version: VERSION });
     }
     if (p === '/api/addons/prepare' && req.method === 'POST') {
       const body = await readBody(req);

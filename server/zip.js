@@ -20,9 +20,9 @@ function dosTime(d) {
     date: ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
   };
 }
-/** files: [{ name, data: Buffer|string }] -> Buffer (a .zip) */
-function zip(files) {
-  const now = dosTime(new Date());
+/** files: [{ name, data: Buffer|string }], optional Date -> Buffer (a .zip) */
+function zip(files, when) {
+  const now = dosTime(when instanceof Date ? when : new Date()); // pass a fixed date for a package that always has the same bytes
   const locals = [], centrals = [];
   let offset = 0;
   for (const f of files) {

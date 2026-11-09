@@ -40,7 +40,7 @@ const PERMISSIONS = {
 const HOST_RE = /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
 function permissionInfo(p) {
   if (PERMISSIONS[p]) return Object.assign({ id: p }, PERMISSIONS[p]);
-  if (p === 'network:lan') return { id: p, label: 'Talk to devices on your home network (addresses like 192.168.x.x, or .local names)', level: 'high' };
+  if (p === 'network:lan') return { id: p, label: 'Talk to devices on your home network', detail: 'Addresses like 192.168.x.x, 10.x.x.x or names ending in .local.', level: 'high' };
   const m = /^network:(.+)$/.exec(p);
   if (m && HOST_RE.test(m[1])) return { id: p, label: 'Talk to ' + m[1] + ' over the internet or your network', level: 'high' };
   return null;
@@ -252,6 +252,11 @@ async function loadRegistry(force) {
     registry = Object.assign({}, registry, { fetchedAt: registry.fetchedAt || 0, error: 'Couldn\'t load the addon list: ' + e.message });
   }
   return registry;
+}
+
+/** The registry as the dashboard shows it: entries with their permissions spelled out. */
+function registryView(reg) {
+  return { entries: reg.entries.map((e) => Object.assign({}, e, { permissionInfo: e.permissions.map(permissionInfo).filter(Boolean) })), error: reg.error, fetchedAt: reg.fetchedAt };
 }
 
 /* ---------------------------------------------------------------- install (two steps: prepare, then confirm) */
@@ -638,7 +643,7 @@ async function checkUpdates(autoInstall) {
 module.exports = {
   PERMISSIONS, DOWNLOAD_HOSTS, DEFAULT_REGISTRY,
   validateManifest, validateRegistryEntry, permissionInfo, hostAllowed, cmpVer, readPackage,
-  init, startAll, stopAll, loadRegistry, checkUpdates, prepare, confirm, installLocal, remove, setEnabled, setSettings,
+  init, startAll, stopAll, loadRegistry, registryView, checkUpdates, prepare, confirm, installLocal, remove, setEnabled, setSettings,
   list, describe, phoneScreens, screenIds, screenFile, fromPhone, emit, runAction, actionList,
   rpc, // exported for tests
   _state: () => state,

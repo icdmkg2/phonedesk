@@ -11,6 +11,11 @@
   const SCREEN_NAMES = { media: 'Now playing', lyrics: 'Lyrics', mixer: 'Volume mixer', clock: 'Clock', stats: 'PC stats', shortcuts: 'Shortcuts' };
   const SCREEN_DESC = { media: 'art, controls, volume', lyrics: 'synced to the song', mixer: 'volume per app', clock: 'time, weather, track', stats: 'CPU, memory, GPU', shortcuts: 'your buttons' };
   const ALL_SCREENS = Object.keys(SCREEN_NAMES);
+  // Addon screens are 'addon:<id>'; their names come from the installed addons.
+  function addonInfo(s) { const id = String(s).slice(6); return ((state.addons && state.addons.installed) || []).find((a) => a.id === id); }
+  function screenName(s) { return SCREEN_NAMES[s] || (String(s).startsWith('addon:') ? (addonInfo(s) ? (addonInfo(s).screen ? addonInfo(s).screen.title : addonInfo(s).name) : s.slice(6)) : s); }
+  function screenDesc(s) { return SCREEN_DESC[s] || (String(s).startsWith('addon:') ? 'addon' + (addonInfo(s) ? ' · ' + addonInfo(s).name : '') : ''); }
+  function addonScreenIds() { return ((state.addons && state.addons.installed) || []).filter((a) => a.screen && a.enabled).map((a) => 'addon:' + a.id); }
   const ICONS = ['bolt', 'mic', 'desktop', 'lock', 'camera', 'music', 'play', 'chart', 'folder', 'globe', 'game', 'code', 'chat', 'power', 'vol', 'next'];
   const COLORS = ['#E5484D', '#F76B15', '#F5A524', '#2FBF71', '#12A594', '#5B8CFF', '#A47CF3', '#F472B6'];
   const ACCENTS = ['#5B8CFF', '#2FBF71', '#F5A524', '#F472B6', '#A47CF3'];
@@ -58,6 +63,7 @@
     history.replaceState(null, '', location.pathname + location.search + '#' + view);
     $('main').scrollTop = 0;
     if (view === 'activity') loadActivity(true);
+    if (view === 'addons') loadAddons();
   }
   $$('.nav').forEach((b) => b.addEventListener('click', () => go(b.dataset.view)));
   window.addEventListener('hashchange', () => go(location.hash.slice(1)));
@@ -86,6 +92,7 @@
       else if (m.t === 'lyrics') { state.lyrics = m.d; renderMirrors(); }
       else if (m.t === 'weather') { state.weather = m.d; renderMirrors(); renderWeatherNow(); }
       else if (m.t === 'update') { state.update = m.d; renderUpdate(); }
+      else if (m.t === 'addons') loadAddons();
       else if (m.t === 'spotifyStatus') loadSpotify();
     };
   }
@@ -178,6 +185,7 @@
       const s = state.stats || { cpu: 0, memUsed: 0, memTotal: 1 };
       return `<div class="${cls} mini-stats" style="${style}"><div>CPU<b>${s.cpu}%</b></div><div>Memory<b>${Math.round((s.memUsed / s.memTotal) * 100)}%</b></div><div>Volume<b>${Math.round(state.volume.level * 100)}%</b></div></div>`;
     }
+    if (String(screen).startsWith('addon:')) return `<div class="${cls}" style="${style}"><div class="mini-empty">${esc(screenName(screen))}<br><small>An addon screen</small></div></div>`;
     if (screen === 'shortcuts') {
       const list = (cfg.shortcuts || []).slice(0, 8);
       if (!list.length) return `<div class="${cls}"><div class="mini-empty">No shortcut buttons yet</div></div>`;
@@ -229,7 +237,7 @@
     $('ov-empty').hidden = !!p;
     $('ov-reload').hidden = !p;
     setText($('ov-sub'), !p ? 'No phone connected yet.' : phones.length > 1 ? `${phones.length} phones connected.`
-      : `Your phone is connected and showing ${SCREEN_NAMES[p.screen] || 'PhoneDesk'}.`);
+      : `Your phone is connected and showing ${screenName(p.screen) || 'PhoneDesk'}.`);
 
     $$('.name-url').forEach((el) => setText(el, nameUrl().replace(/^http:\/\//, '')));
     $$('.name-url-full').forEach((el) => setText(el, nameUrl()));
@@ -249,7 +257,7 @@
     via.className = 'badge' + (p.via === 'USB' ? ' usb' : '');
     setText($('ov-name'), p.device);
     setText($('ov-rtt'), p.rtt != null ? p.rtt + ' ms' : '–');
-    setText($('ov-screen'), SCREEN_NAMES[p.screen] || '–');
+    setText($('ov-screen'), screenName(p.screen) || '–');
     $('ov-batt-help').hidden = !!p.battery;
     setText($('ov-batt'), p.battery ? p.battery.level + '%' + (p.battery.charging ? ' ⚡' : '') : '–');
     $('ov-batt').title = p.battery ? '' : 'Battery level is only shared over USB';
@@ -263,7 +271,7 @@
     e.stopPropagation();
     let list = state.config ? state.config.screens : ALL_SCREENS;
     if (state.config && state.config.nowStyle !== 'classic') list = list.filter((s) => s !== 'lyrics'); // a pull-up sheet in the Immersive style
-    switchMenu.innerHTML = list.map((s) => `<button data-s="${s}">${SCREEN_NAMES[s]}</button>`).join('');
+    switchMenu.innerHTML = list.map((s) => `<button data-s="${s}">${screenName(s)}</button>`).join('');
     switchMenu.hidden = !switchMenu.hidden;
     $('ov-switch').setAttribute('aria-expanded', String(!switchMenu.hidden));
   });
@@ -371,10 +379,16 @@
     $('ed-groups').innerHTML = [...new Set(draft.map((d) => d.group).filter(Boolean))].map((g) => `<option value="${esc(g)}">`).join('');
     $$('#ed-live button').forEach((b) => b.classList.toggle('on', b.dataset.v === (k.live || '')));
     $$('#ed-type button').forEach((b) => b.classList.toggle('on', b.dataset.v === k.type));
-    const isKeys = k.type === 'keys';
+    const isKeys = k.type === 'keys', isAddon = k.type === 'addon';
     $('ed-keys-field').hidden = !isKeys;
-    $('ed-value-field').hidden = isKeys;
-    if (!isKeys) {
+    $('ed-value-field').hidden = isKeys || isAddon;
+    $('ed-addon-field').hidden = !isAddon;
+    if (isAddon) {
+      const acts = (state.addons && state.addons.actions) || [];
+      $('ed-addon').innerHTML = '<option value="">Choose an action…</option>' + acts.map((a) => `<option value="${esc(a.value)}"${a.value === k.value ? ' selected' : ''}>${esc(a.addon)}: ${esc(a.label)}</option>`).join('');
+      setText($('ed-addon-hint'), acts.length ? 'Actions come from the addons you installed.' : 'No addon adds actions yet. Install one in Addons.');
+    }
+    if (!isKeys && !isAddon) {
       $('ed-value-field').firstChild.textContent = k.type === 'url' ? 'Link' : 'App';
       if (document.activeElement !== $('ed-value')) $('ed-value').value = k.value;
       $('ed-value').placeholder = k.type === 'url' ? 'https://… or spotify:' : 'C:\\Program Files\\App\\app.exe';
@@ -436,6 +450,7 @@
   $('ed-label').addEventListener('input', (e) => { cur().label = e.target.value; scheduleSave(); renderShortcuts(); });
   $('ed-group').addEventListener('input', (e) => { cur().group = e.target.value.slice(0, 20); scheduleSave(); });
   $('ed-live').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { cur().live = b.dataset.v; scheduleSave(); renderEditor(); } });
+  $('ed-addon').addEventListener('change', (e) => { cur().value = e.target.value; scheduleSave(); });
   $('ed-value').addEventListener('input', (e) => { cur().value = e.target.value; scheduleSave(); });
   $('ed-type').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
@@ -514,11 +529,11 @@
     if (di < 0) di = DIM_STEPS.reduce((best, v, i) => Math.abs(v - c.dimAfter) < Math.abs(DIM_STEPS[best] - c.dimAfter) ? i : best, 0);
     $('ds-dim').value = di;
     setText($('ds-dim-label'), DIM_LABELS[di]);
-    const order = c.screens.concat(ALL_SCREENS.filter((s) => !c.screens.includes(s)));
+    const order = c.screens.concat(ALL_SCREENS.concat(addonScreenIds()).filter((s) => !c.screens.includes(s)));
     $('ds-screens').innerHTML = order.map((s) => {
       const on = c.screens.includes(s);
-      return `<li class="${on ? '' : 'off'}" draggable="true" data-s="${s}"><span class="grip" aria-hidden="true">⋮⋮</span><span class="name">${SCREEN_NAMES[s]}</span><span class="desc">${SCREEN_DESC[s]}</span>` +
-        `<span class="switch"><input type="checkbox" ${on ? 'checked' : ''} ${on && c.screens.length === 1 ? 'disabled' : ''} aria-label="Show ${SCREEN_NAMES[s]}"><span></span></span></li>`;
+      return `<li class="${on ? '' : 'off'}" draggable="true" data-s="${s}"><span class="grip" aria-hidden="true">⋮⋮</span><span class="name">${screenName(s)}</span><span class="desc">${screenDesc(s)}</span>` +
+        `<span class="switch"><input type="checkbox" ${on ? 'checked' : ''} ${on && c.screens.length === 1 ? 'disabled' : ''} aria-label="Show ${screenName(s)}"><span></span></span></li>`;
     }).join('');
     $$('#ds-cface .theme').forEach((b) => { const on = b.dataset.v === (c.clockFace || 'digital'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $('ds-fc').checked = c.clockForecast !== false;
@@ -544,7 +559,7 @@
     $('ds-nt-priv').closest('label').hidden = c.notifications === false;
     $('ds-art').checked = c.artLookup !== false;
     $$('#ds-pills button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.previewScreen));
-    setText($('ds-prev-label'), state.previewScreen === 'offline' ? 'When the PC is off' : SCREEN_NAMES[state.previewScreen]);
+    setText($('ds-prev-label'), state.previewScreen === 'offline' ? 'When the PC is off' : screenName(state.previewScreen));
   }
   $('ds-cface').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ clockFace: b.dataset.v }); });
   $('ds-fc').addEventListener('change', (e) => saveConfig({ clockForecast: e.target.checked }));
@@ -618,7 +633,7 @@
     const ph = s.clients || [];
     setText($('cn-count'), ph.length ? ph.length + ' connected' : 'None');
     $('cn-count').className = 'badge' + (ph.length ? ' usb' : '');
-    const phtml = ph.length ? ph.map((c) => `<div class="phone-row"><span class="dot ok"></span><div class="pr-main"><b>${esc(c.device)}</b><small>Showing ${esc(SCREEN_NAMES[c.screen] || 'PhoneDesk')}</small></div><span class="badge${c.via === 'USB' ? ' usb' : ''}">${esc(c.via)}</span><span class="pr-stat">${c.rtt != null ? c.rtt + ' ms' : '–'}</span><span class="pr-stat">${c.battery ? c.battery.level + '%' + (c.battery.charging ? ' ⚡' : '') : '–'}</span><button class="btn sm" data-identify="${c.id}">Identify</button></div>`).join('')
+    const phtml = ph.length ? ph.map((c) => `<div class="phone-row"><span class="dot ok"></span><div class="pr-main"><b>${esc(c.device)}</b><small>Showing ${esc(screenName(c.screen) || 'PhoneDesk')}</small></div><span class="badge${c.via === 'USB' ? ' usb' : ''}">${esc(c.via)}</span><span class="pr-stat">${c.rtt != null ? c.rtt + ' ms' : '–'}</span><span class="pr-stat">${c.battery ? c.battery.level + '%' + (c.battery.charging ? ' ⚡' : '') : '–'}</span><button class="btn sm" data-identify="${c.id}">Identify</button></div>`).join('')
       : '<p class="small muted">No phone yet. Scan the code below, or plug one in.</p>';
     if ($('cn-phones').innerHTML !== phtml) $('cn-phones').innerHTML = phtml;
 
@@ -853,6 +868,146 @@
   $('ob-skip').addEventListener('click', async () => { await saveConfig({ onboarded: true }); $('onboard').hidden = true; });
   $('cn-onboard').addEventListener('click', openOnboarding);
 
+
+  /* ------------------------------------------------------------ addons */
+  state.addons = null;
+  async function loadAddons(refresh) {
+    try { state.addons = await api(refresh ? 'addons/refresh' : 'addons', refresh ? {} : undefined); } catch (e) { if (refresh) toast('Couldn\'t check: ' + e.message); return; }
+    renderAddons();
+    renderDisplay();
+    if (cur()) renderEditor();
+  }
+  function permChip(p) { return `<span class="ad-perm${p.level === 'high' ? ' high' : ''}" title="${esc(p.label)}">${esc(p.label.length > 44 ? p.label.slice(0, 42) + '…' : p.label)}</span>`; }
+  function renderAddons() {
+    const a = state.addons;
+    if (!a) return;
+    const inst = a.installed, byId = Object.fromEntries(inst.map((x) => [x.id, x]));
+    setText($('ad-count'), inst.length ? inst.length + (inst.length === 1 ? ' addon' : ' addons') : 'None');
+    const updates = inst.filter((x) => x.update).length;
+    $('nav-addons').hidden = !updates; setText($('nav-addons'), String(updates));
+    $('ad-installed').innerHTML = inst.length ? inst.map((x) => {
+      const status = !x.hasServer ? '' : x.running ? '<span class="ad-state ok">Running</span>' : x.enabled ? `<span class="ad-state bad">${esc(x.error || 'Starting…')}</span>` : '';
+      return `<div class="ad" data-id="${esc(x.id)}"><div class="ad-main">
+        <div class="ad-title"><b>${esc(x.name)}</b><small>v${esc(x.version)} · ${esc(x.author)}${x.source === 'dev' ? ' · loaded from a folder' : x.source === 'link' ? ' · from a link' : ''}</small></div>
+        <div class="ad-desc">${esc(x.description)}</div>
+        <div class="ad-perms">${x.permissions.length ? x.permissions.map(permChip).join('') : '<span class="ad-perm">Needs no permissions</span>'}</div>
+        ${status}
+        ${x.update ? `<div class="ad-state ok">Version ${esc(x.update.version)} is available${x.update.needsApproval ? ' and asks for new permissions' : ''}.</div>` : ''}
+      </div><div class="ad-actions">
+        ${x.update ? `<button class="btn sm primary" data-ad="update" data-id="${esc(x.id)}">Update</button>` : ''}
+        ${x.settings.length ? `<button class="btn sm" data-ad="settings" data-id="${esc(x.id)}">Settings</button>` : ''}
+        <span class="switch"><input type="checkbox" data-ad="toggle" data-id="${esc(x.id)}" ${x.enabled ? 'checked' : ''} aria-label="Turn ${esc(x.name)} on or off"><span></span></span>
+        <button class="btn sm ghost" data-ad="remove" data-id="${esc(x.id)}">Remove</button>
+      </div></div>`;
+    }).join('') : '<div class="small muted" style="padding:6px 0">Nothing installed yet. Pick one from the marketplace below.</div>';
+    $('ad-auto').checked = !state.config || state.config.autoUpdateAddons !== false;
+    setText($('ad-reg-msg'), a.registry.error || (a.registry.entries.length ? '' : 'The marketplace is empty for now.'));
+    $('ad-registry').innerHTML = a.registry.entries.map((e) => {
+      const have = byId[e.id];
+      const newer = have && have.update;
+      const incompatible = cmpVer(a.version, e.phonedesk) < 0;
+      const action = incompatible ? `<span class="ad-state">Needs PhoneDesk ${esc(e.phonedesk)}</span>` : have ? (newer ? `<button class="btn sm primary" data-ad="update" data-id="${esc(e.id)}">Update</button>` : '<span class="ad-state ok">Installed</span>') : `<button class="btn sm primary" data-ad="install" data-id="${esc(e.id)}">Install</button>`;
+      const perms = e.permissionInfo || [];
+      return `<div class="ad"><div class="ad-main"><div class="ad-title"><b>${esc(e.name)}</b><small>v${esc(e.version)} · ${esc(e.author)}${e.firstParty ? ' · official' : ''}</small></div>
+        <div class="ad-desc">${esc(e.description)}</div>
+        <div class="ad-perms">${perms.length ? perms.map(permChip).join('') : '<span class="ad-perm">Needs no permissions</span>'}${e.tags.map((t) => `<span class="ad-perm">${esc(t)}</span>`).join('')}</div>
+      </div><div class="ad-actions">${e.homepage ? `<a class="btn sm ghost" href="${esc(e.homepage)}" target="_blank" rel="noopener">Details</a>` : ''}${action}</div></div>`;
+    }).join('');
+  }
+  function cmpVer(a, b) {
+    const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+    for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0) ? 1 : -1;
+    return 0;
+  }
+
+  // One dialog for all of it: asking for a link, the install prompt with its permissions, settings, removing.
+  let adDone = null;
+  function adOpen(o) {
+    setText($('ad-d-kicker'), o.kicker || 'Addon'); setText($('ad-d-title'), o.title || '');
+    $('ad-d-body').innerHTML = o.body || '';
+    setText($('ad-d-msg'), '');
+    $('ad-d-ok').textContent = o.ok || 'OK'; $('ad-d-ok').disabled = false; $('ad-d-ok').hidden = !o.ok;
+    $('ad-d-ok').className = 'btn ' + (o.danger ? 'danger' : 'primary');
+    $('ad-d-cancel').textContent = o.cancel || 'Cancel';
+    adDone = o.onOk || null;
+    $('ad-dialog').hidden = false;
+    const f = $('ad-d-body').querySelector('input,select'); if (f) f.focus(); else $('ad-d-ok').focus();
+  }
+  function adClose() { $('ad-dialog').hidden = true; adDone = null; }
+  $('ad-d-x').addEventListener('click', adClose);
+  $('ad-d-cancel').addEventListener('click', adClose);
+  $('ad-dialog').addEventListener('click', (e) => { if (e.target === $('ad-dialog')) adClose(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ad-dialog').hidden) adClose(); });
+  $('ad-d-ok').addEventListener('click', async () => {
+    if (!adDone) return adClose();
+    $('ad-d-ok').disabled = true; setText($('ad-d-msg'), '');
+    try { const r = await adDone(); if (r !== false) adClose(); else $('ad-d-ok').disabled = false; }
+    catch (e) { setText($('ad-d-msg'), e.message); $('ad-d-ok').disabled = false; }
+  });
+
+  async function adInstall(body) {
+    adOpen({ kicker: 'Install', title: 'Checking…', body: '<p class="small muted">Downloading and checking the addon…</p>', ok: '', cancel: 'Cancel' });
+    let p;
+    try { p = await api('addons/prepare', body); } catch (e) { adOpen({ kicker: 'Couldn\'t install', title: 'That didn\'t work', body: `<div class="ad-warn">${esc(e.message)}</div>`, cancel: 'Close' }); return; }
+    const m = p.manifest;
+    adOpen({
+      kicker: p.upgradeFrom ? 'Update ' + p.upgradeFrom + ' → ' + m.version : 'Install', title: m.name,
+      body: `<div class="small muted">v${esc(m.version)} · ${esc(m.author)}${p.reviewed ? ' · official' : ''}</div><p>${esc(m.description)}</p>
+        ${p.warnings.map((w) => `<div class="ad-warn">${esc(w)}</div>`).join('')}
+        <div><b style="font-size:13px">${p.permissions.length ? 'This addon will be allowed to:' : 'This addon asks for no permissions.'}</b></div>
+        ${p.permissions.length ? `<ul class="perm-list">${p.permissions.map((x) => `<li class="${x.level === 'high' ? 'high' : ''}"><div><b>${x.level === 'high' ? 'Powerful' : x.level === 'medium' ? 'Moderate' : 'Basic'}</b>${esc(x.label)}${p.added.includes(x.id) ? ' <span class="badge warn">New</span>' : ''}${x.detail ? `<div class="small muted">${esc(x.detail)}</div>` : ''}</div></li>`).join('')}</ul>` : ''}
+        <p class="small muted">${m.screen ? 'It adds a screen to the phone. ' : ''}${m.server ? 'It runs code on this PC, limited to its own folder and the permissions above.' : 'It runs only on the phone, with no access to your PC.'}</p>`,
+      ok: p.upgradeFrom ? 'Update' : 'Install', cancel: 'Cancel',
+      onOk: async () => { await api('addons/confirm', { token: p.token, permissions: m.permissions }); await loadAddons(); toast(m.name + (p.upgradeFrom ? ' updated' : ' installed')); },
+    });
+  }
+  $('ad-link').addEventListener('click', () => adOpen({
+    kicker: 'Install', title: 'Install from a link',
+    body: '<p class="small muted">Paste the link to an addon\'s .zip on GitHub, for example a release download. Addons that are not in the marketplace have not been reviewed.</p><label class="field">Link<input type="text" id="ad-url" placeholder="https://github.com/…/releases/download/…/addon.zip" autocomplete="off" spellcheck="false"></label>',
+    ok: 'Continue', cancel: 'Cancel',
+    onOk: async () => { const url = $('ad-url').value.trim(); if (!url) { setText($('ad-d-msg'), 'Paste a link first.'); return false; } setTimeout(() => adInstall({ url }), 0); },
+  }));
+  $('ad-refresh').addEventListener('click', async () => { $('ad-refresh').disabled = true; await loadAddons(true); $('ad-refresh').disabled = false; toast('Checked for updates'); });
+  $('ad-auto').addEventListener('change', (e) => saveConfig({ autoUpdateAddons: e.target.checked }));
+
+  function adSettings(x) {
+    const field = (s) => {
+      const id = 'ad-s-' + s.key, hint = s.hint ? `<span class="hint">${esc(s.hint)}</span>` : '';
+      if (s.type === 'boolean') return `<label class="field"><span><input type="checkbox" id="${id}" ${s.value ? 'checked' : ''}> ${esc(s.label)}</span>${hint}</label>`;
+      if (s.type === 'select') return `<label class="field">${esc(s.label)}<select id="${id}">${s.options.map((o) => `<option${o === s.value ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>${hint}</label>`;
+      if (s.type === 'password') return `<label class="field">${esc(s.label)}<input type="password" id="${id}" placeholder="${s.isSet ? 'Saved. Type to replace.' : esc(s.placeholder || '')}" autocomplete="new-password">${hint}</label>`;
+      return `<label class="field">${esc(s.label)}<input type="${s.type === 'number' ? 'number' : 'text'}" id="${id}" value="${esc(s.value)}" placeholder="${esc(s.placeholder || '')}" autocomplete="off" spellcheck="false">${hint}</label>`;
+    };
+    adOpen({
+      kicker: x.name, title: 'Settings', body: x.settings.map(field).join(''), ok: 'Save', cancel: 'Cancel',
+      onOk: async () => {
+        const values = {};
+        x.settings.forEach((s) => { const el = $('ad-s-' + s.key); values[s.key] = s.type === 'boolean' ? el.checked : s.type === 'number' ? Number(el.value) : el.value; });
+        await api('addons/settings', { id: x.id, values });
+        await loadAddons(); toast('Saved');
+      },
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ad]');
+    if (!b || b.type === 'checkbox') return;
+    const id = b.dataset.id, x = ((state.addons && state.addons.installed) || []).find((a) => a.id === id);
+    if (b.dataset.ad === 'install' || b.dataset.ad === 'update') adInstall({ registryId: id });
+    else if (b.dataset.ad === 'settings' && x) adSettings(x);
+    else if (b.dataset.ad === 'remove' && x) adOpen({
+      kicker: 'Remove', title: x.name,
+      body: `<p>Remove this addon from the phone and this PC?</p><label class="field"><span><input type="checkbox" id="ad-keep"> Keep its saved data</span></label>`,
+      ok: 'Remove', danger: true, cancel: 'Cancel',
+      onOk: async () => { await api('addons/remove', { id, keepData: $('ad-keep').checked }); await loadAddons(); toast(x.name + ' removed'); },
+    });
+  });
+  document.addEventListener('change', async (e) => {
+    const b = e.target.closest('[data-ad="toggle"]');
+    if (!b) return;
+    try { await api('addons/enable', { id: b.dataset.id, enabled: b.checked }); await loadAddons(); } catch (err) { toast(err.message); b.checked = !b.checked; }
+  });
+
   /* ------------------------------------------------------------ boot */
   go((location.hash.slice(1) || 'overview'));
   connect();
@@ -862,6 +1017,7 @@
     if (!state.config.onboarded) openOnboarding();
   }).catch(() => toast('Couldn\'t load settings'));
   loadSpotify();
+  loadAddons();
   api('update').then((u) => { state.update = u; renderUpdate(); }).catch(() => {});
   api('weather').then((w) => { state.weather = w && w.city ? w : null; renderWeatherNow(); }).catch(() => {});
   loadActivity();
