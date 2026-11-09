@@ -207,6 +207,8 @@ body.fullscreen .fs { display: none; }
 /* Disconnected: a full-screen clock, so the phone is still useful while the PC is off/asleep. */
 .offline { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: flex; flex-direction: column; }
 .offline[hidden] { display: none; }
+/* The time and weather pills of Now playing sit above everything; the offline screen shows its own clock and weather. */
+body.is-offline .np-top { display: none !important; }
 .offline .clock { padding: 0 22px; }
 .o-status {
   position: absolute; left: 0; right: 0; bottom: 14px;

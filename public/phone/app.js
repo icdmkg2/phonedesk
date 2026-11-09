@@ -87,6 +87,7 @@
       clearTimeout(giveUp);
       retry = 0; lastMsg = Date.now(); everConnected = true; hostFails = 0;
       $('offline').hidden = true;
+      document.body.classList.remove('is-offline');
       reportBattery();
     };
     sock.onmessage = function (ev) {
@@ -127,7 +128,7 @@
       $('o-sub').textContent = everConnected
         ? 'PC disconnected · reconnecting…'
         : 'Waiting for PhoneDesk on your PC · same Wi-Fi, or plug in by USB';
-      if ($('offline').hidden) { $('offline').hidden = false; offlineShift = -1; renderOfflineClock(); }
+      if ($('offline').hidden) { $('offline').hidden = false; document.body.classList.add('is-offline'); offlineShift = -1; renderOfflineClock(); }
     }, everConnected ? 1500 : 0);
   }
 
