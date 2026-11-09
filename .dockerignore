@@ -1,0 +1,10 @@
+.git
+node_modules
+data
+tools
+dist
+build/.cache
+site/dist
+android
+installer
+public/phone/PhoneDesk.apk

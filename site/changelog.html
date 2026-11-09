@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PhoneDesk changelog: every version with notes and screenshots</title>
+<meta name="description" content="Every PhoneDesk version, with patch notes and screenshots of what changed on screen.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PhoneDesk changelog">
+<meta property="og:description" content="Every PhoneDesk version, with patch notes and screenshots of what changed on screen.">
+<meta property="og:image" content="https://phonedesk.orreinis.me/share.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#07090d">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://phonedesk.orreinis.me/changelog.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#top">Skip to content</a>
+<header class="nav">
+  <div class="wrap nav__bar">
+    <a class="logo" href="./" translate="no"><img src="assets/favicon.svg" alt="" width="28" height="28">PhoneDesk</a>
+    <nav class="nav__links" aria-label="Main">
+      <a href="./#screens">Screens</a>
+      <a href="./#window">On the PC</a>
+      <a href="./#setup">Setup</a>
+      <a href="./#faq">Questions</a>
+      <a href="changelog.html" aria-current="page">Changelog</a>
+    </nav>
+    <a class="btn btn--p btn--sm" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows</a>
+  </div>
+</header>
+
+<main id="top" class="cl">
+  <div class="wrap">
+    <h1>PhoneDesk changelog</h1>
+    <p class="lead">{{VERSION_COUNT}} versions with notes, and screenshots where the screen changed. Each one is also a <a class="link" href="https://github.com/icdmkg2/phonedesk/releases">GitHub Release</a>.</p>
+    <div class="cl-layout">
+      <nav class="cl-toc" aria-label="Versions">
+{{TOC}}
+      </nav>
+      <div class="cl-list">
+{{RELEASES}}
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__row">
+    <span>&copy; 2026 PhoneDesk · v{{VERSION}}</span>
+    <nav aria-label="Project">
+      <a href="https://github.com/icdmkg2/phonedesk">GitHub</a>
+      <a href="https://github.com/icdmkg2/phonedesk/releases">Releases</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="https://github.com/icdmkg2/phonedesk/issues/new/choose">Report a problem</a>
+    </nav>
+    <span>Lyrics via Spicy Lyrics and LRCLIB, weather via Open-Meteo.</span>
+  </div>
+</footer>
+<script src="assets/main.js" defer></script>
+</body>
+</html>

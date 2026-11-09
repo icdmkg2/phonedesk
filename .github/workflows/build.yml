@@ -1,0 +1,58 @@
+# Checks a pull request builds: JavaScript syntax, the phone app (APK) and the Windows installer.
+# The APK here is signed with a throwaway key; it's for testing only. The built files are kept as
+# workflow artifacts for a few days.
+name: Build check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          for f in server/*.js public/phone/*.js public/dashboard/*.js build/*.js site/*.js; do
+            [ -f "$f" ] || continue
+            node --check "$f" || exit 1
+          done
+          node -e "require('./server/config'); require('./server/calendar'); require('./server/changelog'); require('./server/diagnostics')"
+
+      - name: Changelog has the current version
+        shell: bash
+        run: node build/release.js notes "$(node -p "require('./package.json').version")" > /dev/null
+
+      - name: Build phone app
+        shell: pwsh
+        run: |
+          $env:PHONEDESK_KEYSTORE = Join-Path $env:RUNNER_TEMP 'throwaway.keystore'
+          powershell -ExecutionPolicy Bypass -File build\android.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'android build failed' }
+
+      - name: Build installer
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File build\build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phonedesk-build
+          path: |
+            dist/PhoneDesk-Setup-*.exe
+            public/phone/PhoneDesk.apk
+          retention-days: 7

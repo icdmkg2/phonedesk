@@ -106,10 +106,24 @@
   <!-- ======================= CLOCK ======================= -->
   <section class="screen" id="s-clock" data-screen="clock">
     <div class="clock" id="clock">
-      <div class="time" id="c-time">--:--</div>
-      <div class="date" id="c-date"></div>
-      <div class="wx" id="c-wx" hidden></div>
-      <div class="mini" id="c-mini"><svg><use href="#i-note"/></svg><span id="c-mini-t"></span></div>
+      <div class="c-main">
+        <svg class="analog" id="c-analog" viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="a-face" cx="100" cy="100" r="96"/>
+          <g id="a-ticks"></g>
+          <line class="a-h" id="a-h" x1="100" y1="112" x2="100" y2="52"/>
+          <line class="a-m" id="a-m" x1="100" y1="116" x2="100" y2="24"/>
+          <line class="a-s" id="a-s" x1="100" y1="122" x2="100" y2="18"/>
+          <circle class="a-hub" cx="100" cy="100" r="4.5"/>
+        </svg>
+        <div class="c-text">
+          <div class="time" id="c-time">--:--</div>
+          <div class="date" id="c-date"></div>
+          <div class="wx" id="c-wx" hidden></div>
+          <div class="fc" id="c-fc" hidden></div>
+          <div class="mini" id="c-mini"><svg><use href="#i-note"/></svg><span id="c-mini-t"></span></div>
+        </div>
+      </div>
+      <div class="agenda" id="c-agenda" hidden><div class="ag-head">Up next</div><div class="ag-list" id="c-ag-list"></div></div>
     </div>
   </section>
 
@@ -130,20 +144,25 @@
           <div class="bar"><div class="fill" id="st-mem-f"></div></div>
           <div class="sub" id="st-mem-s"></div>
         </div>
-        <div class="card">
-          <div class="label">Volume</div>
-          <div class="big"><span id="st-vol">0</span><small>%</small></div>
-          <div class="bar"><div class="fill" id="st-vol-f"></div></div>
-          <div class="sub" id="st-up"></div>
-        </div>
         <div class="card" id="st-gpu-card" hidden>
           <div class="label">GPU</div>
           <div class="big"><span id="st-gpu">0</span><small>%</small><span class="temp" id="st-gpu-t"></span></div>
           <div class="bar"><div class="fill" id="st-gpu-f"></div></div>
           <div class="sub" id="st-gpu-s"></div>
         </div>
+        <div class="card" id="st-net-card">
+          <div class="label">Network <small class="muted">↓ down</small></div>
+          <div class="big"><span id="st-rx">0</span><small id="st-rx-u">KB/s</small></div>
+          <div class="sub" id="st-tx">↑ 0 KB/s</div>
+        </div>
       </div>
-      <canvas id="st-graph" class="graph"></canvas>
+      <div class="st-bottom">
+        <div class="st-hist">
+          <div class="st-hist-head"><span id="st-hist-label">Last hour</span><span class="st-legend"><i class="l-cpu"></i>CPU<i class="l-mem"></i>Memory<i class="l-gpu" id="st-leg-gpu"></i><span id="st-leg-gpu-t">GPU</span></span></div>
+          <canvas id="st-graph" class="graph"></canvas>
+        </div>
+        <div class="st-cores" id="st-cores-box"><div class="st-hist-head"><span id="st-cores-label">Cores</span></div><div class="cores" id="st-cores-bars"></div></div>
+      </div>
     </div>
   </section>
 

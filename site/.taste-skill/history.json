@@ -1,0 +1,29 @@
+{
+  "palettes": [
+    "blue-black-cornflower",
+    "blue-black-cornflower",
+    "blue-black-cornflower"
+  ],
+  "types": [
+    "instrument",
+    "funnel",
+    "funnel"
+  ],
+  "dealt": [
+    "instrument",
+    "funnel",
+    "urbanist"
+  ],
+  "moments": [
+    {
+      "id": "marquee-row",
+      "at": "2026-11-08T19:52:04.939Z",
+      "seed": "a21cc4c0"
+    },
+    {
+      "id": "counter-rolls",
+      "at": "2026-11-08T19:52:04.939Z",
+      "seed": "a21cc4c0"
+    }
+  ]
+}

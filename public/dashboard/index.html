@@ -46,7 +46,7 @@
     <button class="nav" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Activity</button>
 
     <div class="side-foot">
-      <div class="status"><span class="dot" id="st-dot"></span><span id="st-text">Connecting…</span><span class="ver" id="st-ver"></span></div>
+      <div class="status"><span class="dot" id="st-dot"></span><span id="st-text">Connecting…</span><button class="ver" id="st-ver" title="What's new in this version"></button></div>
       <label class="toggle-row" id="autostart-row" hidden>Start with Windows
         <span class="switch"><input type="checkbox" id="autostart"><span></span></span>
       </label>
@@ -244,6 +244,39 @@
               <input type="range" id="ds-dim" min="0" max="5" step="1">
             </label>
           </section>
+          <section class="card" aria-label="Clock screen">
+            <h3>Clock screen</h3>
+            <div class="themes" id="ds-cface">
+              <button class="theme" data-v="digital"><i class="face-ic">21:42</i><b>Digital <small>· time, date, weather</small></b></button>
+              <button class="theme" data-v="analog"><i class="face-ic"><svg viewBox="0 0 40 40" width="30" height="30"><circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20V9M20 20l7 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></i><b>Analog <small>· a clock face beside the date</small></b></button>
+              <button class="theme" data-v="big"><i class="face-ic big">21:42</i><b>Big <small>· just the time, huge</small></b></button>
+            </div>
+            <label class="toggle-row"><span>5-day forecast under the clock</span><span class="switch"><input type="checkbox" id="ds-fc"><span></span></span></label>
+            <div class="sep"></div>
+            <div class="card-head"><h3>Calendar</h3><span class="badge" id="ds-cal-badge">Off</span></div>
+            <p class="small muted">Shows what's next beside the clock. Paste your calendar's private iCal address; it stays on this PC.</p>
+            <div class="row"><input type="password" id="ds-cal" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" maxlength="1000" class="mono" style="flex:1;min-width:200px" autocomplete="off"><button class="btn" id="ds-cal-save">Save and check</button><button class="btn ghost" id="ds-cal-clear" hidden>Remove</button></div>
+            <span class="hint" id="ds-cal-state"></span>
+            <details class="more">
+              <summary>Where do I find the address?</summary>
+              <ol class="small steps">
+                <li><b>Google Calendar:</b> Settings → click your calendar → <i>Integrate calendar</i> → <b>Secret address in iCal format</b>.</li>
+                <li><b>Outlook.com / Microsoft 365:</b> Settings → Calendar → Shared calendars → <i>Publish a calendar</i> → choose the calendar and "Can view all details" → copy the <b>ICS</b> link.</li>
+                <li><b>Apple iCloud:</b> share the calendar as a Public Calendar and copy its link.</li>
+              </ol>
+            </details>
+          </section>
+          <section class="card" aria-label="Night and screen care">
+            <h3>Night mode</h3>
+            <p class="small muted">At night the phone goes dark: a dim clock, red if you like, and in the phone app the screen's own brightness turns down.</p>
+            <div class="seg" id="ds-night"><button data-v="off">Off</button><button data-v="schedule">On a schedule</button><button data-v="sensor">When it's dark</button></div>
+            <div class="row" id="ds-night-times" style="align-items:center;gap:10px"><span class="small muted">From</span><input type="time" id="ds-night-from"><span class="small muted">to</span><input type="time" id="ds-night-to"></div>
+            <span class="hint" id="ds-night-hint"></span>
+            <label class="toggle-row"><span>Red clock at night<br><span class="hint">Easier on the eyes in a dark bedroom.</span></span><span class="switch"><input type="checkbox" id="ds-night-red"><span></span></span></label>
+            <label class="toggle-row"><span>Switch to the clock at night</span><span class="switch"><input type="checkbox" id="ds-night-clock"><span></span></span></label>
+            <div class="sep"></div>
+            <label class="toggle-row"><span>Burn-in protection<br><span class="hint">Moves everything a few pixels every few minutes so a screen that's always on doesn't keep a ghost image.</span></span><span class="switch"><input type="checkbox" id="ds-burn"><span></span></span></label>
+          </section>
           <section class="card" aria-label="Extras">
             <h3>Extras</h3>
             <label class="toggle-row"><span>Show the phone's battery in the corner</span><span class="switch"><input type="checkbox" id="ds-batt"><span></span></span></label>
@@ -377,13 +410,25 @@
 
     <!-- =============================== ACTIVITY =============================== -->
     <section class="view" id="v-activity" aria-label="Activity">
-      <div class="head"><div><h1>Activity</h1><p>What happened recently. Newest first.</p></div></div>
+      <div class="head"><div><h1>Activity</h1><p>What happened recently. Newest first.</p></div>
+        <div class="row"><a class="btn" id="ac-diag" href="/api/diagnostics" download title="Logs, settings without secrets, and system info in one zip">Save diagnostics</a><a class="btn ghost" href="https://github.com/icdmkg2/phonedesk/issues/new/choose" target="_blank" rel="noopener">Report a problem</a></div>
+      </div>
       <ul class="feed full" id="ac-feed"></ul>
       <details id="ac-tech"><summary>Technical log</summary><pre class="logs" id="ac-logs" style="margin-top:12px"></pre></details>
     </section>
   </main>
 </div>
 
+<div class="onboard whatsnew" id="whatsnew" hidden role="dialog" aria-modal="true" aria-labelledby="wn-title">
+  <div class="wn-box">
+    <div class="wn-head">
+      <div><div class="wn-kicker">Updated</div><h2 id="wn-title">What's new in PhoneDesk <span id="wn-ver"></span></h2><div class="small muted" id="wn-date"></div></div>
+      <button class="icon-btn" id="wn-x" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="wn-body" id="wn-body"></div>
+    <div class="wn-foot"><a class="btn ghost" id="wn-gh" href="#" target="_blank" rel="noopener">View on GitHub</a><button class="btn primary" id="wn-ok">Got it</button></div>
+  </div>
+</div>
 <div class="onboard" id="onboard" hidden role="dialog" aria-modal="true" aria-labelledby="ob-title">
   <div class="ob-card">
     <div class="ob-steps" id="ob-dots"><i></i><i></i><i></i><i></i></div>

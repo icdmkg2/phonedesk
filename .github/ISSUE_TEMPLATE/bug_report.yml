@@ -1,0 +1,67 @@
+name: Bug report
+description: Something doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! The quickest way to a fix is the **diagnostics file**:
+        in PhoneDesk on your PC open **Activity → Save diagnostics** and attach the zip below.
+        It has the logs and your settings with every key, token and calendar address removed.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: "When I pause Spotify, the phone keeps showing the song as playing…"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Play a song in Spotify
+        2. Open the lyrics on the phone
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: PhoneDesk version
+      description: Shown at the bottom left of the PhoneDesk window (e.g. v1.8.0).
+      placeholder: v1.8.0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part?
+      options:
+        - Now playing / media controls
+        - Lyrics
+        - Clock, weather or calendar
+        - PC stats
+        - Mixer or notifications
+        - Shortcuts
+        - Connecting the phone (USB, Wi-Fi, phone app)
+        - Night mode or dimming
+        - Updates or installer
+        - The PhoneDesk window on the PC
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and how it shows PhoneDesk
+      placeholder: "Galaxy A11, Android 12, PhoneDesk phone app (or Chrome / Fully Kiosk)"
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 23H2
+  - type: textarea
+    id: files
+    attributes:
+      label: Diagnostics file and screenshots
+      description: Drag the diagnostics zip (Activity → Save diagnostics) and any screenshots here.

@@ -7,6 +7,63 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.8.0] — 2026-11-08
+
+Clock faces, your calendar, night mode, an hour of PC stats, and a website.
+
+### Added
+- **Clock faces:** *Digital* (time, date, weather), *Analog* (a clock face beside the date) and *Big* (just the time,
+  as large as the screen allows), under *Phone display → Clock screen*.
+- **5-day forecast** under the clock: day, icon, high and low (Open-Meteo, as before).
+- **Your calendar beside the clock:** paste a private iCal address from Google Calendar, Outlook or iCloud and the
+  next events of the coming week show in an *Up next* panel, with the one happening now highlighted. Repeating events,
+  all-day events, time zones and cancelled or skipped dates are handled. The address stays on the PC (removed from
+  diagnostics too); only the next few events go to the phone.
+- **Night mode:** off, on a schedule (e.g. 22:00–07:00) or *when it's dark* (the phone app's light sensor). At night
+  the phone goes black with a dim clock, red if you like, switches to the clock, and the phone app turns the screen's
+  own brightness down. It switches back in the morning.
+- **Burn-in protection** (on by default): everything moves a few pixels every 3 minutes, slowly, so a screen that's
+  always on doesn't keep a ghost image.
+- **PC stats, rebuilt:** a *Network* card (download speed, upload under it), a **last hour graph** of CPU, memory and
+  GPU (the PC keeps the history even while no phone is watching), and a bar for **every CPU thread**. The PC name and
+  uptime moved to the top, clear of the battery pill.
+- **What's new:** after an update, the PhoneDesk window shows that version's notes once (they ship with the app).
+  Click the version number at the bottom left to see them again.
+- **Save diagnostics** (*Activity*): one zip with the logs, settings and system facts for a bug report. Keys, tokens,
+  the calendar address and shortcut commands are left out. *Report a problem* opens the new issue forms.
+- **Website** at [icdmkg2.github.io/phonedesk](https://icdmkg2.github.io/phonedesk/) with every feature, the lyrics
+  styles, setup help and this changelog with its screenshots.
+- **Phone app in the release:** each release has `PhoneDesk-x.y.z.apk` attached. When the signing key is stored as a
+  repository secret, the release workflow also rebuilds the app; its version now follows PhoneDesk's.
+- **Build check** for pull requests: JavaScript syntax, the phone app and the installer are built on Windows.
+- Issue forms for bug reports and feature requests; the README shows screenshots.
+
+### Fixed
+- The README's build command was broken (`build\build.ps1` had lost a character).
+
+### Screenshots
+<p>
+<img src="docs/changelog/1.8.0/phone-clock-agenda.png" width="49%" alt="Clock with forecast and calendar">
+<img src="docs/changelog/1.8.0/phone-clock-analog.png" width="49%" alt="Analog clock face with the agenda">
+</p>
+<p>
+<img src="docs/changelog/1.8.0/phone-clock-big.png" width="49%" alt="Big clock face">
+<img src="docs/changelog/1.8.0/phone-clock-forecast.png" width="49%" alt="Digital clock with the 5-day forecast">
+</p>
+<p>
+<img src="docs/changelog/1.8.0/phone-night-red.png" width="49%" alt="Night mode with a red clock">
+<img src="docs/changelog/1.8.0/phone-night-analog.png" width="49%" alt="Night mode, dim analog clock">
+</p>
+
+![PC stats with the last hour, network and every thread](docs/changelog/1.8.0/phone-stats-history.png)
+
+<p>
+<img src="docs/changelog/1.8.0/dashboard-clock-night.png" width="49%" alt="Clock screen and Night mode settings">
+<img src="docs/changelog/1.8.0/dashboard-whats-new.png" width="49%" alt="What's new after an update">
+</p>
+
+![Website](docs/changelog/1.8.0/website.png)
+
 ## [1.7.3] — 2026-11-08
 
 Updates work out of the box.
@@ -531,6 +588,7 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
+[1.8.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.0
 [1.7.3]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.3
 [1.7.2]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.2
 [1.7.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.1

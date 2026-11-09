@@ -1,0 +1,27 @@
+[
+ {
+  "check": "row-lines",
+  "target": "section#window > div.wrap > div.mo-mq \"Spotify",
+  "reason": "The dealt marquee-row moment (moments.mjs pick) moves its words sideways in its own masked rail by design, with a pause button; it is the kit's moment, not a carousel of content."
+ },
+ {
+  "check": "row-lines",
+  "target": "div.mo-mq > div.mo-mq__rail",
+  "reason": "The same dealt marquee-row moment: the kit's masked rail holding the track and its copy, cut at both edges by design."
+ },
+ {
+  "check": "hero-lines",
+  "target": "section.hero h1",
+  "reason": "The real h1 is final at 44 characters and takes 3 lines at 1440 (the gate's own advice: waive once the h1 is final and fits); only the 48-character stress fill wraps to 4."
+ },
+ {
+  "check": "scroll-reveal",
+  "target": "div.closing__cta.close--type > a.btn.btn--primary",
+  "reason": "No reveal script on the page: at 390 the full-width close button scrolls under the checker's resting pointer and takes the motion layer's hover colour, which the check reads as a reveal."
+ },
+ {
+  "check": "bleed-one-side",
+  "target": "#window ul.mo-mq__track.mo-mq__clone",
+  "reason": "The marquee-row moment's own copy of its track, made by the kit's script to loop; it starts off-screen to the right and is aria-hidden. The visible track bleeds to both edges."
+ }
+]

@@ -467,6 +467,16 @@ function Send-Mixer([bool]$force) {
 }
 
 $nvsmi = (Get-Command nvidia-smi -ErrorAction SilentlyContinue).Source
+# Byte totals of the adapters that are up (no loopback/tunnels); the server turns them into speeds.
+function Send-Net {
+  $rx = [int64]0; $tx = [int64]0
+  foreach ($n in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
+    if ($n.OperationalStatus -ne 'Up') { continue }
+    if ($n.NetworkInterfaceType -eq 'Loopback' -or $n.NetworkInterfaceType -eq 'Tunnel') { continue }
+    try { $st = $n.GetIPStatistics(); $rx += $st.BytesReceived; $tx += $st.BytesSent } catch { }
+  }
+  Emit @{ t = 'net'; rx = $rx; tx = $tx }
+}
 function Send-Gpu {
   $g = [PdGpu]::Read()
   if ($g) { Emit @{ t = 'gpu'; load = $g[0]; temp = $g[1]; hotspot = $g[2]; fan = $g[3]; power = $g[4]; vram = $g[5] }; return }
@@ -576,6 +586,8 @@ while ($true) {
   }
   # --- GPU sensors, every ~2s ---
   if ($tick % 8 -eq 1) { try { Send-Gpu } catch { } }
+  # --- network byte totals, every ~2s ---
+  if ($tick % 8 -eq 5) { try { Send-Net } catch { } }
 
   $tick++
   Start-Sleep -Milliseconds 250

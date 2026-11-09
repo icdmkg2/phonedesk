@@ -1,0 +1,30 @@
+name: Feature request
+description: An idea for PhoneDesk.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like PhoneDesk to do?
+      placeholder: "Show my next meeting on the Now playing screen too…"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why? What would it help with?
+      description: The problem behind the idea helps find the best way to solve it.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part?
+      options:
+        - Phone display (screens, styles, lyrics)
+        - PC app (dashboard, settings)
+        - Connecting and the phone app
+        - Something new
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Sketches, screenshots or examples from other apps are welcome.

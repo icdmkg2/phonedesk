@@ -1,18 +1,50 @@
 # PhoneDesk
 
-Turn an old Android phone (built and tuned for a Samsung Galaxy A11) into a fast desk display for your Windows PC: now playing with album art, media controls, volume, a clock, PC stats, and a pad of shortcut buttons.
+**Turn an old Android phone into a desk display for your Windows PC**: now playing with album art and synced
+lyrics, media and volume controls, a clock with weather and your calendar, live PC stats, and a pad of shortcut
+buttons. Built and tuned for a Samsung Galaxy A11, light enough for any old phone. A lighter take on the DeskThing idea.
 
-It's a lighter take on the DeskThing idea.
+[**Download the latest release**](https://github.com/icdmkg2/phonedesk/releases/latest) ·
+[Website](https://icdmkg2.github.io/phonedesk/) ·
+[What's new](CHANGELOG.md) ·
+[Report a problem](https://github.com/icdmkg2/phonedesk/issues/new/choose)
+
+<p>
+<img src="docs/changelog/1.5.8/phone-album-card.png" width="49%" alt="Now playing, Immersive style">
+<img src="docs/changelog/1.7.1/phone-lyrics-credit.png" width="49%" alt="Word-by-word synced lyrics">
+</p>
+<p>
+<img src="docs/changelog/1.8.0/phone-clock-agenda.png" width="49%" alt="Clock with weather forecast and calendar">
+<img src="docs/changelog/1.8.0/phone-stats-history.png" width="49%" alt="PC stats with the last hour">
+</p>
+<p>
+<img src="docs/changelog/1.5.1/phone-kinetic-dark.png" width="49%" alt="Kinetic lyrics">
+<img src="docs/changelog/1.8.0/phone-night-red.png" width="49%" alt="Night mode">
+</p>
+
+![The PhoneDesk app on the PC](docs/changelog/1.2.0/dashboard-overview.png)
+
+## Features
+
+- **Now playing** from any app that uses Windows media controls (Spotify, browsers and YouTube, Media Player…): cover
+  art, controls, volume, Spotify ♥ and up next. Immersive or Classic style.
+- **Lyrics**: word-by-word synced lyrics (Spicy Lyrics, LRCLIB), scrolling or Kinetic styles, right-to-left languages,
+  timing you can nudge per song.
+- **Clock**: digital, analog or big; weather with a 5-day forecast; your next events from Google, Outlook or iCloud.
+- **PC stats**: CPU (and every core), memory, GPU, network speed, and the last hour as a graph.
+- **Mixer** with per-app volume, **PC notifications** as banners, and a **shortcut pad** (keys, links, apps).
+- **Night mode** (on a schedule or when the room is dark) and **burn-in protection** for phones that stay on all day.
+- Connects over **USB or Wi-Fi**, finds the PC by itself (`phonedesk.local`), and **updates itself** from GitHub Releases.
 
 ## Install
 
-Run **`PhoneDesk-Setup-1.3.0.exe`**. It installs for your Windows account only and needs no admin rights. Node.js comes bundled, so you don't need to install it.
+Download **`PhoneDesk-Setup-x.y.z.exe`** from the [latest release](https://github.com/icdmkg2/phonedesk/releases/latest) and run it. It installs for your Windows account only and needs no admin rights. Node.js comes bundled, so you don't need to install it.
 
 - PhoneDesk opens as its **own window** (it uses the Edge WebView2 engine that comes with Windows 11). Closing the window keeps PhoneDesk running in the **tray**, near the clock; click the tray icon to bring it back, right-click it for the menu.
 - The window has: **Overview** (a live preview of what the phone shows, its connection, latency and battery), **Shortcuts** (edit the buttons by clicking them on a phone-shaped grid, record keys by pressing them), **Phone display** (theme, accent, clock, dimming, screens, battery icon, album-art lookup), **Connection** and **Activity**.
 - It starts with Windows and runs quietly in the background. If the server ever crashes, the tray app restarts it.
 - The installer offers to let phones on your Wi-Fi through Windows Firewall. That's the only step where Windows asks for permission.
-- To update, run a newer setup. Your settings are kept.
+- Updates install by themselves (*Connection → Updates*), or run a newer setup. Your settings are kept, and the new version's notes show once.
 - To uninstall, use Windows Settings → Apps → PhoneDesk.
 
 Windows SmartScreen may warn about the setup because it isn't code-signed. Choose *More info → Run anyway*.
@@ -26,7 +58,7 @@ Double-click **`start.bat`** (needs Node.js 18+). The dashboard opens at http://
 ### Build the installer
 
 ```
-powershell -ExecutionPolicy Bypass -File builduild.ps1
+powershell -ExecutionPolicy Bypass -File build\build.ps1
 ```
 
 This writes `dist\PhoneDesk-Setup-<version>.exe`. It uses only the C# compiler that comes with Windows plus your installed Node.js, which it copies in as the bundled runtime.
@@ -130,6 +162,9 @@ server/weather.js      Weather (Open-Meteo)
 server/spotify.js      Spotify up next + like (Web API, PKCE)
 server/notify.js       Reads new Windows notifications
 server/updater.js      Auto-update from GitHub Releases
+server/calendar.js     Upcoming events from an iCal (.ics) address
+server/changelog.js    Patch notes for What's new (and the website)
+server/diagnostics.js  The diagnostics zip for bug reports
 server/firewall.js     Wi-Fi firewall check for first-run setup
 installer/Window.cs    The PhoneDesk window (WebView2)
 installer/Tray.cs      PhoneDesk.exe: tray app, server supervisor, uninstaller
@@ -138,6 +173,7 @@ build/build.ps1        Builds the installer
 build/release.js       Release notes from CHANGELOG.md for GitHub Releases
 .github/workflows/     release.yml: builds and publishes GitHub Releases
 CHANGELOG.md           Patch notes for every version (screenshots in docs/changelog/)
+site/                  The website (node site/build.js → site/dist, published to GitHub Pages)
 public/phone/          The phone app
 public/dashboard/      The PC dashboard
 data/config.json       Your settings when running from source (installed: %APPDATA%\PhoneDesk)

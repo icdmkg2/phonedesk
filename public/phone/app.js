@@ -171,6 +171,8 @@
       case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); break;
       case 'volume': state.volume = m.d; renderVolume(); break;
       case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); break;
+      case 'history': setHistory(m.d); break;
+      case 'histPoint': addHistory(m.d); break;
       case 'config': applyConfig(m.d); break;
       case 'reload': location.replace(pcUrl('/phone')); break;
       case 'show': if (screens().indexOf(m.v) >= 0) show(m.v); break;
@@ -179,6 +181,7 @@
       case 'mixer': state.mixer = m.d || []; if (state.screen === 'mixer') renderMixer(); break;
       case 'lyrics': setLyrics(m.d); break;
       case 'weather': setWeather(m.d); break;
+      case 'calendar': setCalendar(m.d); break;
       case 'spotify': state.spotify = m.d; renderSpotify(); break;
       case 'notify': queueNotification(m.d); break;
     }
@@ -504,8 +507,89 @@
   function dateText(d) { return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }); }
   // Nudge a clock a few pixels each minute so a static screen doesn't burn in.
   function nudge(box) { box.style.transform = 'translate(' + (Math.random() * 16 - 8).toFixed(0) + 'px,' + (Math.random() * 12 - 6).toFixed(0) + 'px)'; }
+  // Clock faces: 'digital' (time, date, weather), 'analog' (a clock face beside the date), 'big' (just the time, huge).
+  (function buildTicks() {
+    var g = $('a-ticks'), NS = 'http://www.w3.org/2000/svg';
+    for (var i = 0; i < 60; i++) {
+      var big = i % 5 === 0, a = i * Math.PI / 30, r1 = big ? 80 : 86, r2 = 91;
+      var l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', (100 + r1 * Math.sin(a)).toFixed(2)); l.setAttribute('y1', (100 - r1 * Math.cos(a)).toFixed(2));
+      l.setAttribute('x2', (100 + r2 * Math.sin(a)).toFixed(2)); l.setAttribute('y2', (100 - r2 * Math.cos(a)).toFixed(2));
+      l.setAttribute('class', big ? 'a-tk big' : 'a-tk');
+      g.appendChild(l);
+    }
+  })();
+  function face() { return state.config.clockFace || 'digital'; }
+  function renderAnalog(d) {
+    var s = d.getSeconds(), m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60;
+    $('a-h').setAttribute('transform', 'rotate(' + (h * 30).toFixed(2) + ' 100 100)');
+    $('a-m').setAttribute('transform', 'rotate(' + (m * 6).toFixed(2) + ' 100 100)');
+    $('a-s').setAttribute('transform', 'rotate(' + (s * 6) + ' 100 100)');
+  }
+  function applyClockLayout() {
+    var sc = $('s-clock'), f = face();
+    sc.classList.toggle('face-analog', f === 'analog');
+    sc.classList.toggle('face-big', f === 'big');
+    renderForecast(); renderAgenda();
+  }
+
+  // Calendar: the next events from the PC (Google/Outlook iCal address set in the dashboard).
+  var agenda = null;
+  function setCalendar(d) { agenda = d; renderAgenda(); }
+  function dayLabel(t, now) {
+    var a = new Date(t), b = new Date(now);
+    var da = new Date(a.getFullYear(), a.getMonth(), a.getDate()), db = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+    var diff = Math.round((da - db) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    return a.toLocaleDateString(undefined, { weekday: 'long' });
+  }
+  function timeLabel(t) {
+    var d = new Date(t), h = d.getHours(), mi = d.getMinutes();
+    if (state.config.clock24) return (h < 10 ? '0' : '') + h + ':' + (mi < 10 ? '0' : '') + mi;
+    return ((h % 12) || 12) + ':' + (mi < 10 ? '0' : '') + mi + (h < 12 ? ' AM' : ' PM');
+  }
+  var agendaKey = '';
+  function renderAgenda() {
+    var box = $('c-agenda'), ev = agenda && agenda.events ? agenda.events : [];
+    var now = Date.now() + state.clockOffset;
+    ev = ev.filter(function (e) { return e.end > now || (e.allDay && e.end >= now); }).slice(0, 5);
+    var show = ev.length > 0 && face() !== 'big';
+    $('s-clock').classList.toggle('has-agenda', show);
+    box.hidden = !show;
+    if (!show) return;
+    var html = '', lastDay = '', wheres = 0;
+    ev.forEach(function (e) {
+      var day = dayLabel(e.start, now), on = !e.allDay && e.start <= now && e.end > now;
+      if (day !== lastDay) { html += '<div class="ag-day">' + escHtml(day) + '</div>'; lastDay = day; }
+      var when = e.allDay ? 'All day' : on ? 'Now · until ' + timeLabel(e.end) : timeLabel(e.start);
+      html += '<div class="ag-ev' + (on ? ' on' : '') + '"><span class="ag-t">' + escHtml(when) + '</span><span class="ag-n">' + escHtml(e.title) + '</span>' +
+        (e.where && ++wheres <= 2 ? '<span class="ag-w">' + escHtml(e.where) + '</span>' : '') + '</div>';
+    });
+    if (html !== agendaKey) { agendaKey = html; $('c-ag-list').innerHTML = html; }
+  }
+  setInterval(function () { if (state.screen === 'clock') renderAgenda(); }, 30000);
+
+  // 5-day forecast row under the clock.
+  var fcKey = '';
+  function renderForecast() {
+    var box = $('c-fc'), w = weather;
+    var days = w && w.days && state.config.clockForecast !== false && state.config.weather !== false && face() !== 'big' &&
+      Date.now() - w.at < 6 * 3600 * 1000 ? w.days.slice(0, 5) : [];
+    box.hidden = days.length < 2;
+    if (box.hidden) return;
+    var html = '';
+    days.forEach(function (x, i) {
+      var p = String(x.d).split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2]);
+      var name = i === 0 ? 'Today' : dt.toLocaleDateString(undefined, { weekday: 'short' });
+      html += '<div class="fc-d"><span class="fc-n">' + escHtml(name) + '</span>' + wxIcon(x.code, true) + '<span class="fc-t"><b>' + x.hi + '°</b> ' + x.lo + '°</span></div>';
+    });
+    if (html !== fcKey) { fcKey = html; box.innerHTML = html; }
+  }
+
   function renderClock() {
     var d = new Date(Date.now() + state.clockOffset);
+    if (face() === 'analog') renderAnalog(d);
     var html = clockHtml(d);
     if (html !== lastClock) {
       lastClock = html;
@@ -533,47 +617,96 @@
   setInterval(function () { if (state.screen === 'clock' && document.visibilityState === 'visible') renderClock(); }, 1000);
 
   /* ============================================================ stats */
-  var graph = { el: $('st-graph'), points: [], dpr: Math.min(window.devicePixelRatio || 1, 2) };
+  // Live: the last 3 minutes of CPU (a point every 2 s). History: the last hour from the PC (a point every 10 s).
+  var graph = { el: $('st-graph'), points: [], hist: [], dpr: Math.min(window.devicePixelRatio || 1, 2) };
+  var HIST_COLORS = { mem: '#a78bfa', gpu: '#34d399' };
   function pushGraph(s) {
     if (!s) return;
-    graph.points.push(s.cpu);
+    var mem = s.memTotal ? Math.round((s.memUsed / s.memTotal) * 100) : 0;
+    graph.points.push({ cpu: s.cpu, mem: mem, gpu: s.gpu && s.gpu.load >= 0 ? s.gpu.load : -1 });
     if (graph.points.length > 90) graph.points.shift();
   }
+  function setHistory(list) { graph.hist = Array.isArray(list) ? list.slice(-360) : []; if (state.screen === 'stats') drawGraph(); }
+  function addHistory(p) { if (!p) return; graph.hist.push(p); if (graph.hist.length > 360) graph.hist.shift(); }
   function sizeGraph() {
     var c = graph.el, w = c.clientWidth, h = c.clientHeight;
     if (!w || !h) return;
-    if (c.width !== Math.round(w * graph.dpr)) { c.width = Math.round(w * graph.dpr); c.height = Math.round(h * graph.dpr); }
+    if (c.width !== Math.round(w * graph.dpr) || c.height !== Math.round(h * graph.dpr)) { c.width = Math.round(w * graph.dpr); c.height = Math.round(h * graph.dpr); }
   }
   function drawGraph() {
     var c = graph.el; sizeGraph();
-    var ctx = c.getContext('2d'), W = c.width, H = c.height, pts = graph.points;
+    var ctx = c.getContext('2d'), W = c.width, H = c.height;
     ctx.clearRect(0, 0, W, H);
+    // A full hour once the PC has collected a few minutes of it, otherwise the live last minutes.
+    var useHist = graph.hist.length >= 12, pts = useHist ? graph.hist : graph.points, slots = useHist ? 359 : 89;
+    setText($('st-hist-label'), useHist ? 'Last hour' : 'Last few minutes');
     if (pts.length < 2) return;
     var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#5b8cff';
-    var step = W / 89, pad = 8 * graph.dpr;
-    ctx.beginPath();
-    for (var i = 0; i < pts.length; i++) {
-      var x = W - (pts.length - 1 - i) * step, y = H - pad - (pts[i] / 100) * (H - pad * 2);
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    var step = W / slots, pad = 6 * graph.dpr, d = graph.dpr;
+    // grid: 25 / 50 / 75 %
+    ctx.strokeStyle = 'rgba(127,127,127,.16)'; ctx.lineWidth = 1;
+    for (var g = 1; g < 4; g++) { var gy = Math.round(pad + (H - pad * 2) * g / 4) + 0.5; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+    var hasGpu = pts.some(function (p) { return p.gpu >= 0; });
+    $('st-leg-gpu').hidden = $('st-leg-gpu-t').hidden = !hasGpu;
+    function line(key, color, fill) {
+      ctx.beginPath();
+      var started = false, x0 = 0, xl = 0;
+      for (var i = 0; i < pts.length; i++) {
+        var v = pts[i][key];
+        if (!(v >= 0)) continue;
+        var x = W - (pts.length - 1 - i) * step, y = H - pad - (Math.min(100, v) / 100) * (H - pad * 2);
+        if (!started) { ctx.moveTo(x, y); x0 = x; started = true; } else ctx.lineTo(x, y);
+        xl = x;
+      }
+      if (!started) return;
+      ctx.lineWidth = 2 * d; ctx.strokeStyle = color; ctx.lineJoin = 'round'; ctx.stroke();
+      if (fill) { ctx.lineTo(xl, H); ctx.lineTo(x0, H); ctx.closePath(); ctx.globalAlpha = 0.14; ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = 1; }
     }
-    ctx.lineWidth = 2 * graph.dpr; ctx.strokeStyle = accent; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.lineTo(W, H); ctx.lineTo(W - (pts.length - 1) * step, H); ctx.closePath();
-    ctx.globalAlpha = 0.14; ctx.fillStyle = accent; ctx.fill(); ctx.globalAlpha = 1;
+    line('mem', HIST_COLORS.mem, false);
+    if (hasGpu) line('gpu', HIST_COLORS.gpu, false);
+    line('cpu', accent, true);
+  }
+  function speed(bps) {
+    if (!(bps >= 0)) return ['–', ''];
+    if (bps >= 1048576) return [(bps / 1048576).toFixed(bps >= 10485760 ? 0 : 1), 'MB/s'];
+    if (bps >= 1024) return [String(Math.round(bps / 1024)), 'KB/s'];
+    return [String(bps), 'B/s'];
+  }
+  var coreKey = '';
+  function renderCores(list) {
+    var box = $('st-cores-bars');
+    list = list || [];
+    $('st-cores-box').hidden = !list.length;
+    if (!list.length) return;
+    if (coreKey !== String(list.length)) {
+      coreKey = String(list.length);
+      var html = '';
+      for (var i = 0; i < list.length; i++) html += '<i><b></b></i>';
+      box.innerHTML = html;
+      box.style.setProperty('--n', list.length);
+      setText($('st-cores-label'), list.length + ' threads');
+    }
+    var bars = box.children;
+    for (var j = 0; j < list.length; j++) {
+      var b = bars[j].firstChild;
+      b.style.transform = 'scaleY(' + Math.max(0.02, list[j] / 100) + ')';
+      b.style.opacity = (0.45 + 0.55 * list[j] / 100).toFixed(2);
+    }
   }
   function gb(n) { return (n / 1073741824).toFixed(1); }
   function renderStats() {
     var s = state.stats;
     if (!s) return;
-    var memPct = Math.round((s.memUsed / s.memTotal) * 100), v = Math.round(state.volume.level * 100);
-    setText($('st-host'), s.host || 'PC');
+    var memPct = Math.round((s.memUsed / s.memTotal) * 100);
+    var up = s.uptime, dd = Math.floor(up / 86400), hh = Math.floor((up % 86400) / 3600), mi = Math.floor((up % 3600) / 60);
+    setText($('st-host'), (s.host || 'PC') + ' · up ' + (dd ? dd + 'd ' : '') + hh + 'h ' + mi + 'm');
     setText($('st-cpu'), String(s.cpu));
     $('st-cpu-f').style.transform = 'scaleX(' + s.cpu / 100 + ')';
-    setText($('st-cores'), s.cores + ' threads');
+    var cl = s.coresLoad || [], peak = cl.length ? Math.max.apply(null, cl) : -1;
+    setText($('st-cores'), s.cores + ' threads' + (peak >= 0 ? ' · busiest ' + peak + '%' : ''));
     setText($('st-mem'), String(memPct));
     $('st-mem-f').style.transform = 'scaleX(' + memPct / 100 + ')';
     setText($('st-mem-s'), gb(s.memUsed) + ' / ' + gb(s.memTotal) + ' GB');
-    setText($('st-vol'), state.volume.muted ? '0' : String(v));
-    $('st-vol-f').style.transform = 'scaleX(' + (state.volume.muted ? 0 : v / 100) + ')';
     var g = s.gpu;
     $('st-gpu-card').hidden = !g || g.load < 0;
     if (g && g.load >= 0) {
@@ -586,8 +719,13 @@
       if (g.vram > 0) bits.push((g.vram / 1024).toFixed(1) + ' GB VRAM');
       setText($('st-gpu-s'), bits.join(' · '));
     }
-    var up = s.uptime, d = Math.floor(up / 86400), h = Math.floor((up % 86400) / 3600), mi = Math.floor((up % 3600) / 60);
-    setText($('st-up'), 'PC up ' + (d ? d + 'd ' : '') + h + 'h ' + mi + 'm');
+    $('st-net-card').hidden = !s.net;
+    if (s.net) {
+      var rx = speed(s.net.rx), tx = speed(s.net.tx);
+      setText($('st-rx'), rx[0]); setText($('st-rx-u'), rx[1]);
+      setText($('st-tx'), '↑ ' + tx.join(' ') + ' up');
+    }
+    renderCores(cl);
     drawGraph();
   }
 
@@ -714,10 +852,64 @@
     applyAccent(el.art.classList.contains('ok') ? el.art : null);
     if (JSON.stringify(c.shortcuts) !== prevShortcuts) renderPad();
     renderBattery();
+    applyClockLayout();
+    applyNight(true);
+    burnShift();
     if (JSON.stringify(c.screens) + c.nowStyle !== prevScreens || !$('dots').children.length) { renderDots(); show(state.screen); }
     else renderAll();
     armDim();
   }
+
+  /* ============================================================ night mode */
+  // Off, on a schedule, or when the room is dark (the phone app's light sensor; the schedule elsewhere).
+  // At night: dim, optionally red, optionally on the clock; the phone app also turns the screen itself down.
+  var night = { on: false, prevScreen: '', dark: false };
+  function minutesOf(hm) { var p = String(hm || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); }
+  function inSchedule() {
+    var d = new Date(Date.now() + state.clockOffset), m = d.getHours() * 60 + d.getMinutes();
+    var a = minutesOf(state.config.nightFrom || '22:00'), b = minutesOf(state.config.nightTo || '07:00');
+    return a === b ? false : a < b ? (m >= a && m < b) : (m >= a || m < b);
+  }
+  function appLux() {
+    try { var a = window.PhoneDeskApp; if (a && a.getLux) { var v = +a.getLux(); return v >= 0 ? v : -1; } } catch (e) {}
+    return -1;
+  }
+  function wantNight() {
+    var mode = state.config.nightMode || 'off';
+    if (mode === 'off') return false;
+    if (mode === 'sensor') {
+      var lux = appLux();
+      if (lux >= 0) { night.dark = night.dark ? lux < 12 : lux < 4; return night.dark; } // a little hysteresis
+    }
+    return inSchedule();
+  }
+  function setAppBrightness(v) { try { var a = window.PhoneDeskApp; if (a && a.setBrightness) a.setBrightness(v); } catch (e) {} }
+  function applyNight(force) {
+    var on = wantNight();
+    toggle(document.body, 'night-red', on && state.config.nightRed !== false);
+    if (on === night.on && !force) return;
+    night.on = on;
+    toggle(document.body, 'night', on);
+    if (on) {
+      setAppBrightness(0.02);
+      if (state.config.nightClock !== false && screens().indexOf('clock') >= 0 && state.screen !== 'clock') { night.prevScreen = state.screen; show('clock'); }
+    } else {
+      setAppBrightness(-1);
+      if (night.prevScreen && state.screen === 'clock' && screens().indexOf(night.prevScreen) >= 0) show(night.prevScreen);
+      night.prevScreen = '';
+    }
+  }
+  setInterval(function () { applyNight(false); }, 15000);
+
+  /* ============================================================ burn-in protection */
+  // Every few minutes everything moves to a new spot a few pixels away (slowly, so nobody notices).
+  function burnShift() {
+    var r = document.documentElement.style;
+    if (state.config.burnIn === false) { r.setProperty('--bx', '0px'); r.setProperty('--by', '0px'); return; }
+    r.setProperty('--bx', Math.round(Math.random() * 12 - 6) + 'px');
+    r.setProperty('--by', Math.round(Math.random() * 8 - 4) + 'px');
+  }
+  setInterval(burnShift, 3 * 60 * 1000);
 
   /* ============================================================ full screen, wake lock, dimming */
   var fsBtn = $('fs');
@@ -1455,6 +1647,7 @@
     // Outside the PC connection, only show weather that's a few hours old at most.
     var fresh = w && state.config.weather !== false && Date.now() - w.at < 6 * 3600 * 1000;
     var html = fresh ? wxIcon(w.code, w.day) + '<b>' + w.temp + '°' + '</b><span>' + escHtml(w.city || '') + '</span><small>H ' + w.hi + '° · L ' + w.lo + '°</small>' : '';
+    if (typeof renderForecast === 'function') renderForecast();
     ['c-wx', 'o-wx', 'np-wx'].forEach(function (id) {
       var el = $(id);
       el.hidden = !fresh;
