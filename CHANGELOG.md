@@ -7,6 +7,15 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.9.2] — 2026-11-09
+
+A fix for addon screens on the phone.
+
+### Fixed
+- **Stuck on an addon screen.** After swiping to an addon's screen on a touch screen, swiping no longer did anything, so
+  the phone stayed on that screen. Swipes inside addon screens and addon widgets are now read from touch events and
+  change the page as they do everywhere else. The fix is in PhoneDesk itself, so installed addons don't need an update.
+
 ## [1.9.1] — 2026-11-09
 
 Install addons from a .zip file.
@@ -686,6 +695,7 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
+[1.9.2]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.9.2
 [1.9.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.9.1
 [1.9.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.9.0
 [1.8.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.1

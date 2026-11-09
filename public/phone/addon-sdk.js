@@ -60,16 +60,24 @@
   });
 
   // A horizontal swipe changes the screen, as it does everywhere else in PhoneDesk, unless you captured it.
-  var sx = 0, sy = 0, st = 0, on = false;
-  document.addEventListener('pointerdown', function (e) { on = true; sx = e.clientX; sy = e.clientY; st = Date.now(); });
-  document.addEventListener('pointercancel', function () { on = false; });
-  document.addEventListener('pointerup', function (e) {
+  // On a touch screen this uses touch events: the browser cancels pointer events as soon as it treats a
+  // touch as a pan, so a swipe inside the frame would never be seen (and the phone would be stuck on this screen).
+  var sx = 0, sy = 0, st = 0, on = false, lastTouch = 0;
+  function down(x, y) { on = true; sx = x; sy = y; st = Date.now(); }
+  function up(x, y) {
     if (!on) return;
     on = false;
-    var dx = e.clientX - sx, dy = e.clientY - sy;
+    var dx = x - sx, dy = y - sy;
     if (capture || Date.now() - st > 800) return;
     if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) post('swipe', dx < 0 ? 1 : -1);
-  });
+  }
+  document.addEventListener('touchstart', function (e) { lastTouch = Date.now(); var t = e.touches[0]; if (e.touches.length === 1 && t) down(t.clientX, t.clientY); else on = false; }, { passive: true });
+  document.addEventListener('touchend', function (e) { lastTouch = Date.now(); var t = e.changedTouches[0]; if (t) up(t.clientX, t.clientY); }, { passive: true });
+  document.addEventListener('touchcancel', function () { on = false; }, { passive: true });
+  // a mouse or a pen (touches are handled above)
+  function byTouch(e) { return e.pointerType === 'touch' || Date.now() - lastTouch < 800; }
+  document.addEventListener('pointerdown', function (e) { if (!byTouch(e)) down(e.clientX, e.clientY); });
+  document.addEventListener('pointerup', function (e) { if (!byTouch(e)) up(e.clientX, e.clientY); });
 
   post('ready');
 })();
