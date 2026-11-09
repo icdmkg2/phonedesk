@@ -24,6 +24,8 @@ const spotify = require('./spotify');
 const notify = require('./notify');
 const updater = require('./updater');
 const firewall = require('./firewall');
+const addons = require('./addons');
+const widgets = require('./widgets');
 
 const { ROOT } = require('./paths');
 const PUBLIC = path.join(ROOT, 'public');
@@ -200,6 +202,8 @@ function runShortcut(id) {
   try {
     if (sc.type === 'keys') {
       bridge.send('keys ' + sc.value);
+    } else if (sc.type === 'addon') {
+      addons.runAction(sc.value);
     } else if (sc.type === 'url' || sc.type === 'app') {
       // `start` handles URLs, files, and app paths; detached so it never blocks or ties to us.
       const child = spawn('cmd.exe', ['/d', '/c', 'start', '""', sc.value], {
@@ -218,6 +222,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.apk': 'application/vnd.android.package-archive',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.txt': 'text/plain; charset=utf-8',
 };
 
 function isLocal(req) {
@@ -347,6 +352,43 @@ async function handleApi(req, res, url) {
       if (next.weather !== before.weather || next.weatherCity !== before.weatherCity || next.weatherUnit !== before.weatherUnit) weather.reload(next);
       return send(res, 200, next);
     }
+    if (p === '/api/pages/new' && req.method === 'POST') {
+      const b = await readBody(req), c = config.get();
+      if (c.pages.length >= widgets.LIMITS.pages) throw new Error(`${widgets.LIMITS.pages} pages is the most`);
+      const page = widgets.fromTemplate(String(b.template || 'blank'), String(b.name || ''));
+      const next = config.update({ pages: [...c.pages, page], screens: [...c.screens, 'page:' + page.id] });
+      broadcast({ t: 'config', d: publicConfig() });
+      return send(res, 200, { page, config: next });
+    }
+    if (p === '/api/pages/from-screen' && req.method === 'POST') {
+      // Customize a built-in screen: a page with the same widgets takes its place in the swipe row
+      const b = await readBody(req), c = config.get(), screen = String(b.screen || '');
+      if (!c.screens.includes(screen)) throw new Error('that screen is not on the phone');
+      if (c.pages.length >= widgets.LIMITS.pages) throw new Error(`${widgets.LIMITS.pages} pages is the most`);
+      const page = widgets.fromBuiltin(screen, c);
+      if (!page) throw new Error('that screen is not made of widgets');
+      const next = config.update({ pages: [...c.pages, page], screens: c.screens.map((x) => (x === screen ? 'page:' + page.id : x)) });
+      broadcast({ t: 'config', d: publicConfig() });
+      return send(res, 200, { page, config: next });
+    }
+    if (p === '/api/widgets' && req.method === 'GET') return send(res, 200, Object.assign(widgets.catalog(), { addonWidgets: addons.widgetList() }));
+    if (p === '/api/addons' && req.method === 'GET') {
+      const reg = await addons.loadRegistry();
+      return send(res, 200, { installed: addons.list(), registry: addons.registryView(reg), actions: addons.actionList(), version: VERSION });
+    }
+    if (p === '/api/addons/refresh' && req.method === 'POST') {
+      const reg = await addons.checkUpdates(false);
+      return send(res, 200, { installed: addons.list(), registry: addons.registryView(reg), actions: addons.actionList(), version: VERSION });
+    }
+    if (p === '/api/addons/prepare' && req.method === 'POST') {
+      const body = await readBody(req);
+      return send(res, 200, await addons.prepare({ registryId: typeof body.registryId === 'string' ? body.registryId : '', url: typeof body.url === 'string' ? body.url.trim() : '' }));
+    }
+    if (p === '/api/addons/confirm' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.confirm(String(b.token || ''), b.permissions)); }
+    if (p === '/api/addons/remove' && req.method === 'POST') { const b = await readBody(req); addons.remove(String(b.id || ''), b.keepData === true); return send(res, 200, { ok: true }); }
+    if (p === '/api/addons/enable' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.setEnabled(String(b.id || ''), b.enabled !== false)); }
+    if (p === '/api/addons/settings' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.setSettings(String(b.id || ''), b.values || {})); }
+    if (p === '/api/addons/dev' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.installLocal(String(b.dir || ''))); }
     if (p === '/api/logs' && req.method === 'GET') return send(res, 200, log.recent());
     if (p === '/api/adb/connect' && req.method === 'POST') {
       const r = await adb.connectAll(config.get().port, true);
@@ -406,6 +448,7 @@ async function handleApi(req, res, url) {
     }
     return send(res, 404, { error: 'unknown endpoint' });
   } catch (e) {
+    if (p.startsWith('/api/addons')) { log.warn('addons: ' + e.message); return send(res, 400, { error: e.message }); } // mostly a package or a link that is not right
     log.error('api ' + p + ': ' + e.message);
     return send(res, 500, { error: e.message });
   }
@@ -451,6 +494,28 @@ function app(req, res) {
     return res.end(state.art.buf);
   }
 
+  // An addon's screen: its own files, shown on the phone in a sandboxed frame with no network access of its own.
+  if (p === '/addons/sdk.js') return serveStatic(req, res, 'phone/addon-sdk.js');
+  if (p.startsWith('/addons/')) {
+    const m = /^\/addons\/([a-z0-9-]{2,40})\/(.+)$/.exec(p);
+    let rel = '';
+    try { rel = m ? decodeURIComponent(m[2]) : ''; } catch { rel = ''; }
+    const file = m && addons.screenFile(m[1], rel);
+    if (!file) return send(res, 404, 'not found', 'text/plain');
+    return fs.stat(file, (err, st) => {
+      if (err || !st.isFile()) return send(res, 404, 'not found', 'text/plain');
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+        'Content-Length': st.size,
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff',
+        // No network from the page itself (connect-src 'none'); data comes through the SDK. Its own files only.
+        'Content-Security-Policy': "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'none'; frame-ancestors 'self'",
+      });
+      fs.createReadStream(file).pipe(res);
+    });
+  }
+
   if (p === '/' || p === '/index.html') {
     // The PC itself goes to the dashboard; everyone else gets the phone UI.
     return serveStatic(req, res, isLocal(req) && !url.searchParams.has('phone') && !isAdbPhone(req) ? 'dashboard/index.html' : 'phone/index.html');
@@ -479,12 +544,16 @@ const clients = new Set();
 
 function publicConfig() {
   const c = config.get();
+  const addonScreens = addons.screenIds();
   return {
     shortcuts: c.shortcuts.map(({ id, label, icon, color, group, live }) => ({ id, label, icon, color, group, live })),
     clock24: c.clock24,
     theme: c.theme,
     accent: c.accent,
-    screens: c.screens,
+    screens: c.screens.filter((x) => !x.startsWith('addon:') || addonScreens.includes(x)),
+    addons: addons.phoneScreens(),
+    addonWidgets: addons.widgetList().map(({ type, entry, aid, wid, name, version, permissions }) => ({ type, entry, aid, wid, name, version, permissions })),
+    pages: c.pages,
     dimAfter: c.dimAfter,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
@@ -513,6 +582,7 @@ function sendTo(ws, msg) {
 }
 
 function broadcast(msg, role) {
+  if (!role && (msg.t === 'media' || msg.t === 'volume' || msg.t === 'stats')) addons.emit(msg.t, msg.d); // addons that asked for it
   const data = JSON.stringify(msg);
   for (const c of clients) if (!role || c.role === role) sendTo(c.ws, data);
 }
@@ -594,6 +664,9 @@ function handleClientMessage(client, m) {
     case 'appmute': if (Number.isInteger(+m.pid)) bridge.send('appmute ' + +m.pid); return;
     case 'like': spotify.toggleLike(config.get()).catch((e) => log.warn('spotify like: ' + e.message)); return;
     case 'shortcut': return runShortcut(String(m.id || ''));
+    case 'addon': // a message from an addon's screen on the phone to the addon's PC-side code
+      if (typeof m.id === 'string' && JSON.stringify(m.d === undefined ? null : m.d).length < 64 * 1024) addons.fromPhone(m.id, m.d, typeof m.w === 'string' ? m.w.slice(0, 30) : '');
+      return;
     case 'screen': client.info.screen = String(m.v || '').slice(0, 20); return;
     case 'diag': log.info('phone info: ' + JSON.stringify(m.d || {}).slice(0, 300)); return;
     case 'battery':
@@ -638,6 +711,33 @@ spotify.start(() => config.get(), () => /spotify/i.test(state.mediaRaw), (s) => 
 notify.start(() => config.get().notifications && clients.size > 0, onNotification);
 updater.start(() => config.get(), VERSION, (s) => broadcast({ t: 'update', d: s }, 'dashboard'));
 
+
+// ---------------------------------------------------------------- addons
+addons.init({
+  version: VERSION,
+  broadcast: (m) => broadcast(m), // phones, and the layout editor's preview (which connects as a dashboard)
+  media: () => state.media,
+  volume: () => state.volume,
+  stats: () => Object.assign({}, stats.latest(), { gpu: state.gpu }),
+  sendKeys: (k) => bridge.send('keys ' + k),
+  mediaCommand: (c) => bridge.send(c),
+  setVolume: (v) => bridge.send('volume ' + v.toFixed(3)),
+  getConfig: () => config.get(),
+  // A new addon with a screen gets a page in the phone's swipe row; a removed one loses it.
+  installed: (id) => {
+    if (!addons.screenIds().includes('addon:' + id)) return;
+    const c = config.get();
+    if (!c.screens.includes('addon:' + id)) config.update({ screens: [...c.screens, 'addon:' + id] });
+  },
+  removed: (id) => {
+    const c = config.get();
+    if (c.screens.includes('addon:' + id)) config.update({ screens: c.screens.filter((x) => x !== 'addon:' + id) });
+  },
+  changed: () => { broadcast({ t: 'config', d: publicConfig() }); broadcast({ t: 'addons' }, 'dashboard'); },
+});
+widgets.setAddonLookup(addons.widgetDesc);
+process.on('exit', () => addons.stopAll());
+
 // ---------------------------------------------------------------- start
 const port = config.get().port;
 server.on('error', (e) => {
@@ -649,6 +749,9 @@ server.on('error', (e) => {
 });
 server.listen(port, '0.0.0.0', () => {
   log.info(`PhoneDesk ${VERSION} running`);
+  addons.startAll();
+  setTimeout(() => { if (config.get().autoUpdateAddons) addons.checkUpdates(true).catch(() => {}); }, 3 * 60 * 1000).unref();
+  setInterval(() => { if (config.get().autoUpdateAddons) addons.checkUpdates(true).catch(() => {}); }, 6 * 3600 * 1000).unref();
   log.info(`Dashboard: http://localhost:${port}`);
   for (const a of lanAddresses()) log.info(`Phone (Wi-Fi, by IP): http://${a.address}:${port}   [${a.name}]`);
   if (process.platform === 'win32') bridge.start();

@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "addons": [
+    {
+      "id": "home-assistant",
+      "name": "Home Assistant",
+      "version": "1.0.0",
+      "author": "PhoneDesk",
+      "description": "Lights, switches and scenes from your Home Assistant, as tap-to-toggle tiles on the phone.",
+      "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/home-assistant",
+      "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/home-assistant-1.0.0.zip",
+      "sha256": "34812f6d78c88d36db1a7999b2cbc178d48af368a96c8db8434492ad61d1282e",
+      "permissions": [
+        "network:lan"
+      ],
+      "phonedesk": "1.9.0",
+      "tags": [
+        "screen",
+        "pc"
+      ],
+      "firstParty": true
+    },
+    {
+      "id": "media-keys",
+      "name": "Media and system keys",
+      "version": "1.0.0",
+      "author": "PhoneDesk",
+      "description": "More things a shortcut button can do: volume up and down, mute, play and pause, next and previous track, task view, clipboard history.",
+      "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/media-keys",
+      "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/media-keys-1.0.0.zip",
+      "sha256": "3971469b697807b1f3413a6faee05caab7b5fd3ad194f16fead003a26291f109",
+      "permissions": [
+        "keys"
+      ],
+      "phonedesk": "1.9.0",
+      "tags": [
+        "pc",
+        "actions"
+      ],
+      "firstParty": true
+    },
+    {
+      "id": "pomodoro",
+      "name": "Pomodoro timer",
+      "version": "1.0.0",
+      "author": "PhoneDesk",
+      "description": "A big focus timer on the phone: focus, short break and long break, with a count of today's sessions.",
+      "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/pomodoro",
+      "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/pomodoro-1.0.0.zip",
+      "sha256": "955e78fe9bc611d7c889618fe81ef1a566cc393f817f755639be01afcf6aa1f6",
+      "permissions": [],
+      "phonedesk": "1.9.0",
+      "tags": [
+        "screen",
+        "pc"
+      ],
+      "firstParty": true
+    }
+  ]
+}

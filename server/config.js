@@ -60,7 +60,9 @@ const DEFAULTS = {
 };
 
 const SCREENS = ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'];
-const TYPES = ['keys', 'url', 'app'];
+const TYPES = ['keys', 'url', 'app', 'addon'];
+const widgets = require('./widgets');
+const isScreen = (s) => SCREENS.includes(s) || /^addon:[a-z0-9][a-z0-9-]{1,39}$/.test(s) || /^page:pg-[a-z0-9]{4,12}$/.test(s); // addon screens are 'addon:<id>', your pages 'page:<id>'
 const LIVE = ['', 'media', 'sound']; // what a button shows under its label: nothing, the playing track, or whether the PC's sound is muted
 
 let current = load();
@@ -114,7 +116,9 @@ function sanitize(c) {
   out.lyricsLines = ['off', 'curve', 'straight', 'glass'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
   out.spicyKey = /^sl_[sp]k_[A-Za-z0-9_-]{10,200}$/.test(String(c.spicyKey || '').trim()) ? String(c.spicyKey).trim() : '';
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';
-  out.screens = Array.isArray(c.screens) ? c.screens.filter((s) => SCREENS.includes(s)) : DEFAULTS.screens.slice();
+  out.screens = Array.isArray(c.screens) ? [...new Set(c.screens.filter(isScreen))] : DEFAULTS.screens.slice();
+  out.pages = widgets.sanitizePages(c.pages);
+  out.screens = out.screens.filter((x) => !x.startsWith('page:') || out.pages.some((p) => 'page:' + p.id === x)); // a page that is gone leaves the swipe row
   if (!out.screens.length) out.screens = ['media'];
   // Screens added in a newer version show up once for existing users (after Now playing).
   out.knownScreens = Array.isArray(c.knownScreens) ? c.knownScreens.filter((s) => SCREENS.includes(s)) : ['media', 'clock', 'stats', 'shortcuts'];
@@ -135,6 +139,8 @@ function sanitize(c) {
   out.updateRepo = /^[\w.-]+\/[\w.-]+$/.test(c.updateRepo || '') ? c.updateRepo : DEFAULTS.updateRepo;
   out.autoUpdate = c.autoUpdate !== false;
   out.onboarded = c.onboarded === true;
+  out.autoUpdateAddons = c.autoUpdateAddons !== false;
+  out.addonRegistry = /^https:\/\/[^\s]{1,300}$/.test(c.addonRegistry || '') ? c.addonRegistry : '';
   out.shortcuts = (Array.isArray(c.shortcuts) ? c.shortcuts : []).slice(0, 24).map((s) => ({
     id: typeof s.id === 'string' && s.id ? s.id.slice(0, 40) : crypto.randomBytes(4).toString('hex'),
     label: String(s.label || 'Shortcut').slice(0, 40),

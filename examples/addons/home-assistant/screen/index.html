@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Assistant</title>
+<style>
+  :root { --bg: #0e0f12; --fg: #edeff3; --fg2: #a3a8b3; --fg3: #6b717d; --card: #1c1f25; --line: #2a2e36; --accent: #5b8cff; --radius: 14px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: transparent; color: var(--fg); font: 500 16px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: calc(var(--safe-top, 44px) + 1vh) 4vw calc(var(--safe-bottom, 30px) + 1vh); display: flex; flex-direction: column; gap: 2vh; user-select: none; -webkit-user-select: none; }
+  .grid { flex: 1; min-height: 0; display: grid; gap: 1.6vh 1.4vw; grid-template-columns: repeat(auto-fill, minmax(min(30vw, 320px), 1fr)); grid-auto-rows: minmax(14vh, 22vh); align-content: start; overflow-y: auto; scrollbar-width: none; }
+  .grid::-webkit-scrollbar { display: none; }
+  .tile { display: flex; flex-direction: column; justify-content: center; gap: .7vh; text-align: left; padding: 0 1.6vw; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); color: var(--fg); font: inherit; min-width: 0; transition: background-color .15s, border-color .15s, transform .08s; }
+  .tile:active { transform: scale(.96); }
+  .tile b { font-size: min(3.8vh, 2.2vw); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile span { font-size: min(3vh, 1.7vw); color: var(--fg3); text-transform: capitalize; }
+  .tile.on { background: color-mix(in srgb, var(--accent) 22%, var(--card)); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .tile.on span { color: var(--fg2); }
+  .tile.off { opacity: .55; }
+  .note { margin: auto; max-width: 34em; text-align: center; color: var(--fg2); font-size: min(3.6vh, 2vw); line-height: 1.5; }
+  .note b { color: var(--fg); }
+  .err { color: #ef6a6a; font-size: min(3vh, 1.7vw); }
+</style>
+</head>
+<body>
+<div class="grid" id="grid" hidden></div>
+<p class="note" id="note">Connecting to Home Assistant…</p>
+<script src="/addons/sdk.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var TAPPABLE = { light: 1, switch: 1, fan: 1, input_boolean: 1, scene: 1 };
+  function note(html) { $('note').innerHTML = html; $('note').hidden = false; $('grid').hidden = true; }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  PD.on('message', function (m) {
+    if (!m) return;
+    if (m.type === 'setup') return note('Set up <b>Home Assistant</b> on the PC: open <b>Addons</b> in the PhoneDesk window, then this addon’s settings.');
+    if (m.type === 'error') { var e = document.createElement('div'); e.className = 'err'; e.textContent = m.message; $('note').hidden = false; $('note').innerHTML = 'Couldn’t reach Home Assistant.<br>'; $('note').appendChild(e); return; }
+    if (m.type !== 'states') return;
+    $('note').hidden = true; $('grid').hidden = false;
+    $('grid').innerHTML = m.entities.map(function (en) {
+      var on = en.state === 'on' || (en.domain === 'scene' && false);
+      var off = en.state === 'unavailable' || en.state === 'unknown';
+      return '<button class="tile' + (on ? ' on' : '') + (off ? ' off' : '') + '" data-id="' + esc(en.id) + '"' + (TAPPABLE[en.domain] ? '' : ' disabled') + '><b>' + esc(en.name) + '</b><span>' + esc(en.domain === 'scene' ? 'Scene' : en.state) + '</span></button>';
+    }).join('');
+  });
+  $('grid').addEventListener('click', function (e) {
+    var b = e.target.closest('.tile'); if (!b) return;
+    PD.send({ type: 'toggle', id: b.getAttribute('data-id') });
+  });
+  PD.on('visible', function (v) { if (v) PD.send({ type: 'hello' }); });
+  PD.on('ready', function () { PD.send({ type: 'hello' }); });
+})();
+</script>
+</body>
+</html>

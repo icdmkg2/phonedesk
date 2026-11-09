@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Focus timer widget</title>
+<style>
+  :root { --bg: #0e0f12; --fg: #edeff3; --fg2: #a3a8b3; --fg3: #6b717d; --card: #1c1f25; --line: #2a2e36; --accent: #5b8cff; --radius: 14px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: var(--radius); font: 500 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; user-select: none; -webkit-user-select: none; cursor: pointer; overflow: hidden; }
+  b { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+  span { color: var(--fg2); }
+  .bar { width: 70%; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(1); }
+  body.done b { color: #4fd98a; }
+</style>
+</head>
+<body>
+<b id="t">25:00</b><div class="bar"><i id="bar"></i></div><span id="s">Tap to start</span>
+<script src="/addons/sdk.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var total = 25 * 60, running = false, endsAt = 0, left = total, done = false;
+  function fmt(s) { var m = Math.floor(s / 60), r = s % 60; return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r; }
+  function remaining() { return running ? Math.max(0, Math.round((endsAt - Date.now()) / 1000)) : left; }
+  function draw() {
+    var r = remaining();
+    $('t').textContent = fmt(r);
+    $('bar').style.transform = 'scaleX(' + (total ? r / total : 0) + ')';
+    $('s').textContent = done ? 'Done. Tap to reset' : running ? 'Tap to pause' : (left < total ? 'Tap to resume' : 'Tap to start');
+    document.body.classList.toggle('done', done);
+  }
+  function size() { var w = (PD.widget && PD.widget.w) || 300, h = (PD.widget && PD.widget.h) || 150; $('t').style.fontSize = Math.max(18, Math.min(h * .4, w * .2)) + 'px'; document.body.style.fontSize = Math.max(11, Math.min(h * .11, 16)) + 'px'; }
+  function setMinutes() { var m = Math.max(1, Math.min(180, Math.round(Number(PD.options.minutes) || 25))); if (m * 60 !== total) { total = m * 60; running = false; done = false; left = total; } }
+  document.body.addEventListener('click', function () {
+    if (done) { done = false; left = total; }
+    else if (running) { left = remaining(); running = false; }
+    else { running = true; endsAt = Date.now() + left * 1000; }
+    draw();
+  });
+  setInterval(function () { if (running && remaining() <= 0) { running = false; done = true; left = 0; } draw(); }, 500);
+  PD.on('ready', function () { setMinutes(); size(); draw(); });
+  PD.on('resize', size);
+  setMinutes(); size(); draw();
+})();
+</script>
+</body>
+</html>

@@ -173,11 +173,19 @@ build/build.ps1        Builds the installer
 build/release.js       Release notes from CHANGELOG.md for GitHub Releases
 .github/workflows/     release.yml: builds and publishes GitHub Releases
 CHANGELOG.md           Patch notes for every version (screenshots in docs/changelog/)
+server/addons.js       Addons: install, permissions, runtime (docs/addons/)
+registry/              The addon marketplace list and the first-party packages
+examples/addons/       Example addons (Pomodoro, Home Assistant, media keys)
+tools/pd-addon.js      Addon developer tool: init, dev, validate, pack
 site/                  The website (node site/build.js → site/dist, hosted with Dokploy, see site/Dockerfile)
 public/phone/          The phone app
 public/dashboard/      The PC dashboard
 data/config.json       Your settings when running from source (installed: %APPDATA%\PhoneDesk)
 ```
+
+## Addons
+
+Addons add screens and shortcut actions to the phone, and can run code on the PC. Install them from the *Addons* page of the PhoneDesk window, or build your own: [docs/addons](docs/addons/README.md) ([website](https://phonedesk.orreinis.me/docs/addons)).
 
 ## Notes
 

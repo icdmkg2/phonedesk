@@ -5,7 +5,9 @@
 FROM node:22-alpine AS build
 WORKDIR /src
 COPY package.json CHANGELOG.md ./
-COPY server/changelog.js server/
+COPY server/changelog.js server/permissions.js server/
+COPY registry/index.json registry/
+COPY docs/addons docs/addons
 COPY public/favicon.svg public/
 COPY public/dashboard/fonts public/dashboard/fonts
 COPY docs/changelog docs/changelog

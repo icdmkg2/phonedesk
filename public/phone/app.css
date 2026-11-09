@@ -63,6 +63,8 @@ body.theme-light #bg { opacity: .55; }
   padding: 14px 22px 30px;
 }
 .screen.on { display: flex; animation: fadein .2s ease-out; }
+.screen.addon { padding: 0; }
+.screen.addon iframe { flex: 1; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
 #screens[data-dir="next"] .screen.on { animation: slidenext .32s cubic-bezier(.2, .8, .2, 1); }
 #screens[data-dir="prev"] .screen.on { animation: slideprev .32s cubic-bezier(.2, .8, .2, 1); }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
@@ -205,6 +207,8 @@ body.fullscreen .fs { display: none; }
 /* Disconnected: a full-screen clock, so the phone is still useful while the PC is off/asleep. */
 .offline { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: flex; flex-direction: column; }
 .offline[hidden] { display: none; }
+/* The time and weather pills of Now playing sit above everything; the offline screen shows its own clock and weather. */
+body.is-offline .np-top { display: none !important; }
 .offline .clock { padding: 0 22px; }
 .o-status {
   position: absolute; left: 0; right: 0; bottom: 14px;
@@ -790,3 +794,66 @@ body.night .batt, body.night .np-top, body.night #dots { opacity: .35; }
 #screens, .batt, .np-top, #dots, .fs { translate: var(--bx, 0px) var(--by, 0px); transition: translate 4s ease-in-out; }
 /* the battery pill sits above the shortcut grid, not on it */
 body:not(.fullscreen) #s-shortcuts, #s-shortcuts { padding-top: 46px; }
+
+/* ---------------------------------------------------------------- pages and widgets */
+.screen.page { padding: 40px 14px 26px; }
+.wgrid { flex: 1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(0, 1fr)); gap: 8px; min-height: 0; }
+.wg { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; font-size: var(--wf, 14px); }
+.wg-clock, .wg-text, .wg-forecast { background: none; border-color: transparent; }
+.wg-addon { padding: 0; background: none; border: 0; }
+.wg-addon iframe { flex: 1; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
+.w-empty { margin: auto; text-align: center; color: var(--fg3); font-size: var(--wf, 13px); line-height: 1.4; padding: 4px; }
+.w-sub { color: var(--fg3); font-size: .8em; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-lab { color: var(--fg2); font-size: .8em; font-weight: 600; }
+.w-big { font-size: 2.4em; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.w-big small { font-size: .45em; font-weight: 500; color: var(--fg3); margin-left: 3px; }
+.wg-clock { align-items: center; text-align: center; }
+.wg-clock .w-time { font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.wg-clock .w-time small { font-size: .28em; margin-left: .25em; color: var(--fg2); letter-spacing: 0; }
+.wg-clock .w-date { color: var(--fg2); margin-top: .5em; }
+.wg-clock:has(.w-face) { flex-direction: row; justify-content: center; gap: 4%; }
+.w-face { flex: none; }
+.w-face .a-tk { stroke: var(--fg3); stroke-width: 1.5; }
+.w-face .a-tk.big { stroke: var(--fg2); stroke-width: 3; }
+.w-face .a-hand { stroke: var(--fg); stroke-linecap: round; }
+.w-face .a-hand.h { stroke-width: 7; } .w-face .a-hand.m { stroke-width: 4.5; } .w-face .a-hand.s { stroke: var(--accent); stroke-width: 2; }
+.w-face .a-pin { fill: var(--accent); }
+.wg-weather .w-wxrow { display: flex; align-items: center; gap: .5em; }
+.wg-weather .w-wxrow svg { width: 2.4em; height: 2.4em; flex: none; }
+.wg-weather .w-wxrow b { font-size: 2.4em; font-weight: 700; line-height: 1; }
+.wg-forecast { flex-direction: row; align-items: center; justify-content: space-around; gap: 6px; }
+.wg-forecast .fc-d { display: flex; flex-direction: column; align-items: center; gap: .3em; }
+.wg-forecast .fc-d svg { width: 2em; height: 2em; }
+.wg-forecast .fc-n { color: var(--fg3); font-size: .85em; }
+.wg-forecast .fc-t b { font-weight: 700; }
+.wg-agenda { justify-content: flex-start; gap: .35em; overflow: hidden; }
+.wg-agenda .ag-day { color: var(--fg3); font-size: .75em; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-top: .4em; }
+.wg-agenda .ag-day:first-child { margin-top: 0; }
+.wg-agenda .ag-ev { display: flex; flex-direction: column; line-height: 1.25; }
+.wg-agenda .ag-ev.on .ag-t { color: var(--accent); }
+.wg-agenda .ag-t { color: var(--fg3); font-size: .8em; font-variant-numeric: tabular-nums; }
+.wg-agenda .ag-n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-nowplaying { flex-direction: row; align-items: center; gap: 12px; }
+.wg-nowplaying .w-cover { flex: none; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--line); }
+.wg-nowplaying .w-cover.empty img { display: none; }
+.wg-nowplaying .w-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wg-nowplaying .w-np { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: .3em; }
+.wg-nowplaying .w-title { font-size: 1.2em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-ctl { display: flex; gap: 10px; margin-top: .4em; }
+.w-ctl button { width: 2.6em; height: 2.6em; border-radius: 50%; display: grid; place-items: center; background: rgba(127, 127, 127, .18); color: var(--fg); }
+.w-ctl button.play { background: var(--fg); color: var(--bg); }
+.w-ctl .ic { width: 1.3em; height: 1.3em; }
+.wg-stats { gap: .25em; }
+.wg-stats .bar { margin-top: .3em; }
+.wg-volume { flex-direction: row; align-items: center; gap: 12px; }
+.wg-volume .slider { flex: 1; }
+.wg-volume .w-mute { width: 2.2em; height: 2.2em; flex: none; display: grid; place-items: center; color: var(--fg2); }
+.wg-volume .w-mute .ic { width: 1.6em; height: 1.6em; }
+.wg-volume .w-pct { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--fg2); }
+.wg-shortcuts { display: grid; gap: 8px; padding: 0; background: none; border: 0; }
+.wg-shortcuts .key { min-height: 0; }
+.wg-shortcuts .key .lb { font-size: 1em; }
+.wg-text { justify-content: center; }
+.w-text { font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
+html.preview body #dots, html.preview body .fs, html.preview body .batt, html.preview body .np-top { display: none !important; }
+html.preview .screen.page { padding: 8px; }

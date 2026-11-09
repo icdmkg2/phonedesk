@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home switches widget</title>
+<style>
+  :root { --bg: #0e0f12; --fg: #edeff3; --fg2: #a3a8b3; --fg3: #6b717d; --card: #1c1f25; --line: #2a2e36; --accent: #5b8cff; --radius: 14px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: transparent; color: var(--fg); font: 500 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
+  .grid { height: 100%; display: grid; gap: 8px; grid-auto-flow: row; align-content: stretch; }
+  .tile { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 12px; text-align: left; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); color: var(--fg); font: inherit; min-width: 0; }
+  .tile:active { transform: scale(.96); }
+  .tile b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile span { color: var(--fg3); font-size: .85em; text-transform: capitalize; }
+  .tile.on { background: color-mix(in srgb, var(--accent) 22%, var(--card)); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .tile.off { opacity: .55; }
+  .note { height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--fg2); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; }
+</style>
+</head>
+<body>
+<div class="grid" id="grid" hidden></div>
+<div class="note" id="note">Connecting to Home Assistant…</div>
+<script src="/addons/sdk.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var TAPPABLE = { light: 1, switch: 1, fan: 1, input_boolean: 1, scene: 1 };
+  var last = null;
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function only() { return String((PD.options && PD.options.only) || '').split(/[,\s]+/).filter(Boolean); }
+  function note(t) { $('note').textContent = t; $('note').hidden = false; $('grid').hidden = true; }
+  function draw(ents) {
+    var o = only();
+    if (o.length) ents = ents.filter(function (e) { return o.indexOf(e.id) >= 0; });
+    if (!ents.length) return note('Nothing to show yet');
+    var w = (PD.widget && PD.widget.w) || 400, cols = Math.max(1, Math.min(ents.length, Math.round(w / 150)));
+    $('grid').style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+    $('note').hidden = true; $('grid').hidden = false;
+    $('grid').innerHTML = ents.map(function (en) {
+      var on = en.state === 'on', off = en.state === 'unavailable' || en.state === 'unknown';
+      return '<button class="tile' + (on ? ' on' : '') + (off ? ' off' : '') + '" data-id="' + esc(en.id) + '"' + (TAPPABLE[en.domain] ? '' : ' disabled') + '><b>' + esc(en.name) + '</b><span>' + esc(en.domain === 'scene' ? 'Scene' : en.state) + '</span></button>';
+    }).join('');
+  }
+  PD.on('message', function (m) {
+    if (!m) return;
+    if (m.type === 'setup') return note('Set up Home Assistant in the Addons page of the PhoneDesk window.');
+    if (m.type === 'error') return note('Couldn’t reach Home Assistant.');
+    if (m.type === 'states') { last = m.entities; draw(last); }
+  });
+  $('grid').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) PD.send({ type: 'toggle', id: b.getAttribute('data-id') }); });
+  PD.on('ready', function () { PD.send({ type: 'hello' }); });
+  PD.on('resize', function () { if (last) draw(last); });
+})();
+</script>
+</body>
+</html>

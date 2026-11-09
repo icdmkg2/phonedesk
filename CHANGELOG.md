@@ -7,11 +7,69 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.9.0] — 2026-11-09
+
+Addons: screens and features made by anyone, with a marketplace. Pages and widgets: build your own screens.
+
+### Added
+- **Pages made of widgets.** The new *Layouts* page in the PhoneDesk window lets you build your own screens: pick a
+  template (*Clock layout*, *Desk overview* or a blank page), then drag widgets onto a 12 by 6 grid and resize them.
+  A page joins the phone's swipe row, and the editor shows the real page live, so every change is on the phone as you
+  make it. Move and resize with the mouse, or with the arrow keys (Shift resizes); a widget turns red where it would
+  overlap another.
+- **Built-in widgets:** Clock (digital, analog or big, with the date and optional seconds), Weather, 5-day forecast,
+  Calendar agenda, Now playing (with controls), PC stats (CPU, memory, GPU or network), Volume, Shortcut buttons (all
+  of them, or one group) and Text. Each has its own options. Mix them in any way, and put the same widget on several
+  pages.
+- **Customize the built-in screens.** *Now playing*, *Clock*, *PC stats* and *Shortcuts* each have a *Customize* button in
+  *Phone display*. It turns the screen into a page of widgets that looks like it does now (following your clock face,
+  forecast and calendar settings), in the same place in the swipe row, so you can rearrange it, resize things and add
+  widgets. The original screen stays available: turn it back on in *Phone display*. (The lyrics sheet that pulls up over
+  Now playing and the group tabs of Shortcuts are not part of the widget versions.)
+- **Widgets from addons.** An addon can list widgets in its manifest, with the sizes it supports and options people can
+  set. They appear in the editor's palette next to the built-in ones and run in the same sandbox as addon screens. The
+  Pomodoro timer and Home Assistant addons now each have one.
+- **Addons.** An addon adds a screen to the phone (a page in the swipe row) and can run code on the PC to feed it or to
+  do things. Install them from the new *Addons* page of the PhoneDesk window: browse the marketplace, see every
+  permission an addon asks for in plain words, approve, install. Turn an addon on or off, change its settings, update or
+  remove it. Addon screens appear in *Phone display* like the built-in ones.
+- **Permissions you approve before install**, and a sandbox behind them: an addon's screen runs in a sealed frame with
+  no network and no access to PhoneDesk's page; its PC-side code runs in its own process that can't start programs or
+  leave its own folders, and every powerful call (keys, programs, network, media) is checked against what you approved.
+  Network access can't be fully blocked at the system level, so read the permissions: [docs/addons/security.md](docs/addons/security.md).
+- **The marketplace** is a list in this repository (`registry/`), reviewed in pull requests. Downloads come only from
+  GitHub and must match their checksum. *Install from a link* is there for addons that aren't listed (marked as not
+  reviewed), and addons update themselves when they ask for no new permissions.
+- **Shortcut actions from addons.** A shortcut button can now run an *Addon action*.
+- **Three addons to start with:** *Pomodoro timer* (a focus timer on the phone), *Home Assistant* (tap-to-toggle
+  lights, switches and scenes, with the token kept on the PC) and *Media and system keys* (volume, play/pause, task
+  view and more as shortcut actions).
+- **Build your own:** `node tools/pd-addon.js init`, `dev --watch`, `validate` and `pack`, a phone SDK and a PC-side API,
+  and a developer guide at [phonedesk.orreinis.me/docs/addons](https://phonedesk.orreinis.me/docs/addons). The website
+  has a marketplace page too.
+
+<p>
+<img src="docs/changelog/1.9.0/dashboard-addons.png" width="49%" alt="The Addons page: installed addons and the marketplace">
+<img src="docs/changelog/1.9.0/dashboard-addon-install.png" width="49%" alt="The install prompt listing the permissions an addon asks for">
+</p>
+<p>
+<img src="docs/changelog/1.9.0/dashboard-layouts.png" width="49%" alt="The layout editor: a page of widgets with a live preview">
+<img src="docs/changelog/1.9.0/phone-page-widgets.png" width="49%" alt="A page of built-in and addon widgets on the phone">
+</p>
+<p>
+<img src="docs/changelog/1.9.0/phone-addon-pomodoro.png" width="49%" alt="The Pomodoro timer addon on the phone">
+<img src="docs/changelog/1.9.0/phone-addon-home.png" width="49%" alt="The Home Assistant addon on the phone">
+</p>
+
+### Fixed
+- On the offline screen (PC disconnected), the time and weather pills of Now playing no longer sit on top of the
+  offline clock and weather.
+
 ## [1.8.1] — 2026-11-09
 
 Fixes for first-run setup and updates, and a redesigned shortcuts screen.
 
-## Added
+### Added
 - **Shortcuts screen, redesigned:** wide rounded buttons with the icon beside the label, grouped under headings with a
   tab for each group (*All*, *Audio*, *System*, *Apps*…). A button can show live state under its label: the playing
   track (*Playing · Paper Lanterns*) or whether the PC's sound is muted. Set the group and what a button shows in the
@@ -22,7 +80,7 @@ Fixes for first-run setup and updates, and a redesigned shortcuts screen.
 <img src="docs/changelog/1.8.1/phone-shortcuts-groups.png" width="49%" alt="Shortcuts grouped under Audio, System and Apps">
 </p>
 
-## Fixed
+### Fixed
 - The first-run setup's *Connect your phone* step kept showing *Waiting for your phone…* after a phone had connected.
   It now shows the phone's name and how it is connected, and the button changes to *Next*.
 - **Updates:** *Check for updates* showed *Couldn't update: Failed to execute 'json' on 'Response': Unexpected end of JSON
@@ -31,7 +89,7 @@ Fixes for first-run setup and updates, and a redesigned shortcuts screen.
 - An update whose installer didn't start no longer leaves *Installing* on screen: it shows the problem and lets you try
   again.
 
-## Changed
+### Changed
 - The website has a new look (the *Website* screenshot in the 1.8.0 notes now shows it).
 
 ## [1.8.0] — 2026-11-08
@@ -615,6 +673,7 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
+[1.9.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.9.0
 [1.8.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.1
 [1.8.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.0
 [1.7.3]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.3
