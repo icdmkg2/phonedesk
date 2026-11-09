@@ -40,9 +40,18 @@ const PERMISSIONS = {
 const HOST_RE = /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
 function permissionInfo(p) {
   if (PERMISSIONS[p]) return Object.assign({ id: p }, PERMISSIONS[p]);
+  if (p === 'network:lan') return { id: p, label: 'Talk to devices on your home network (addresses like 192.168.x.x, or .local names)', level: 'high' };
   const m = /^network:(.+)$/.exec(p);
   if (m && HOST_RE.test(m[1])) return { id: p, label: 'Talk to ' + m[1] + ' over the internet or your network', level: 'high' };
   return null;
+}
+/** A home-network address: private IPv4 ranges, localhost, or a .local name. */
+function isLan(host) {
+  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return true;
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!m) return false;
+  const [a, b] = [+m[1], +m[2]];
+  return a === 10 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
 }
 /** May this host be contacted with the granted permissions? (network:example.com, network:*.example.com) */
 function hostAllowed(perms, host) {
@@ -50,6 +59,7 @@ function hostAllowed(perms, host) {
   return perms.some((p) => {
     const m = /^network:(.+)$/.exec(p);
     if (!m) return false;
+    if (m[1] === 'lan') return isLan(host);
     return m[1].startsWith('*.') ? host.endsWith(m[1].slice(1)) && host.length > m[1].length - 1 : host === m[1];
   });
 }
@@ -181,7 +191,7 @@ function readSettings(id) {
 /* ---------------------------------------------------------------- host interface (set by index.js) */
 let api = {
   version: '0.0.0', broadcast() {}, media: () => ({}), volume: () => ({}), stats: () => null,
-  sendKeys() {}, mediaCommand() {}, setVolume() {}, changed() {}, getConfig: () => ({}),
+  sendKeys() {}, mediaCommand() {}, setVolume() {}, changed() {}, installed() {}, removed() {}, getConfig: () => ({}),
 };
 function init(hostApi) { api = Object.assign(api, hostApi); loadState(); }
 
@@ -315,6 +325,7 @@ function confirm(token, granted) {
   saveState();
   log.event('info', `Addon “${p.manifest.name}” ${old ? 'updated to' : 'installed,'} ${p.manifest.version}`);
   if (state[id].enabled) startAddon(id);
+  if (!old) api.installed(id);
   api.changed();
   return describe(id);
 }
@@ -343,6 +354,7 @@ function installLocal(dir) {
   saveState();
   log.event('info', `Addon “${manifest.name}” loaded from ${root}${old ? ' (reloaded)' : ''}`);
   startAddon(id);
+  if (!old) api.installed(id);
   api.changed();
   return describe(id);
 }
@@ -356,6 +368,7 @@ function remove(id, keepData) {
   delete state[id];
   saveState();
   log.event('info', `Addon “${name}” removed`);
+  api.removed(id);
   api.changed();
 }
 

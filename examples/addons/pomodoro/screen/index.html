@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pomodoro timer</title>
+<style>
+  :root { --bg: #0e0f12; --fg: #edeff3; --fg2: #a3a8b3; --fg3: #6b717d; --card: #1c1f25; --line: #2a2e36; --accent: #5b8cff; --radius: 14px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: transparent; color: var(--fg); font: 500 16px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; gap: 6vw; padding: calc(var(--safe-top, 44px) * .6) 5vw calc(var(--safe-bottom, 30px) * .6); user-select: none; -webkit-user-select: none; }
+  .dial { position: relative; height: min(72vh, 36vw); aspect-ratio: 1; flex: none; }
+  .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .dial circle { fill: none; stroke-width: 7; }
+  .dial .track { stroke: var(--line); }
+  .dial .bar { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .4s linear; }
+  .dial .time { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .time b { font-size: min(17vh, 9vw); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+  .time span { margin-top: 1.2vh; color: var(--fg2); font-size: min(3.6vh, 2vw); }
+  .side { display: flex; flex-direction: column; gap: 2.4vh; min-width: 0; }
+  .modes { display: flex; gap: 6px; background: var(--card); padding: 4px; border-radius: 99px; align-self: flex-start; }
+  .modes button { padding: 1.1vh 2vw; border-radius: 99px; color: var(--fg2); font: inherit; font-size: min(3.4vh, 1.9vw); background: none; border: 0; }
+  .modes button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+  .row { display: flex; gap: 10px; }
+  .btn { font: inherit; font-size: min(4vh, 2.2vw); font-weight: 600; padding: 1.6vh 3vw; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); color: var(--fg); }
+  .btn.main { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 11vw; }
+  .btn:active { transform: scale(.96); }
+  .dots { display: flex; gap: 8px; align-items: center; color: var(--fg2); font-size: min(3.4vh, 1.9vw); }
+  .dots i { width: 1.6vh; height: 1.6vh; border-radius: 50%; background: var(--line); }
+  .dots i.on { background: var(--accent); }
+  body.ringing .dial .bar { stroke: #4fd98a; }
+  body.ringing .time b { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { body.ringing .time b { animation: none; } .dial .bar { transition: none; } }
+  @media (max-aspect-ratio: 1/1) { body { flex-direction: column; } .dial { height: min(46vh, 80vw); } }
+</style>
+</head>
+<body>
+<div class="dial" role="timer" aria-live="off">
+  <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="track" cx="50" cy="50" r="46"/><circle class="bar" id="bar" cx="50" cy="50" r="46" stroke-dasharray="289.03" stroke-dashoffset="0"/></svg>
+  <div class="time"><b id="clock">25:00</b><span id="label">Focus</span></div>
+</div>
+<div class="side">
+  <div class="modes" role="group" aria-label="Timer">
+    <button data-mode="focus" aria-pressed="true">Focus</button>
+    <button data-mode="short" aria-pressed="false">Short break</button>
+    <button data-mode="long" aria-pressed="false">Long break</button>
+  </div>
+  <div class="row"><button class="btn main" id="go">Start</button><button class="btn" id="reset">Reset</button></div>
+  <div class="dots" aria-label="Focus sessions today"><span id="count">0 today</span><span id="pips" style="display:flex;gap:6px"></span></div>
+</div>
+<script src="/addons/sdk.js"></script>
+<script>
+(function () {
+  var cfg = { focus: 25, short: 5, long: 15, done: 0 };
+  var mode = 'focus', running = false, endsAt = 0, left = 0, ring = false;
+  var $ = function (id) { return document.getElementById(id); };
+  var LABEL = { focus: 'Focus', short: 'Short break', long: 'Long break' };
+  var C = 2 * Math.PI * 46;
+
+  function total() { return cfg[mode] * 60; }
+  function remaining() { return running ? Math.max(0, Math.round((endsAt - Date.now()) / 1000)) : left; }
+  function fmt(s) { var m = Math.floor(s / 60), r = s % 60; return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r; }
+
+  function draw() {
+    var r = remaining();
+    $('clock').textContent = fmt(r);
+    $('label').textContent = ring ? 'Done' : LABEL[mode];
+    $('bar').style.strokeDashoffset = String(C * (1 - r / total()));
+    $('go').textContent = ring ? 'Next' : running ? 'Pause' : (left < total() ? 'Resume' : 'Start');
+    document.body.classList.toggle('ringing', ring);
+    document.title = fmt(r) + ' · ' + LABEL[mode];
+    var btns = document.querySelectorAll('.modes button');
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', btns[i].getAttribute('data-mode') === mode ? 'true' : 'false');
+    $('count').textContent = cfg.done + ' today';
+    var pips = '';
+    for (var k = 0; k < Math.min(8, Math.max(4, cfg.done)); k++) pips += '<i class="' + (k < cfg.done ? 'on' : '') + '"></i>';
+    $('pips').innerHTML = pips;
+  }
+  function setMode(m) { mode = m; running = false; ring = false; left = total(); draw(); }
+  function tick() {
+    if (running && remaining() <= 0) {
+      running = false; ring = true; left = 0;
+      if (mode === 'focus') PD.send({ type: 'done', mode: 'focus' });
+    }
+    draw();
+  }
+
+  $('go').addEventListener('click', function () {
+    if (ring) { setMode(mode === 'focus' ? (cfg.done % 4 === 0 && cfg.done ? 'long' : 'short') : 'focus'); return; }
+    if (running) { left = remaining(); running = false; }
+    else { running = true; endsAt = Date.now() + left * 1000; }
+    draw();
+  });
+  $('reset').addEventListener('click', function () { setMode(mode); });
+  document.querySelector('.modes').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setMode(b.getAttribute('data-mode')); });
+
+  PD.on('message', function (m) {
+    if (!m || m.type !== 'config') return;
+    var idle = !running && left === total();
+    cfg = { focus: m.focus, short: m.short, long: m.long, done: m.done };
+    if (idle) left = total();
+    draw();
+  });
+  PD.on('ready', function () { PD.send({ type: 'hello' }); });
+  left = total();
+  draw();
+  setInterval(tick, 500);
+})();
+</script>
+</body>
+</html>

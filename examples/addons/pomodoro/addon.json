@@ -1,0 +1,17 @@
+{
+  "id": "pomodoro",
+  "name": "Pomodoro timer",
+  "version": "1.0.0",
+  "description": "A big focus timer on the phone: focus, short break and long break, with a count of today's sessions.",
+  "author": "PhoneDesk",
+  "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/pomodoro",
+  "phonedesk": "1.9.0",
+  "permissions": [],
+  "screen": { "title": "Timer", "entry": "screen/index.html", "icon": "bolt" },
+  "server": "server.js",
+  "settings": [
+    { "key": "focusMinutes", "label": "Focus (minutes)", "type": "number", "default": 25 },
+    { "key": "shortMinutes", "label": "Short break (minutes)", "type": "number", "default": 5 },
+    { "key": "longMinutes", "label": "Long break (minutes)", "type": "number", "default": 15 }
+  ]
+}

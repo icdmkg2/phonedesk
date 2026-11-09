@@ -168,9 +168,9 @@
         state.clockOffset = m.d.serverTime - Date.now();
         if (m.d.hosts) { store.set('hosts', m.d.hosts); hosts = uniq([activeHost, location.host].concat(m.d.hosts)); }
         break;
-      case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); renderLive(); break;
-      case 'volume': state.volume = m.d; renderVolume(); renderLive(); break;
-      case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); break;
+      case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); renderLive(); relayAddons('media', state.media); break;
+      case 'volume': state.volume = m.d; renderVolume(); renderLive(); relayAddons('volume', state.volume); break;
+      case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); relayAddons('stats', m.d); break;
       case 'history': setHistory(m.d); break;
       case 'histPoint': addHistory(m.d); break;
       case 'config': applyConfig(m.d); break;
@@ -184,6 +184,7 @@
       case 'calendar': setCalendar(m.d); break;
       case 'spotify': state.spotify = m.d; renderSpotify(); break;
       case 'notify': queueNotification(m.d); break;
+      case 'addon': toAddon(m.id, 'message', m.d); break;
     }
   }
 
@@ -816,6 +817,78 @@
     });
   }
 
+  /* ============================================================ addon screens */
+  // Each addon screen is a page in the swipe row: a sandboxed iframe (no network, no shared storage) that
+  // talks to PhoneDesk only through messages (public/phone/addon-sdk.js). What it may receive depends on the
+  // permissions its owner approved on the PC.
+  var addonFrames = {}; // id -> { sec, frame, version, ready }
+  function addonMeta(id) { var l = state.config.addons || []; for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+  function ensureAddonScreen(name) {
+    var id = name.slice(6), meta = addonMeta(id), f = addonFrames[id];
+    if (!meta) return;
+    if (f && f.version === meta.version) return;
+    if (f) f.sec.parentNode.removeChild(f.sec);
+    var sec = document.createElement('section');
+    sec.className = 'screen addon'; sec.id = 's-addon-' + id; sec.setAttribute('data-screen', name);
+    var fr = document.createElement('iframe');
+    fr.setAttribute('sandbox', 'allow-scripts');
+    fr.setAttribute('title', meta.title);
+    fr.src = '/addons/' + encodeURIComponent(id) + '/' + meta.entry.split('/').map(encodeURIComponent).join('/') + '?v=' + encodeURIComponent(meta.version);
+    sec.appendChild(fr);
+    $('screens').appendChild(sec);
+    addonFrames[id] = { sec: sec, frame: fr, version: meta.version, ready: false };
+  }
+  function syncAddonFrames() {
+    Object.keys(addonFrames).forEach(function (id) {
+      var meta = addonMeta(id);
+      if (!meta || meta.version !== addonFrames[id].version) {
+        var sec = addonFrames[id].sec; if (sec.parentNode) sec.parentNode.removeChild(sec);
+        delete addonFrames[id];
+        if (meta && state.screen === 'addon:' + id) ensureAddonScreen('addon:' + id);
+      }
+    });
+  }
+  function toAddon(id, t, d) {
+    var f = addonFrames[id];
+    if (f && f.ready && f.frame.contentWindow) { try { f.frame.contentWindow.postMessage({ pd: 1, t: t, d: d }, '*'); } catch (e) {} }
+  }
+  function addonCan(id, perm) { var m = addonMeta(id); return !!(m && m.permissions.indexOf(perm) >= 0); }
+  // media, volume and stats go to the addon screens that asked for them (and are on screen).
+  function relayAddons(name, data) {
+    if (state.screen.indexOf('addon:') !== 0) return;
+    var id = state.screen.slice(6);
+    if (addonCan(id, name)) toAddon(id, name, data);
+  }
+  function pushAddonState(id) {
+    if (addonCan(id, 'media')) toAddon(id, 'media', state.media);
+    if (addonCan(id, 'volume')) toAddon(id, 'volume', state.volume);
+    if (addonCan(id, 'stats') && state.stats) toAddon(id, 'stats', state.stats);
+  }
+  function themeVars() {
+    var cs = getComputedStyle(document.body), out = {};
+    ['bg', 'fg', 'fg2', 'fg3', 'card', 'line', 'accent', 'radius'].forEach(function (k) { var v = cs.getPropertyValue('--' + k).trim(); if (v) out[k] = v; });
+    return out;
+  }
+  window.addEventListener('message', function (e) {
+    var id = null;
+    for (var k in addonFrames) if (addonFrames[k].frame.contentWindow === e.source) id = k;
+    var m = e.data;
+    if (!id || !m || m.pd !== 1) return;
+    var f = addonFrames[id];
+    switch (m.t) {
+      case 'ready':
+        f.ready = true;
+        toAddon(id, 'init', { id: id, permissions: (addonMeta(id) || {}).permissions || [], theme: themeVars(), themeName: state.config.theme || 'dark' });
+        toAddon(id, 'visible', state.screen === 'addon:' + id);
+        if (state.screen === 'addon:' + id) pushAddonState(id);
+        break;
+      case 'send': send({ t: 'addon', id: id, d: m.d }); break;
+      case 'swipe': if (state.screen === 'addon:' + id && (m.d === 1 || m.d === -1)) step(m.d); break;
+      case 'media': if (addonCan(id, 'control') && ['toggle', 'play', 'pause', 'next', 'prev'].indexOf(m.d) >= 0) send({ t: 'cmd', a: m.d }); break;
+      case 'volume': if (addonCan(id, 'control') && isFinite(+m.d)) send({ t: 'volume', v: Math.min(1, Math.max(0, +m.d)) }); break;
+    }
+  });
+
   /* ============================================================ screens + navigation */
   function imm() { return state.config.nowStyle !== 'classic'; }
   // In the immersive style lyrics are a sheet you pull up over Now playing, not a screen of their own.
@@ -825,21 +898,25 @@
     return l.length ? l : ['media'];
   }
 
+  var pendingScreen = ''; // an addon screen the phone was on, until the config that lists it has arrived
   function show(name) {
     var list = screens();
-    if (list.indexOf(name) < 0) name = list[0];
+    if (list.indexOf(name) < 0) { if (!state.configured && name.indexOf('addon:') === 0) pendingScreen = name; name = list[0]; }
     var from = list.indexOf(state.screen), to = list.indexOf(name);
     $('screens').setAttribute('data-dir', from < 0 || from === to ? 'none' : (to > from ? 'next' : 'prev'));
+    if (name.indexOf('addon:') === 0) ensureAddonScreen(name);
+    var prevName = state.screen;
     state.screen = name;
     closeLyrics(true);
     document.body.classList.toggle('scr-media', name === 'media');
     document.body.classList.toggle('scr-lyrics', name === 'lyrics');
-    store.set('screen', name);
+    if (!pendingScreen) store.set('screen', name);
     var secs = document.querySelectorAll('.screen');
     for (var i = 0; i < secs.length; i++) toggle(secs[i], 'on', secs[i].getAttribute('data-screen') === name);
     var dots = $('dots').children;
     for (var j = 0; j < dots.length; j++) toggle(dots[j], 'on', dots[j].getAttribute('data-s') === name);
     send({ t: 'screen', v: name });
+    if (prevName !== name) { if (prevName && prevName.indexOf('addon:') === 0) toAddon(prevName.slice(6), 'visible', false); if (name.indexOf('addon:') === 0) { toAddon(name.slice(6), 'visible', true); pushAddonState(name.slice(6)); } }
     renderAll();
   }
 
@@ -858,7 +935,7 @@
     list.forEach(function (s) {
       var b = document.createElement('button');
       b.setAttribute('data-s', s);
-      b.setAttribute('aria-label', s);
+      b.setAttribute('aria-label', s.indexOf('addon:') === 0 ? ((addonMeta(s.slice(6)) || {}).title || s) : s);
       b.addEventListener('click', function () { show(s); });
       nav.appendChild(b);
     });
@@ -912,9 +989,12 @@
     applyClockLayout();
     applyNight(true);
     burnShift();
+    state.configured = true;
+    syncAddonFrames();
     if (JSON.stringify(c.screens) + c.nowStyle !== prevScreens || !$('dots').children.length) { renderDots(); show(state.screen); }
     else renderAll();
     armDim();
+    if (pendingScreen) { var w = pendingScreen; pendingScreen = ''; if (screens().indexOf(w) >= 0) show(w); }
   }
 
   /* ============================================================ night mode */

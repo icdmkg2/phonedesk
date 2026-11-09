@@ -1,0 +1,21 @@
+{
+  "id": "media-keys",
+  "name": "Media and system keys",
+  "version": "1.0.0",
+  "description": "More things a shortcut button can do: volume up and down, mute, play and pause, next and previous track, task view, clipboard history.",
+  "author": "PhoneDesk",
+  "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/media-keys",
+  "phonedesk": "1.9.0",
+  "permissions": ["keys"],
+  "server": "server.js",
+  "actions": [
+    { "id": "volume-up", "label": "Volume up" },
+    { "id": "volume-down", "label": "Volume down" },
+    { "id": "volume-mute", "label": "Mute / unmute" },
+    { "id": "play-pause", "label": "Play / pause" },
+    { "id": "next-track", "label": "Next track" },
+    { "id": "previous-track", "label": "Previous track" },
+    { "id": "task-view", "label": "Task view" },
+    { "id": "clipboard-history", "label": "Clipboard history" }
+  ]
+}

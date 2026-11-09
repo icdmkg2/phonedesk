@@ -73,6 +73,10 @@ const rejectsMsg = async (p, re) => { try { await p; } catch (e) { assert.match(
     assert.ok(!addons.hostAllowed(p, 'home.test'));
     assert.ok(!addons.hostAllowed(p, 'evilapi.example.com'));
     assert.ok(!addons.hostAllowed(['media'], 'api.example.com'));
+    const lan = ['network:lan'];
+    ['192.168.1.20', '10.0.0.5', '172.16.0.1', '172.31.255.1', 'homeassistant.local', 'localhost'].forEach((h) => assert.ok(addons.hostAllowed(lan, h), h));
+    ['8.8.8.8', '172.32.0.1', '192.169.1.1', 'example.com', 'local.example.com'].forEach((h) => assert.ok(!addons.hostAllowed(lan, h), h));
+    assert.ok(addons.permissionInfo('network:lan'));
   });
   await run('version compare', () => {
     assert.strictEqual(addons.cmpVer('1.10.0', '1.9.0'), 1);
