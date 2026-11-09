@@ -7,6 +7,17 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.8.1] — 2026-11-09
+
+A first-run setup fix.
+
+## Fixed
+- The first-run setup's *Connect your phone* step kept showing *Waiting for your phone…* after a phone had connected.
+  It now shows the phone's name and how it is connected, and the button changes to *Next*.
+
+## Changed
+- The website has a new look (the *Website* screenshot in the 1.8.0 notes now shows it).
+
 ## [1.8.0] — 2026-11-08
 
 Clock faces, your calendar, night mode, an hour of PC stats, and a website.
@@ -588,6 +599,7 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
+[1.8.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.1
 [1.8.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.0
 [1.7.3]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.3
 [1.7.2]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.2

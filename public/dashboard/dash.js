@@ -81,7 +81,7 @@
       else if (m.t === 'media') { state.media = m.d || { active: false }; renderMedia(); renderMirrors(); }
       else if (m.t === 'volume') { state.volume = m.d; renderVolume(); }
       else if (m.t === 'stats') { state.stats = m.d; renderPc(); }
-      else if (m.t === 'clients') { refresh(); loadActivity(); onboardPoll(); }
+      else if (m.t === 'clients') { refresh(); loadActivity(); }
       else if (m.t === 'mixer') { state.mixer = m.d || []; if (state.previewScreen === 'mixer' || (selectedPhone() || {}).screen === 'mixer') renderMirrors(); }
       else if (m.t === 'lyrics') { state.lyrics = m.d; renderMirrors(); }
       else if (m.t === 'weather') { state.weather = m.d; renderMirrors(); renderWeatherNow(); }
@@ -98,6 +98,7 @@
     renderStatus();
     renderOverview();
     renderConnection();
+    onboardPoll(); // the setup's "Waiting for your phone" step, now that the new client list is here
   }
   async function loadConfig() {
     state.config = await api('config');
