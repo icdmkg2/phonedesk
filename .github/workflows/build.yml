@@ -34,6 +34,10 @@ jobs:
           done
           node -e "require('./server/config'); require('./server/calendar'); require('./server/changelog'); require('./server/diagnostics')"
 
+      - name: Updater tests
+        shell: bash
+        run: node test/updater.test.js
+
       - name: Changelog has the current version
         shell: bash
         run: node build/release.js notes "$(node -p "require('./package.json').version")" > /dev/null

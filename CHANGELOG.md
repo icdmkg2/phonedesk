@@ -7,6 +7,33 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.8.1] — 2026-11-09
+
+Fixes for first-run setup and updates, and a redesigned shortcuts screen.
+
+## Added
+- **Shortcuts screen, redesigned:** wide rounded buttons with the icon beside the label, grouped under headings with a
+  tab for each group (*All*, *Audio*, *System*, *Apps*…). A button can show live state under its label: the playing
+  track (*Playing · Paper Lanterns*) or whether the PC's sound is muted. Set the group and what a button shows in the
+  dashboard's *Shortcuts* page. Buttons without a group look like before, in one grid; new installs start with the
+  groups above.
+
+<p>
+<img src="docs/changelog/1.8.1/phone-shortcuts-groups.png" width="49%" alt="Shortcuts grouped under Audio, System and Apps">
+</p>
+
+## Fixed
+- The first-run setup's *Connect your phone* step kept showing *Waiting for your phone…* after a phone had connected.
+  It now shows the phone's name and how it is connected, and the button changes to *Next*.
+- **Updates:** *Check for updates* showed *Couldn't update: Failed to execute 'json' on 'Response': Unexpected end of JSON
+  input* whenever the check ended without a newer version (up to date, off, running from source). The check now always
+  answers, and the status says what it found.
+- An update whose installer didn't start no longer leaves *Installing* on screen: it shows the problem and lets you try
+  again.
+
+## Changed
+- The website has a new look (the *Website* screenshot in the 1.8.0 notes now shows it).
+
 ## [1.8.0] — 2026-11-08
 
 Clock faces, your calendar, night mode, an hour of PC stats, and a website.
@@ -588,6 +615,7 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
+[1.8.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.1
 [1.8.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.0
 [1.7.3]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.3
 [1.7.2]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.7.2

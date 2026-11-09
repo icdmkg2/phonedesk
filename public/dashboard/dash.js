@@ -81,7 +81,7 @@
       else if (m.t === 'media') { state.media = m.d || { active: false }; renderMedia(); renderMirrors(); }
       else if (m.t === 'volume') { state.volume = m.d; renderVolume(); }
       else if (m.t === 'stats') { state.stats = m.d; renderPc(); }
-      else if (m.t === 'clients') { refresh(); loadActivity(); onboardPoll(); }
+      else if (m.t === 'clients') { refresh(); loadActivity(); }
       else if (m.t === 'mixer') { state.mixer = m.d || []; if (state.previewScreen === 'mixer' || (selectedPhone() || {}).screen === 'mixer') renderMirrors(); }
       else if (m.t === 'lyrics') { state.lyrics = m.d; renderMirrors(); }
       else if (m.t === 'weather') { state.weather = m.d; renderMirrors(); renderWeatherNow(); }
@@ -98,6 +98,7 @@
     renderStatus();
     renderOverview();
     renderConnection();
+    onboardPoll(); // the setup's "Waiting for your phone" step, now that the new client list is here
   }
   async function loadConfig() {
     state.config = await api('config');
@@ -366,6 +367,9 @@
     setText($('ed-title'), k.label || 'Untitled');
     $('ed-icon-preview').setAttribute('href', '#i-' + (ICONS.includes(k.icon) ? k.icon : 'bolt'));
     if (document.activeElement !== $('ed-label')) $('ed-label').value = k.label;
+    if (document.activeElement !== $('ed-group')) $('ed-group').value = k.group || '';
+    $('ed-groups').innerHTML = [...new Set(draft.map((d) => d.group).filter(Boolean))].map((g) => `<option value="${esc(g)}">`).join('');
+    $$('#ed-live button').forEach((b) => b.classList.toggle('on', b.dataset.v === (k.live || '')));
     $$('#ed-type button').forEach((b) => b.classList.toggle('on', b.dataset.v === k.type));
     const isKeys = k.type === 'keys';
     $('ed-keys-field').hidden = !isKeys;
@@ -421,7 +425,7 @@
 
   function addShortcut() {
     if (draft.length >= 24) return toast('24 buttons is the most a phone can show');
-    draft.push({ id: Math.random().toString(36).slice(2, 10), label: 'New button', type: 'keys', value: '', icon: 'bolt', color: COLORS[draft.length % COLORS.length] });
+    draft.push({ id: Math.random().toString(36).slice(2, 10), label: 'New button', type: 'keys', value: '', icon: 'bolt', color: COLORS[draft.length % COLORS.length], group: (cur() || {}).group || '', live: '' });
     sel = draft.length - 1;
     scheduleSave();
     renderShortcuts();
@@ -430,6 +434,8 @@
   }
   $('sc-add').addEventListener('click', addShortcut);
   $('ed-label').addEventListener('input', (e) => { cur().label = e.target.value; scheduleSave(); renderShortcuts(); });
+  $('ed-group').addEventListener('input', (e) => { cur().group = e.target.value.slice(0, 20); scheduleSave(); });
+  $('ed-live').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { cur().live = b.dataset.v; scheduleSave(); renderEditor(); } });
   $('ed-value').addEventListener('input', (e) => { cur().value = e.target.value; scheduleSave(); });
   $('ed-type').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
