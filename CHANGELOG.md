@@ -9,11 +9,16 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 ## [1.8.1] — 2026-11-09
 
-A first-run setup fix.
+Fixes for first-run setup and updates.
 
 ## Fixed
 - The first-run setup's *Connect your phone* step kept showing *Waiting for your phone…* after a phone had connected.
   It now shows the phone's name and how it is connected, and the button changes to *Next*.
+- **Updates:** *Check for updates* showed *Couldn't update: Failed to execute 'json' on 'Response': Unexpected end of JSON
+  input* whenever the check ended without a newer version (up to date, off, running from source). The check now always
+  answers, and the status says what it found.
+- An update whose installer didn't start no longer leaves *Installing* on screen: it shows the problem and lets you try
+  again.
 
 ## Changed
 - The website has a new look (the *Website* screenshot in the 1.8.0 notes now shows it).

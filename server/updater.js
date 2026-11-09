@@ -15,7 +15,7 @@ let status = { state: installed ? 'idle' : 'source', current: null };
 let timer = null;
 let onChange = () => {};
 
-function set(patch) { status = Object.assign({}, status, patch); onChange(status); }
+function set(patch) { status = Object.assign({}, status, patch); onChange(status); return status; }
 
 function newer(a, b) { // is version a newer than b?
   const pa = String(a).replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
@@ -83,6 +83,12 @@ module.exports = {
     set({ state: 'installing' });
     log.event('info', `Installing PhoneDesk ${status.version}`);
     // Detached and outside our job, so it survives PhoneDesk closing during the update.
-    spawn(status.file, ['/silent', '/launch'], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
+    const child = spawn(status.file, ['/silent', '/launch'], { detached: true, stdio: 'ignore', windowsHide: false });
+    child.on('error', (e) => { log.warn('update install: ' + e.message); set({ state: 'error', error: 'Couldn\'t start the installer: ' + e.message }); });
+    child.unref();
+    // If PhoneDesk is still here a couple of minutes later, the installer did not run: don't stay on "Installing".
+    setTimeout(() => {
+      if (status.state === 'installing') set({ state: 'error', error: 'The installer did not restart PhoneDesk. Try again, or download the setup from the release page.' });
+    }, 3 * 60 * 1000).unref();
   },
 };
