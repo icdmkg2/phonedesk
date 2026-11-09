@@ -9,7 +9,7 @@
       "description": "Lights, switches and scenes from your Home Assistant, as tap-to-toggle tiles on the phone.",
       "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/home-assistant",
       "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/home-assistant-1.0.0.zip",
-      "sha256": "f9fea8f52ea963b17d83aaac9523510d4d0e01480c59b026d2caf374db66ec7f",
+      "sha256": "93f3963ff5c5f08f8202f111d6ba9aaf7bf6b75bd0eb0f792adb570f3b7491ba",
       "permissions": [
         "network:lan"
       ],
