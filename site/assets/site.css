@@ -102,6 +102,8 @@ p { text-wrap: pretty; }
 .cl-toc small { color: var(--accent); }
 .release { padding: 48px 0; border-top: 1px solid var(--line); }
 .release:first-child { padding-top: 0; border-top: 0; }
+/* the last versions are short: give the list enough room that a click on the oldest one can scroll it to the top */
+.release:last-child { min-height: calc(100vh - 140px); }
 .rel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 16px; }
 .rel-head h2 { font-size: 32px; letter-spacing: -0.02em; }
 .rel-head .date { color: var(--dim); font: 400 14px/1 var(--mono); }
