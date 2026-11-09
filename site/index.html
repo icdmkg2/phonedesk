@@ -109,6 +109,25 @@
     .panel .phone-shot, .frame .phone-shot { left: 16px; top: 16px; width: 150%; }
     #lyrics .frame, #night .frame { aspect-ratio: 1; }
   }
+
+  /* ONE background: every section, panel and frame sits on the page's dark ground; screenshots show whole, at their own size */
+  .lit, .panel:not([data-fx], .panel--device), .hero__art { background: var(--surface) !important; background-image: none !important; border: 1px solid var(--line); }
+  .panel, .frame, .hero__art, .faq-shot { min-height: 0 !important; height: auto !important; aspect-ratio: auto !important; }
+  .frame::before { display: none; }
+  .panel, .frame, .hero__art { padding: var(--s-4); border-radius: var(--r-lg); }
+  .stage, .stage--fade-br { position: static !important; -webkit-mask: none !important; mask: none !important; inset: auto; }
+  .stage[hidden] { display: none !important; }
+  .stage > * { position: static !important; }
+  .phone-shot, .pc-shot, .hero__art > .ly-piece--main.phone-shot, .panel .phone-shot, .frame .phone-shot,
+  #setup .panel .phone-shot, #setup .panel .pc-shot, #lyrics .stage .phone-shot, #night .stage .phone-shot, #faq .stage .pc-shot
+    { position: relative !important; left: auto !important; top: auto !important; right: auto !important; width: 100% !important; }
+  .hero__art { display: flex; flex-direction: column; gap: var(--s-4); align-self: center; }
+  .hero__art > .ly-piece--note { position: static !important; width: 100% !important; }
+  .hero__art > .ly-piece--main { flex: none; }
+  #window .shot-frame::after { display: none; }
+  .footer .closing__links, .closing__links { padding-top: var(--s-7); }
+  .footer__legal { margin-top: var(--s-6); }
+  .footer.footer--dark { background: var(--p-bg); }
 </style>
 </head>
 <body>
@@ -248,7 +267,7 @@
     </div>
   </section>
 
-  <section class="section ground-inverse" id="lyrics" aria-labelledby="lyrics-h">
+  <section class="section" id="lyrics" aria-labelledby="lyrics-h">
     <div class="wrap">
       <div class="grid grid--top">
         <div class="span-5">
