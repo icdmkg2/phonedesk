@@ -1,5 +1,5 @@
 'use strict';
-// Builds the website into site/dist (published to GitHub Pages by .github/workflows/pages.yml).
+// Builds the website into site/dist (hosted by Dokploy, see site/Dockerfile).
 //   node site/build.js
 // No dependencies: the pages are templates filled from package.json and CHANGELOG.md, and the
 // screenshots are the ones in docs/changelog (served from /shots).

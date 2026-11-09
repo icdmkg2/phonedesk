@@ -5,7 +5,7 @@ lyrics, media and volume controls, a clock with weather and your calendar, live 
 buttons. Built and tuned for a Samsung Galaxy A11, light enough for any old phone. A lighter take on the DeskThing idea.
 
 [**Download the latest release**](https://github.com/icdmkg2/phonedesk/releases/latest) ·
-[Website](https://icdmkg2.github.io/phonedesk/) ·
+[Website](https://phonedesk.orreinis.me/) ·
 [What's new](CHANGELOG.md) ·
 [Report a problem](https://github.com/icdmkg2/phonedesk/issues/new/choose)
 
@@ -173,7 +173,7 @@ build/build.ps1        Builds the installer
 build/release.js       Release notes from CHANGELOG.md for GitHub Releases
 .github/workflows/     release.yml: builds and publishes GitHub Releases
 CHANGELOG.md           Patch notes for every version (screenshots in docs/changelog/)
-site/                  The website (node site/build.js → site/dist, published to GitHub Pages)
+site/                  The website (node site/build.js → site/dist, hosted with Dokploy, see site/Dockerfile)
 public/phone/          The phone app
 public/dashboard/      The PC dashboard
 data/config.json       Your settings when running from source (installed: %APPDATA%\PhoneDesk)

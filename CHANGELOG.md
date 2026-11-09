@@ -31,7 +31,7 @@ Clock faces, your calendar, night mode, an hour of PC stats, and a website.
   Click the version number at the bottom left to see them again.
 - **Save diagnostics** (*Activity*): one zip with the logs, settings and system facts for a bug report. Keys, tokens,
   the calendar address and shortcut commands are left out. *Report a problem* opens the new issue forms.
-- **Website** at [icdmkg2.github.io/phonedesk](https://icdmkg2.github.io/phonedesk/) with every feature, the lyrics
+- **Website** at [phonedesk.orreinis.me](https://phonedesk.orreinis.me/) with every feature, the lyrics
   styles, setup help and this changelog with its screenshots.
 - **Phone app in the release:** each release has `PhoneDesk-x.y.z.apk` attached. When the signing key is stored as a
   repository secret, the release workflow also rebuilds the app; its version now follows PhoneDesk's.
