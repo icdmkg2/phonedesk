@@ -537,7 +537,7 @@
     $('ds-screens').innerHTML = order.map((s) => {
       const on = c.screens.includes(s);
       return `<li class="${on ? '' : 'off'}" draggable="true" data-s="${s}"><span class="grip" aria-hidden="true">⋮⋮</span><span class="name">${screenName(s)}</span><span class="desc">${screenDesc(s)}</span>` +
-        `<span class="switch"><input type="checkbox" ${on ? 'checked' : ''} ${on && c.screens.length === 1 ? 'disabled' : ''} aria-label="Show ${screenName(s)}"><span></span></span></li>`;
+        (on && ['media', 'clock', 'stats', 'shortcuts'].includes(s) ? `<button class="btn sm ghost" data-customize="${s}" title="Turn this screen into a page of widgets you can rearrange">Customize</button>` : '') + `<span class="switch"><input type="checkbox" ${on ? 'checked' : ''} ${on && c.screens.length === 1 ? 'disabled' : ''} aria-label="Show ${screenName(s)}"><span></span></span></li>`;
     }).join('');
     $$('#ds-cface .theme').forEach((b) => { const on = b.dataset.v === (c.clockFace || 'digital'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $('ds-fc').checked = c.clockForecast !== false;
@@ -1202,6 +1202,24 @@
       },
     });
   });
+  // Customize a built-in screen: it becomes a page with the same widgets, in the same place in the swipe row
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-customize]');
+    if (!b) return;
+    const screen = b.dataset.customize, name = SCREEN_NAMES[screen];
+    adOpen({
+      kicker: 'Customize', title: name,
+      body: `<p>Turn <b>${esc(name)}</b> into a page of widgets that you can move, resize and mix with other widgets. It takes the same place in the swipe row.</p>
+        <p class="small muted">${screen === 'media' ? 'The lyrics sheet that pulls up over Now playing is not part of the widget version. ' : ''}${screen === 'shortcuts' ? 'Shortcut buttons appear in one grid, without the group tabs. ' : ''}The original screen stays available: turn it back on in Phone display whenever you like.</p>`,
+      ok: 'Customize', cancel: 'Cancel',
+      onOk: async () => {
+        const r = await api('pages/from-screen', { screen });
+        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = '';
+        renderDisplay(); go('layouts'); toast(name + ' is now a page you can edit');
+      },
+    });
+  });
+
   function lyNewPage() {
     if (!ly.cat) return;
     adOpen({

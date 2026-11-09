@@ -57,6 +57,21 @@ t('addon widget sizes and options come from the addon when it is known', () => {
   assert.deepStrictEqual(p.widgets[0].opts, { minutes: 90 });
   w.setAddonLookup(null);
 });
+t('a built-in screen becomes a page with the same widgets, following the settings', () => {
+  const clock = w.fromBuiltin('clock', { clockFace: 'analog', weather: true, clockForecast: true, calendarUrl: 'https://x.example/cal.ics' });
+  assert.deepStrictEqual(clock.widgets.map((x) => x.type).sort(), ['agenda', 'clock', 'forecast', 'weather']);
+  assert.strictEqual(clock.widgets.find((x) => x.type === 'clock').opts.face, 'analog');
+  const big = w.fromBuiltin('clock', { clockFace: 'big' });
+  assert.deepStrictEqual(big.widgets.map((x) => x.type), ['clock']);
+  assert.strictEqual(big.widgets[0].w, 12);
+  const noCal = w.fromBuiltin('clock', { clockFace: 'digital', weather: true, clockForecast: false });
+  assert.deepStrictEqual(noCal.widgets.map((x) => x.type).sort(), ['clock', 'weather']);
+  assert.deepStrictEqual(w.fromBuiltin('stats').widgets.map((x) => x.opts.metric), ['cpu', 'memory', 'gpu', 'network']);
+  assert.strictEqual(w.fromBuiltin('shortcuts').widgets[0].type, 'shortcuts');
+  assert.deepStrictEqual(w.fromBuiltin('media').widgets.map((x) => x.type), ['nowplaying', 'volume']);
+  assert.strictEqual(w.fromBuiltin('mixer'), null);
+  assert.strictEqual(w.fromBuiltin('lyrics'), null);
+});
 t('the config keeps pages, and a page that is gone leaves the swipe row', () => {
   const config = require('../server/config');
   const c = config.update({ pages: [{ id: 'pg-keep1234', name: 'Kept', widgets: [{ type: 'clock', x: 0, y: 0, w: 4, h: 2 }] }], screens: ['media', 'page:pg-keep1234', 'page:pg-gone1234'] });

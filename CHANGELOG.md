@@ -21,6 +21,11 @@ Addons: screens and features made by anyone, with a marketplace. Pages and widge
   Calendar agenda, Now playing (with controls), PC stats (CPU, memory, GPU or network), Volume, Shortcut buttons (all
   of them, or one group) and Text. Each has its own options. Mix them in any way, and put the same widget on several
   pages.
+- **Customize the built-in screens.** *Now playing*, *Clock*, *PC stats* and *Shortcuts* each have a *Customize* button in
+  *Phone display*. It turns the screen into a page of widgets that looks like it does now (following your clock face,
+  forecast and calendar settings), in the same place in the swipe row, so you can rearrange it, resize things and add
+  widgets. The original screen stays available: turn it back on in *Phone display*. (The lyrics sheet that pulls up over
+  Now playing and the group tabs of Shortcuts are not part of the widget versions.)
 - **Widgets from addons.** An addon can list widgets in its manifest, with the sizes it supports and options people can
   set. They appear in the editor's palette next to the built-in ones and run in the same sandbox as addon screens. The
   Pomodoro timer and Home Assistant addons now each have one.

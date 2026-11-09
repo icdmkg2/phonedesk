@@ -150,13 +150,40 @@ function fromTemplate(key, name) {
   return sanitizePages([{ name: name || t.name, widgets: t.widgets.map((w) => Object.assign({}, w)) }])[0];
 }
 
+/* ---------------------------------------------------------------- the built-in screens as pages */
+const BUILTIN_NAMES = { media: 'Now playing', clock: 'Clock', stats: 'PC stats', shortcuts: 'Shortcuts' };
+/**
+ * A page that looks like a built-in screen (using the person's current settings), so the screen can be customized
+ * like any page. null for screens that are not made of widgets (the volume mixer, lyrics).
+ */
+function fromBuiltin(screen, cfg) {
+  cfg = cfg || {};
+  let ws;
+  if (screen === 'clock') {
+    const face = ['digital', 'analog', 'big'].includes(cfg.clockFace) ? cfg.clockFace : 'digital', big = face === 'big';
+    const weather = !big && cfg.weather !== false, agenda = !big && !!cfg.calendarUrl, forecast = !big && cfg.clockForecast !== false && cfg.weather !== false;
+    const right = weather || agenda, cw = right ? 7 : 12, ch = forecast ? 4 : 6;
+    ws = [{ type: 'clock', x: 0, y: 0, w: cw, h: ch, opts: { face, date: !big, seconds: false } }];
+    if (forecast) ws.push({ type: 'forecast', x: 0, y: 4, w: cw, h: 2 });
+    if (weather) ws.push({ type: 'weather', x: 7, y: 0, w: 5, h: agenda ? 2 : 4 });
+    if (agenda) ws.push({ type: 'agenda', x: 7, y: weather ? 2 : 0, w: 5, h: weather ? 4 : 6, opts: { count: 5 } });
+  } else if (screen === 'stats') {
+    ws = ['cpu', 'memory', 'gpu', 'network'].map((m, i) => ({ type: 'stats', x: (i % 2) * 6, y: Math.floor(i / 2) * 3, w: 6, h: 3, opts: { metric: m } }));
+  } else if (screen === 'shortcuts') {
+    ws = [{ type: 'shortcuts', x: 0, y: 0, w: 12, h: 6, opts: { group: '' } }];
+  } else if (screen === 'media') {
+    ws = [{ type: 'nowplaying', x: 0, y: 0, w: 12, h: 5, opts: { cover: true, controls: true } }, { type: 'volume', x: 0, y: 5, w: 12, h: 1 }];
+  } else return null;
+  return sanitizePages([{ name: BUILTIN_NAMES[screen] + ' (custom)', widgets: ws }])[0];
+}
+
 /** What the dashboard's editor needs: the built-in types and the templates. */
 function catalog() {
   return {
-    grid: GRID, limits: LIMITS,
+    grid: GRID, limits: LIMITS, builtin: Object.keys(BUILTIN_NAMES),
     types: Object.entries(WIDGETS).map(([type, d]) => Object.assign({ type }, d)),
     templates: Object.entries(TEMPLATES).map(([key, t]) => ({ key, name: t.name, desc: t.desc, count: t.widgets.length })),
   };
 }
 
-module.exports = { GRID, LIMITS, WIDGETS, TEMPLATES, ADDON_TYPE, setAddonLookup, describe, sanitizePages, fromTemplate, catalog, findFree, overlaps, cleanOpts };
+module.exports = { BUILTIN_NAMES, fromBuiltin, GRID, LIMITS, WIDGETS, TEMPLATES, ADDON_TYPE, setAddonLookup, describe, sanitizePages, fromTemplate, catalog, findFree, overlaps, cleanOpts };

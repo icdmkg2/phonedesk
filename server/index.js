@@ -360,6 +360,17 @@ async function handleApi(req, res, url) {
       broadcast({ t: 'config', d: publicConfig() });
       return send(res, 200, { page, config: next });
     }
+    if (p === '/api/pages/from-screen' && req.method === 'POST') {
+      // Customize a built-in screen: a page with the same widgets takes its place in the swipe row
+      const b = await readBody(req), c = config.get(), screen = String(b.screen || '');
+      if (!c.screens.includes(screen)) throw new Error('that screen is not on the phone');
+      if (c.pages.length >= widgets.LIMITS.pages) throw new Error(`${widgets.LIMITS.pages} pages is the most`);
+      const page = widgets.fromBuiltin(screen, c);
+      if (!page) throw new Error('that screen is not made of widgets');
+      const next = config.update({ pages: [...c.pages, page], screens: c.screens.map((x) => (x === screen ? 'page:' + page.id : x)) });
+      broadcast({ t: 'config', d: publicConfig() });
+      return send(res, 200, { page, config: next });
+    }
     if (p === '/api/widgets' && req.method === 'GET') return send(res, 200, Object.assign(widgets.catalog(), { addonWidgets: addons.widgetList() }));
     if (p === '/api/addons' && req.method === 'GET') {
       const reg = await addons.loadRegistry();
