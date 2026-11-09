@@ -8,6 +8,9 @@
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
+  // ?preview=<page id>: the layout editor in the PC window shows one page, with nothing else around it.
+  var PREVIEW = (location.search.match(/[?&]preview=(pg-[a-z0-9]+)/) || [])[1] || '';
+  if (PREVIEW) document.documentElement.classList.add('preview');
   var store = {
     get: function (k, d) { try { var v = localStorage.getItem('pd.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem('pd.' + k, JSON.stringify(v)); } catch (e) {} },
@@ -43,7 +46,7 @@
     stats: null,
     config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive', lyricsMode: 'scroll', lyricsFont: 'serif', lyricsLines: 'off' },
     clockOffset: 0, // PC time - phone time (ms)
-    screen: store.get('screen', 'media'),
+    screen: PREVIEW ? 'page:' + PREVIEW : store.get('screen', 'media'),
   };
 
   /* ============================================================ connection */
@@ -66,7 +69,7 @@
 
   function wsUrl() {
     var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-    return proto + activeHost + '/ws?role=phone&screen=' + encodeURIComponent(state.screen);
+    return proto + activeHost + '/ws?role=' + (PREVIEW ? 'dashboard' : 'phone') + '&screen=' + encodeURIComponent(state.screen);
   }
 
   function connect() {
@@ -169,9 +172,9 @@
         state.clockOffset = m.d.serverTime - Date.now();
         if (m.d.hosts) { store.set('hosts', m.d.hosts); hosts = uniq([activeHost, location.host].concat(m.d.hosts)); }
         break;
-      case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); renderLive(); relayAddons('media', state.media); break;
-      case 'volume': state.volume = m.d; renderVolume(); renderLive(); relayAddons('volume', state.volume); break;
-      case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); relayAddons('stats', m.d); break;
+      case 'media': state.media = m.d || { active: false }; mediaClock(state.media); renderMedia(); renderClockMini(); renderSpotify(); renderLyricsHead(); renderLive(); relayAddons('media', state.media); renderPage(); break;
+      case 'volume': state.volume = m.d; renderVolume(); renderLive(); relayAddons('volume', state.volume); renderPage(); break;
+      case 'stats': state.stats = m.d; pushGraph(m.d); if (state.screen === 'stats') renderStats(); relayAddons('stats', m.d); renderPage(); break;
       case 'history': setHistory(m.d); break;
       case 'histPoint': addHistory(m.d); break;
       case 'config': applyConfig(m.d); break;
@@ -185,7 +188,7 @@
       case 'calendar': setCalendar(m.d); break;
       case 'spotify': state.spotify = m.d; renderSpotify(); break;
       case 'notify': queueNotification(m.d); break;
-      case 'addon': toAddon(m.id, 'message', m.d); break;
+      case 'addon': toAddon(m.id, 'message', m.d); widgetsOf(m.id).forEach(function (k) { toWidget(k, 'message', m.d); }); break;
     }
   }
 
@@ -446,7 +449,7 @@
     vol.slider.addEventListener('pointercancel', end);
   })();
   $('b-mute').addEventListener('click', function () { buzz(); send({ t: 'mute' }); });
-  function onResize() { layout(); drawVolume(state.volume.level, state.volume.muted); renderProgress(); sizeGraph(); }
+  function onResize() { Object.keys(pagesBuilt).forEach(layoutPage); layout(); drawVolume(state.volume.level, state.volume.muted); renderProgress(); sizeGraph(); }
   window.addEventListener('resize', onResize);
   window.addEventListener('orientationchange', function () { setTimeout(onResize, 150); });
 
@@ -537,7 +540,7 @@
 
   // Calendar: the next events from the PC (Google/Outlook iCal address set in the dashboard).
   var agenda = null;
-  function setCalendar(d) { agenda = d; renderAgenda(); }
+  function setCalendar(d) { agenda = d; renderAgenda(); renderPage(); }
   function dayLabel(t, now) {
     var a = new Date(t), b = new Date(now);
     var da = new Date(a.getFullYear(), a.getMonth(), a.getDate()), db = new Date(b.getFullYear(), b.getMonth(), b.getDate());
@@ -742,7 +745,7 @@
     list.forEach(function (sc) { if (sc.group && names.indexOf(sc.group) < 0) names.push(sc.group); });
     return names;
   }
-  function makeKey(sc) {
+  function makeKey(sc, bucket) {
     var b = document.createElement('button');
     b.className = 'key';
     b.style.setProperty('--kc', sc.color);
@@ -755,7 +758,7 @@
       b.classList.add('hit');
       setTimeout(function () { b.classList.remove('hit'); }, 180);
     });
-    if (sc.live === 'media' || sc.live === 'sound') liveKeys.push({ el: b, kind: sc.live });
+    if (sc.live === 'media' || sc.live === 'sound') (bucket || liveKeys).push({ el: b, kind: sc.live });
     return b;
   }
   function renderPad() {
@@ -801,7 +804,9 @@
     renderLive();
   }
   function renderLive() {
-    liveKeys.forEach(function (k) {
+    var all = liveKeys.slice();
+    Object.keys(pagesBuilt).forEach(function (id) { all = all.concat(pagesBuilt[id].live); });
+    all.forEach(function (k) {
       var sub = k.el.querySelector('.sub'), dot = k.el.querySelector('.dot'), text = '', color = '', alert = false;
       if (k.kind === 'media') {
         var m = state.media;
@@ -817,6 +822,263 @@
       toggle(k.el, 'alert', alert);
     });
   }
+
+  /* ============================================================ pages and widgets */
+  // A page is a grid (12 x 6) of widgets you arranged in the PC window. Only the page on screen does any work.
+  // Built-in widgets draw from the same data as the built-in screens; addon widgets are sandboxed frames (like addon screens).
+  var pagesBuilt = {}; // id -> { sec, grid, insts, live, key }
+  var wFrames = {};    // widget instance id -> { frame, ready, aid, wid, perms, page, opts, w, h }
+  function pageById(id) { var l = state.config.pages || []; for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+  function addonWidgetMeta(type) { var l = state.config.addonWidgets || []; for (var i = 0; i < l.length; i++) if (l[i].type === type) return l[i]; return null; }
+  function wEl(type) { var e = document.createElement('div'); e.className = 'wg wg-' + String(type).replace(/[^a-z0-9]+/g, '-'); return e; }
+  function wPad2(n) { return (n < 10 ? '0' : '') + n; }
+  function wTime(d, seconds) {
+    var h = d.getHours(), mi = d.getMinutes(), s = seconds ? ':' + wPad2(d.getSeconds()) : '';
+    if (state.config.clock24) return wPad2(h) + ':' + wPad2(mi) + s;
+    return ((h % 12) || 12) + ':' + wPad2(mi) + s + '<small>' + (h < 12 ? 'AM' : 'PM') + '</small>';
+  }
+  function wFresh() { return weather && state.config.weather !== false && Date.now() - weather.at < 6 * 3600 * 1000; }
+  function wEmpty(el, text) { el.innerHTML = '<div class="w-empty">' + escHtml(text) + '</div>'; }
+
+  function wClock(wd) {
+    var o = wd.opts || {}, el = wEl('clock'), face = o.face || 'digital', analog = face === 'analog';
+    var NS = 'http://www.w3.org/2000/svg', svg = null, hands = null;
+    if (analog) {
+      var ticks = '';
+      for (var i = 0; i < 60; i++) {
+        var big = i % 5 === 0, a = i * Math.PI / 30, r1 = big ? 80 : 86;
+        ticks += '<line class="a-tk' + (big ? ' big' : '') + '" x1="' + (100 + r1 * Math.sin(a)).toFixed(1) + '" y1="' + (100 - r1 * Math.cos(a)).toFixed(1) + '" x2="' + (100 + 91 * Math.sin(a)).toFixed(1) + '" y2="' + (100 - 91 * Math.cos(a)).toFixed(1) + '"/>';
+      }
+      el.innerHTML = '<svg class="w-face" viewBox="0 0 200 200" aria-hidden="true">' + ticks + '<line class="a-hand h" x1="100" y1="100" x2="100" y2="58"/><line class="a-hand m" x1="100" y1="100" x2="100" y2="34"/>' + (o.seconds ? '<line class="a-hand s" x1="100" y1="112" x2="100" y2="26"/>' : '') + '<circle cx="100" cy="100" r="4" class="a-pin"/></svg><div class="w-date"></div>';
+      svg = el.querySelector('svg'); hands = { h: el.querySelector('.h'), m: el.querySelector('.m'), s: el.querySelector('.s') };
+    } else el.innerHTML = '<div class="w-time"></div><div class="w-date"></div>';
+    var timeEl = el.querySelector('.w-time'), dateEl = el.querySelector('.w-date'), last = '';
+    return {
+      el: el,
+      update: function () {
+        var d = new Date(Date.now() + state.clockOffset);
+        if (analog) {
+          var s = d.getSeconds(), m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60;
+          hands.h.setAttribute('transform', 'rotate(' + (h * 30).toFixed(1) + ' 100 100)'); hands.m.setAttribute('transform', 'rotate(' + (m * 6).toFixed(1) + ' 100 100)');
+          if (hands.s) hands.s.setAttribute('transform', 'rotate(' + (s * 6) + ' 100 100)');
+        } else { var t = wTime(d, !!o.seconds); if (t !== last) { last = t; timeEl.innerHTML = t; } }
+        var dt = o.date === false || face === 'big' ? '' : dateText(d);
+        if (dateEl.textContent !== dt) dateEl.textContent = dt;
+        dateEl.hidden = !dt;
+      },
+      resize: function (w, h) {
+        var hasDate = o.date !== false && face !== 'big';
+        if (analog) { svg.style.width = svg.style.height = Math.max(20, Math.min(h * .96, w * (hasDate ? .55 : .95))) + 'px'; dateEl.style.fontSize = Math.max(11, Math.min(h * .16, w * .07)) + 'px'; }
+        else { timeEl.style.fontSize = Math.max(14, Math.min(h * (face === 'big' ? .82 : hasDate ? .6 : .8), w * (o.seconds ? .17 : (face === 'big' ? .3 : .24)))) + 'px'; dateEl.style.fontSize = Math.max(11, Math.min(h * .13, w * .06)) + 'px'; }
+      },
+    };
+  }
+  function wWeather() {
+    var el = wEl('weather'), last = null;
+    return {
+      el: el,
+      update: function () {
+        var w = wFresh() ? weather : null, html = w ? '<div class="w-wxrow">' + wxIcon(w.code, w.day) + '<b>' + w.temp + '°</b></div><div class="w-sub">' + escHtml(w.city || '') + '</div><div class="w-sub">H ' + w.hi + '° · L ' + w.lo + '°</div>' : null;
+        if (html === last) return; last = html;
+        if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
+      },
+      resize: function (w, h) { el.style.setProperty('--wf', Math.max(11, Math.min(h * .2, w * .1)) + 'px'); },
+    };
+  }
+  function wForecast() {
+    var el = wEl('forecast'), last = null;
+    return {
+      el: el,
+      update: function () {
+        var days = wFresh() && weather.days ? weather.days.slice(0, 5) : [], html = '';
+        days.forEach(function (x, i) {
+          var p = String(x.d).split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2]);
+          html += '<div class="fc-d"><span class="fc-n">' + escHtml(i === 0 ? 'Today' : dt.toLocaleDateString(undefined, { weekday: 'short' })) + '</span>' + wxIcon(x.code, true) + '<span class="fc-t"><b>' + x.hi + '°</b> ' + x.lo + '°</span></div>';
+        });
+        if (html === last) return; last = html;
+        if (html) el.innerHTML = html; else wEmpty(el, 'No forecast yet');
+      },
+      resize: function (w, h) { el.style.setProperty('--wf', Math.max(11, Math.min(h * .2, w * .045)) + 'px'); },
+    };
+  }
+  function wAgenda(wd) {
+    var el = wEl('agenda'), count = Math.max(1, Math.min(8, +(wd.opts || {}).count || 4)), last = null;
+    return {
+      el: el,
+      update: function () {
+        var now = Date.now() + state.clockOffset, ev = agenda && agenda.events ? agenda.events : [];
+        ev = ev.filter(function (e) { return e.end > now || (e.allDay && e.end >= now); }).slice(0, count);
+        var html = '', lastDay = '';
+        ev.forEach(function (e) {
+          var day = dayLabel(e.start, now), on = !e.allDay && e.start <= now && e.end > now;
+          if (day !== lastDay) { html += '<div class="ag-day">' + escHtml(day) + '</div>'; lastDay = day; }
+          html += '<div class="ag-ev' + (on ? ' on' : '') + '"><span class="ag-t">' + escHtml(e.allDay ? 'All day' : on ? 'Now · until ' + timeLabel(e.end) : timeLabel(e.start)) + '</span><span class="ag-n">' + escHtml(e.title) + '</span></div>';
+        });
+        if (html === last) return; last = html;
+        if (html) el.innerHTML = html; else wEmpty(el, agenda ? 'No events coming up' : 'Add a calendar in PhoneDesk');
+      },
+      resize: function (w, h) { el.style.setProperty('--wf', Math.max(11, Math.min(h * .09, w * .06)) + 'px'); },
+    };
+  }
+  function wNow(wd) {
+    var o = wd.opts || {}, el = wEl('nowplaying');
+    el.innerHTML = (o.cover !== false ? '<div class="w-cover"><img alt=""></div>' : '') + '<div class="w-np"><b class="w-title"></b><span class="w-sub w-artist"></span>' +
+      (o.controls !== false ? '<div class="w-ctl"><button type="button" data-a="prev" aria-label="Previous"><svg class="ic"><use href="#i-prev"/></svg></button><button type="button" data-a="toggle" class="play" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button type="button" data-a="next" aria-label="Next"><svg class="ic"><use href="#i-next"/></svg></button></div>' : '') + '</div>';
+    var img = el.querySelector('img'), title = el.querySelector('.w-title'), artist = el.querySelector('.w-artist'), play = el.querySelector('.play use'), lastArtUrl = '';
+    el.addEventListener('click', function (e) { var b = e.target.closest('button[data-a]'); if (b) { buzz(); send({ t: 'cmd', a: b.getAttribute('data-a') }); } });
+    return {
+      el: el,
+      update: function () {
+        var m = state.media;
+        setText(title, m.active ? (m.title || 'Unknown title') : 'Nothing playing');
+        setText(artist, m.active ? (m.artist || m.album || '') : 'Play something on your PC');
+        if (img) { var u = m.active && m.art ? pcUrl(m.art) : ''; if (u !== lastArtUrl) { lastArtUrl = u; if (u) img.src = u; else img.removeAttribute('src'); } img.parentNode.classList.toggle('empty', !u); }
+        if (play) setHref(play, isPlaying() ? '#i-pause' : '#i-play');
+      },
+      resize: function (w, h) { el.style.setProperty('--wf', Math.max(12, Math.min(h * .14, w * .06)) + 'px'); if (img) img.parentNode.style.width = Math.min(h - 16, w * .45) + 'px'; },
+    };
+  }
+  function wStats(wd) {
+    var metric = (wd.opts || {}).metric || 'cpu', el = wEl('stats');
+    el.innerHTML = '<span class="w-lab"></span><b class="w-big"></b><div class="bar"><div class="fill"></div></div><span class="w-sub"></span>';
+    var lab = el.querySelector('.w-lab'), big = el.querySelector('.w-big'), fill = el.querySelector('.fill'), sub = el.querySelector('.w-sub');
+    return {
+      el: el,
+      update: function () {
+        var s = state.stats; if (!s) return;
+        var pct = null, txt = '', note = '', name = '';
+        if (metric === 'memory') { pct = s.memTotal ? Math.round(s.memUsed / s.memTotal * 100) : 0; txt = pct + '%'; note = gb(s.memUsed) + ' / ' + gb(s.memTotal) + ' GB'; name = 'Memory'; }
+        else if (metric === 'gpu') { var g = s.gpu; name = 'GPU'; if (g && g.load >= 0) { pct = g.load; txt = pct + '%'; note = g.temp > 0 ? g.temp + '°C' : ''; } else { txt = '–'; note = 'No GPU data'; } }
+        else if (metric === 'network') { name = 'Network'; if (s.net) { var rx = speed(s.net.rx), tx = speed(s.net.tx); txt = rx[0] + '<small>' + rx[1] + '</small>'; note = '↑ ' + tx.join(' ') + ' up'; } else { txt = '–'; } }
+        else { pct = s.cpu; txt = pct + '%'; note = s.cores + ' threads'; name = 'CPU'; }
+        setText(lab, name); if (big.innerHTML !== txt) big.innerHTML = txt; setText(sub, note);
+        fill.parentNode.hidden = pct == null; if (pct != null) fill.style.transform = 'scaleX(' + pct / 100 + ')';
+      },
+      resize: function (w, h) { el.style.setProperty('--wf', Math.max(10, Math.min(h * .115, w * .07)) + 'px'); },
+    };
+  }
+  function wVolume() {
+    var el = wEl('volume');
+    el.innerHTML = '<button type="button" class="w-mute" aria-label="Mute"><svg class="ic"><use href="#i-vol"/></svg></button><div class="slider"><div class="fill"></div><div class="knob"></div></div><b class="w-pct"></b>';
+    var slider = el.querySelector('.slider'), pct = el.querySelector('.w-pct');
+    var sendVol = throttle(function (v) { send({ t: 'volume', v: v }); }, 70);
+    bindSlider(slider, function (v, done) { sendVol(v); setText(pct, Math.round(v * 100) + '%'); if (done) send({ t: 'volume', v: v }); });
+    el.querySelector('.w-mute').addEventListener('click', function () { buzz(); send({ t: 'mute' }); });
+    return {
+      el: el,
+      update: function () { drawSlider(slider, state.volume.muted ? 0 : state.volume.level); if (!slider._dragging) setText(pct, state.volume.muted ? 'Muted' : Math.round(state.volume.level * 100) + '%'); },
+      resize: function (w, h) { el.style.setProperty('--wf', Math.max(12, Math.min(h * .3, w * .06)) + 'px'); },
+    };
+  }
+  function wShortcuts(wd, live) {
+    var group = String((wd.opts || {}).group || '').trim(), el = wEl('shortcuts');
+    var list = (state.config.shortcuts || []).filter(function (sc) { return !group || sc.group === group; });
+    if (!list.length) wEmpty(el, group ? 'No buttons in “' + group + '”' : 'No shortcut buttons yet');
+    else list.forEach(function (sc) { el.appendChild(makeKey(sc, live)); });
+    return {
+      el: el,
+      update: function () {},
+      resize: function (w, h) {
+        var cols = Math.max(1, Math.min(list.length || 1, Math.round(w / 150))), rows = Math.ceil((list.length || 1) / cols);
+        el.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))'; el.style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
+        el.style.setProperty('--wf', Math.max(11, Math.min(h / rows * .22, w / cols * .13)) + 'px');
+      },
+    };
+  }
+  function wText(wd) {
+    var o = wd.opts || {}, el = wEl('text'), size = { small: .12, medium: .2, large: .3, huge: .5 }[o.size] || .3;
+    el.style.textAlign = o.align || 'center'; el.style.justifyContent = { left: 'flex-start', right: 'flex-end' }[o.align] || 'center';
+    var p = document.createElement('div'); p.className = 'w-text'; p.textContent = o.text || ''; el.appendChild(p);
+    return { el: el, update: function () {}, resize: function (w, h) { p.style.fontSize = Math.max(10, Math.min(h * size, w * size * .8)) + 'px'; } };
+  }
+
+  // A widget from an addon: a sandboxed frame with the same SDK as addon screens.
+  function wAddon(wd, pageId) {
+    var meta = addonWidgetMeta(wd.type), el = wEl('addon');
+    if (!meta) { wEmpty(el, 'This widget isn’t available (its addon is off or removed)'); return { el: el, update: function () {} }; }
+    var fr = document.createElement('iframe'), key = wd.id;
+    fr.setAttribute('sandbox', 'allow-scripts'); fr.setAttribute('title', meta.name);
+    fr.src = '/addons/' + encodeURIComponent(meta.aid) + '/' + meta.entry.split('/').map(encodeURIComponent).join('/') + '?widget=' + encodeURIComponent(meta.wid) + '&v=' + encodeURIComponent(meta.version);
+    el.appendChild(fr);
+    var rec = { frame: fr, ready: false, aid: meta.aid, wid: meta.wid, perms: meta.permissions || [], page: pageId, opts: wd.opts || {}, w: 0, h: 0 };
+    wFrames[key] = rec;
+    return {
+      el: el, update: function () {},
+      resize: function (w, h) { rec.w = Math.round(w); rec.h = Math.round(h); if (rec.ready) toWidget(key, 'resize', { w: rec.w, h: rec.h }); },
+      destroy: function () { delete wFrames[key]; },
+    };
+  }
+  function toWidget(key, t, d) { var f = wFrames[key]; if (f && f.ready && f.frame.contentWindow) { try { f.frame.contentWindow.postMessage({ pd: 1, t: t, d: d }, '*'); } catch (e) {} } }
+  function widgetsOf(aid, pageId) { return Object.keys(wFrames).filter(function (k) { var f = wFrames[k]; return f.aid === aid && (!pageId || f.page === pageId); }); }
+  function pageVisible(id, on) { Object.keys(wFrames).forEach(function (k) { if (wFrames[k].page === id) toWidget(k, 'visible', on); }); }
+
+  function makeWidget(wd, live, pageId) {
+    switch (wd.type) {
+      case 'clock': return wClock(wd);
+      case 'weather': return wWeather(wd);
+      case 'forecast': return wForecast(wd);
+      case 'agenda': return wAgenda(wd);
+      case 'nowplaying': return wNow(wd);
+      case 'stats': return wStats(wd);
+      case 'volume': return wVolume(wd);
+      case 'shortcuts': return wShortcuts(wd, live);
+      case 'text': return wText(wd);
+    }
+    return wd.type.indexOf('addon:') === 0 ? wAddon(wd, pageId) : null;
+  }
+
+  function pageKey(page) { return JSON.stringify(page) + '|' + JSON.stringify(state.config.addonWidgets || []) + '|' + JSON.stringify(state.config.shortcuts || []); }
+  function ensurePage(name) {
+    var id = name.slice(5), page = pageById(id);
+    if (!page) return;
+    var key = pageKey(page), b = pagesBuilt[id];
+    if (b && b.key === key) return;
+    if (b) dropPage(id);
+    var sec = document.createElement('section'), grid = document.createElement('div'), live = [], insts = [];
+    sec.className = 'screen page'; sec.id = 's-page-' + id; sec.setAttribute('data-screen', name);
+    grid.className = 'wgrid'; grid.setAttribute('aria-label', page.name);
+    page.widgets.forEach(function (wd) {
+      var inst = makeWidget(wd, live, id);
+      if (!inst) return;
+      inst.wd = wd;
+      inst.el.style.gridArea = (wd.y + 1) + ' / ' + (wd.x + 1) + ' / span ' + wd.h + ' / span ' + wd.w;
+      grid.appendChild(inst.el); insts.push(inst);
+    });
+    sec.appendChild(grid); $('screens').appendChild(sec);
+    pagesBuilt[id] = { sec: sec, grid: grid, insts: insts, live: live, key: key };
+  }
+  function dropPage(id) {
+    var b = pagesBuilt[id]; if (!b) return;
+    b.insts.forEach(function (i) { if (i.destroy) i.destroy(); });
+    if (b.sec.parentNode) b.sec.parentNode.removeChild(b.sec);
+    delete pagesBuilt[id];
+  }
+  function layoutPage(id) {
+    var b = pagesBuilt[id]; if (!b) return;
+    var W = b.grid.clientWidth, H = b.grid.clientHeight; if (!W || !H) return;
+    var gap = 8, cw = (W - gap * 11) / 12, ch = (H - gap * 5) / 6;
+    b.insts.forEach(function (i) {
+      var w = i.wd.w * cw + (i.wd.w - 1) * gap, h = i.wd.h * ch + (i.wd.h - 1) * gap;
+      i.el.style.setProperty('--ww', w + 'px'); i.el.style.setProperty('--wh', h + 'px');
+      if (i.resize) i.resize(w, h);
+    });
+  }
+  function renderPage(force) {
+    if (state.screen.indexOf('page:') !== 0) return;
+    var b = pagesBuilt[state.screen.slice(5)]; if (!b) return;
+    if (force) layoutPage(state.screen.slice(5));
+    b.insts.forEach(function (i) { if (i.update) i.update(force); });
+  }
+  // A page changed on the PC (or an addon came or went): rebuild what differs.
+  function syncPages() {
+    Object.keys(pagesBuilt).forEach(function (id) {
+      var page = pageById(id);
+      if (!page) { dropPage(id); return; }
+      if (pagesBuilt[id].key !== pageKey(page)) { dropPage(id); if (state.screen === 'page:' + id) { ensurePage('page:' + id); } }
+    });
+  }
+  window.addEventListener('resize', function () { setTimeout(function () { Object.keys(pagesBuilt).forEach(layoutPage); }, 50); });
+  setInterval(function () { if (document.visibilityState === 'visible') renderPage(false); }, 1000);
 
   /* ============================================================ addon screens */
   // Each addon screen is a page in the swipe row: a sandboxed iframe (no network, no shared storage) that
@@ -856,9 +1118,35 @@
   function addonCan(id, perm) { var m = addonMeta(id); return !!(m && m.permissions.indexOf(perm) >= 0); }
   // media, volume and stats go to the addon screens that asked for them (and are on screen).
   function relayAddons(name, data) {
-    if (state.screen.indexOf('addon:') !== 0) return;
-    var id = state.screen.slice(6);
-    if (addonCan(id, name)) toAddon(id, name, data);
+    if (state.screen.indexOf('addon:') === 0) { var id = state.screen.slice(6); if (addonCan(id, name)) toAddon(id, name, data); }
+    else if (state.screen.indexOf('page:') === 0) {
+      var pid = state.screen.slice(5);
+      Object.keys(wFrames).forEach(function (k) { var f = wFrames[k]; if (f.page === pid && f.perms.indexOf(name) >= 0) toWidget(k, name, data); });
+    }
+  }
+  function pushWidgetState(key) {
+    var f = wFrames[key];
+    if (!f) return;
+    if (f.perms.indexOf('media') >= 0) toWidget(key, 'media', state.media);
+    if (f.perms.indexOf('volume') >= 0) toWidget(key, 'volume', state.volume);
+    if (f.perms.indexOf('stats') >= 0 && state.stats) toWidget(key, 'stats', state.stats);
+  }
+  function widgetMessage(key, m) {
+    var f = wFrames[key];
+    if (!f || !m || m.pd !== 1) return;
+    var shown = state.screen === 'page:' + f.page;
+    switch (m.t) {
+      case 'ready':
+        f.ready = true;
+        toWidget(key, 'init', { id: f.aid, permissions: f.perms, theme: themeVars(), themeName: state.config.theme || 'dark', widget: { id: f.wid, instance: key, options: f.opts, w: f.w, h: f.h } });
+        toWidget(key, 'visible', shown);
+        if (shown) pushWidgetState(key);
+        break;
+      case 'send': send({ t: 'addon', id: f.aid, d: m.d, w: f.wid }); break;
+      case 'swipe': if (shown && (m.d === 1 || m.d === -1)) step(m.d); break;
+      case 'media': if (f.perms.indexOf('control') >= 0 && ['toggle', 'play', 'pause', 'next', 'prev'].indexOf(m.d) >= 0) send({ t: 'cmd', a: m.d }); break;
+      case 'volume': if (f.perms.indexOf('control') >= 0 && isFinite(+m.d)) send({ t: 'volume', v: Math.min(1, Math.max(0, +m.d)) }); break;
+    }
   }
   function pushAddonState(id) {
     if (addonCan(id, 'media')) toAddon(id, 'media', state.media);
@@ -871,6 +1159,7 @@
     return out;
   }
   window.addEventListener('message', function (e) {
+    for (var q in wFrames) if (wFrames[q].frame.contentWindow === e.source) return widgetMessage(q, e.data);
     var id = null;
     for (var k in addonFrames) if (addonFrames[k].frame.contentWindow === e.source) id = k;
     var m = e.data;
@@ -902,22 +1191,23 @@
   var pendingScreen = ''; // an addon screen the phone was on, until the config that lists it has arrived
   function show(name) {
     var list = screens();
-    if (list.indexOf(name) < 0) { if (!state.configured && name.indexOf('addon:') === 0) pendingScreen = name; name = list[0]; }
+    if (list.indexOf(name) < 0 && !(PREVIEW && name === 'page:' + PREVIEW)) { if (!state.configured && (name.indexOf('addon:') === 0 || name.indexOf('page:') === 0)) pendingScreen = name; name = list[0]; }
     var from = list.indexOf(state.screen), to = list.indexOf(name);
     $('screens').setAttribute('data-dir', from < 0 || from === to ? 'none' : (to > from ? 'next' : 'prev'));
     if (name.indexOf('addon:') === 0) ensureAddonScreen(name);
+    if (name.indexOf('page:') === 0) ensurePage(name);
     var prevName = state.screen;
     state.screen = name;
     closeLyrics(true);
     document.body.classList.toggle('scr-media', name === 'media');
     document.body.classList.toggle('scr-lyrics', name === 'lyrics');
-    if (!pendingScreen) store.set('screen', name);
+    if (!pendingScreen && !PREVIEW) store.set('screen', name);
     var secs = document.querySelectorAll('.screen');
     for (var i = 0; i < secs.length; i++) toggle(secs[i], 'on', secs[i].getAttribute('data-screen') === name);
     var dots = $('dots').children;
     for (var j = 0; j < dots.length; j++) toggle(dots[j], 'on', dots[j].getAttribute('data-s') === name);
-    send({ t: 'screen', v: name });
-    if (prevName !== name) { if (prevName && prevName.indexOf('addon:') === 0) toAddon(prevName.slice(6), 'visible', false); if (name.indexOf('addon:') === 0) { toAddon(name.slice(6), 'visible', true); pushAddonState(name.slice(6)); } }
+    if (!PREVIEW) send({ t: 'screen', v: name });
+    if (prevName !== name) { if (prevName && prevName.indexOf('addon:') === 0) toAddon(prevName.slice(6), 'visible', false); if (name.indexOf('addon:') === 0) { toAddon(name.slice(6), 'visible', true); pushAddonState(name.slice(6)); } if (prevName && prevName.indexOf('page:') === 0) pageVisible(prevName.slice(5), false); if (name.indexOf('page:') === 0) { pageVisible(name.slice(5), true); Object.keys(wFrames).forEach(function (k) { if (wFrames[k].page === name.slice(5)) pushWidgetState(k); }); } }
     renderAll();
   }
 
@@ -927,6 +1217,7 @@
     else if (state.screen === 'lyrics') { renderLyricsHead(); lyricTick(true); lyStart(); }
     else if (state.screen === 'clock') { lastClock = ''; renderClock(); renderClockMini(); }
     else if (state.screen === 'stats') renderStats();
+    else if (state.screen.indexOf('page:') === 0) renderPage(true);
   }
 
   function renderDots() {
@@ -936,7 +1227,7 @@
     list.forEach(function (s) {
       var b = document.createElement('button');
       b.setAttribute('data-s', s);
-      b.setAttribute('aria-label', s.indexOf('addon:') === 0 ? ((addonMeta(s.slice(6)) || {}).title || s) : s);
+      b.setAttribute('aria-label', s.indexOf('addon:') === 0 ? ((addonMeta(s.slice(6)) || {}).title || s) : s.indexOf('page:') === 0 ? ((pageById(s.slice(5)) || {}).name || s) : s);
       b.addEventListener('click', function () { show(s); });
       nav.appendChild(b);
     });
@@ -992,6 +1283,7 @@
     burnShift();
     state.configured = true;
     syncAddonFrames();
+    syncPages();
     if (JSON.stringify(c.screens) + c.nowStyle !== prevScreens || !$('dots').children.length) { renderDots(); show(state.screen); }
     else renderAll();
     armDim();
@@ -1779,6 +2071,7 @@
     weather = w;
     store.set('weather', w);
     renderWeather();
+    renderPage();
   }
   function renderWeather() {
     var w = weather;

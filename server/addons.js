@@ -28,6 +28,7 @@ const DOWNLOAD_HOSTS = ['github.com', 'raw.githubusercontent.com', 'objects.gith
 const MAX_PACKAGE = 20 * 1024 * 1024;
 
 const { PERMISSIONS, permissionInfo, hostAllowed } = require('./permissions');
+const widgetsApi = require('./widgets');
 
 /* ---------------------------------------------------------------- manifest */
 const ID_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
@@ -40,6 +41,21 @@ function cmpVer(a, b) {
   return 0;
 }
 function str(v, max) { return typeof v === 'string' ? v.trim().slice(0, max) : ''; }
+
+/** The fields people can set (addon settings, widget options): text, password, number, boolean, select. */
+function cleanFields(list, what) {
+  const out = [];
+  for (const s of Array.isArray(list) ? list.slice(0, 20) : []) {
+    if (!s || !/^[a-z][a-zA-Z0-9]{0,29}$/.test(s.key || '')) throw new Error(`a ${what} needs a "key" like "serverUrl"`);
+    const type = ['text', 'password', 'number', 'boolean', 'select'].includes(s.type) ? s.type : 'text';
+    const o = { key: s.key, label: str(s.label, 60) || s.key, type, placeholder: str(s.placeholder, 80), hint: str(s.hint, 160) };
+    if (type === 'select') o.options = (Array.isArray(s.options) ? s.options : []).slice(0, 30).map((x) => str(String(x), 40)).filter(Boolean);
+    if (type === 'number') { if (Number.isFinite(+s.min)) o.min = +s.min; if (Number.isFinite(+s.max)) o.max = +s.max; }
+    if (s.default != null) o.default = type === 'boolean' ? !!s.default : type === 'number' ? Number(s.default) || 0 : str(String(s.default), 200);
+    out.push(o);
+  }
+  return out;
+}
 
 /** addon.json -> a clean manifest, or throws an Error saying what is wrong (for developers and the install prompt). */
 function validateManifest(raw, files) {
@@ -81,21 +97,27 @@ function validateManifest(raw, files) {
     m.server = needFile(raw.server, 'server');
     if (!/\.js$/i.test(m.server)) throw new Error('"server" must be a .js file');
   }
-  if (!m.screen && !m.server) throw new Error('an addon needs a "screen", a "server", or both');
+  if (!m.screen && !m.server && !(Array.isArray(raw.widgets) && raw.widgets.length)) throw new Error('an addon needs a "screen", a "server", a "widgets" list, or several of them');
   m.actions = [];
   for (const a of Array.isArray(raw.actions) ? raw.actions.slice(0, 30) : []) {
     if (!a || !/^[a-z][a-z0-9-]{0,29}$/.test(a.id || '')) throw new Error('an action needs an "id" like "volume-up"');
     m.actions.push({ id: a.id, label: str(a.label, 40) || a.id });
   }
   if (m.actions.length && !m.server) throw new Error('actions need a "server"');
-  m.settings = [];
-  for (const s of Array.isArray(raw.settings) ? raw.settings.slice(0, 20) : []) {
-    if (!s || !/^[a-z][a-zA-Z0-9]{0,29}$/.test(s.key || '')) throw new Error('a setting needs a "key" like "serverUrl"');
-    const type = ['text', 'password', 'number', 'boolean', 'select'].includes(s.type) ? s.type : 'text';
-    const o = { key: s.key, label: str(s.label, 60) || s.key, type, placeholder: str(s.placeholder, 80), hint: str(s.hint, 160) };
-    if (type === 'select') o.options = (Array.isArray(s.options) ? s.options : []).slice(0, 30).map((x) => str(String(x), 40)).filter(Boolean);
-    if (s.default != null) o.default = type === 'boolean' ? !!s.default : type === 'number' ? Number(s.default) || 0 : str(String(s.default), 200);
-    m.settings.push(o);
+  m.settings = cleanFields(raw.settings, 'setting');
+  m.widgets = [];
+  for (const w of Array.isArray(raw.widgets) ? raw.widgets.slice(0, 10) : []) {
+    if (!w || !/^[a-z][a-z0-9-]{0,29}$/.test(w.id || '')) throw new Error('a widget needs an "id" like "timer"');
+    if (m.widgets.some((x) => x.id === w.id)) throw new Error('two widgets have the id "' + w.id + '"');
+    const entry = needFile(w.entry || 'widget/index.html', 'widget "' + w.id + '" entry');
+    if (!/\.html?$/i.test(entry)) throw new Error('the widget entry must be an .html file');
+    const n = (v, lo, hi, d) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : d; };
+    const minW = n(w.minW, 1, widgetsApi.GRID.cols, 2), minH = n(w.minH, 1, widgetsApi.GRID.rows, 1);
+    m.widgets.push({
+      id: w.id, title: str(w.title, 24) || w.id, description: str(w.description, 120), entry, minW, minH,
+      defW: n(w.defW, minW, widgetsApi.GRID.cols, Math.max(minW, 4)), defH: n(w.defH, minH, widgetsApi.GRID.rows, Math.max(minH, 2)),
+      options: cleanFields(w.options, 'option'),
+    });
   }
   return m;
 }
@@ -396,7 +418,7 @@ function describe(id) {
   return {
     id, name: m.name, version: st.version, description: m.description, author: m.author, homepage: m.homepage,
     enabled: st.enabled !== false, source: st.source, permissions: st.permissions.map(permissionInfo).filter(Boolean),
-    screen: m.screen || null, actions: m.actions, hasServer: !!m.server,
+    screen: m.screen || null, widgets: m.widgets.map((w) => ({ id: w.id, title: w.title })), actions: m.actions, hasServer: !!m.server,
     running: !!(h && h.child && h.child.connected), error: (h && h.error) || '',
     settings: m.settings.map((s) => Object.assign({}, s, {
       value: s.type === 'password' ? '' : cleanSettings(m, { __old: vals })[s.key],
@@ -406,6 +428,26 @@ function describe(id) {
   };
 }
 function list() { return Object.keys(state).map(describe).filter(Boolean); }
+
+/** Widgets that enabled addons provide: for the layout editor's palette, and for the phone to draw. */
+function widgetList() {
+  const out = [];
+  for (const id of Object.keys(state)) {
+    if (state[id].enabled === false) continue;
+    const m = readManifest(id);
+    if (!m) continue;
+    for (const w of m.widgets) {
+      out.push({ type: `addon:${id}:${w.id}`, addon: m.name, aid: id, wid: w.id, name: w.title, desc: w.description || m.description, entry: w.entry, minW: w.minW, minH: w.minH, defW: w.defW, defH: w.defH, opts: w.options, version: state[id].version, permissions: state[id].permissions });
+    }
+  }
+  return out;
+}
+/** For widgets.js: the size limits and options of one addon widget (installed, even if turned off). */
+function widgetDesc(aid, wid) {
+  if (!state[aid]) return null;
+  const m = readManifest(aid), w = m && m.widgets.find((x) => x.id === wid);
+  return w ? { name: w.title, minW: w.minW, minH: w.minH, defW: w.defW, defH: w.defH, opts: w.options } : null;
+}
 
 /** What the phone needs: the enabled addons that have a screen. */
 function phoneScreens() {
@@ -561,9 +603,9 @@ async function httpRequest(perms, o) {
 
 /* ---------------------------------------------------------------- events in, actions out */
 /** Phone -> addon server (a message from the addon's own screen). */
-function fromPhone(id, data) {
+function fromPhone(id, data, widget) {
   const h = hosts.get(id);
-  if (h && h.child && h.child.connected && state[id] && state[id].enabled !== false) h.child.send({ op: 'screenMessage', data });
+  if (h && h.child && h.child.connected && state[id] && state[id].enabled !== false) h.child.send({ op: 'screenMessage', data, widget: widget || '' });
 }
 /** media / volume / stats -> the addon servers that asked for them. */
 function emit(name, data) {
@@ -612,7 +654,7 @@ module.exports = {
   PERMISSIONS, DOWNLOAD_HOSTS, DEFAULT_REGISTRY,
   validateManifest, validateRegistryEntry, permissionInfo, hostAllowed, cmpVer, readPackage,
   init, startAll, stopAll, loadRegistry, registryView, checkUpdates, prepare, confirm, installLocal, remove, setEnabled, setSettings,
-  list, describe, phoneScreens, screenIds, screenFile, fromPhone, emit, runAction, actionList,
+  list, describe, widgetList, widgetDesc, phoneScreens, screenIds, screenFile, fromPhone, emit, runAction, actionList,
   rpc, // exported for tests
   _state: () => state,
 };

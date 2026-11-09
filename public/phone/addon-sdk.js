@@ -8,6 +8,7 @@
  *   PD.on('media', fn)      what is playing (needs the "media" permission); also 'volume', 'stats'
  *   PD.on('visible', fn)    true or false: your screen was swiped to or away from
  *   PD.send(data)           data for your PC-side code (its pd.screen.on handler)
+ *   PD.widget, PD.options   in a widget: its size in pixels and the options chosen in the layout editor; PD.on('resize', fn) when it changes
  *   PD.media.command(c)     'toggle' | 'play' | 'pause' | 'next' | 'prev'  (needs "control")
  *   PD.volume.set(0..1)     (needs "control")
  *   PD.captureSwipe(true)   keep horizontal swipes for your screen (they normally change the screen)
@@ -22,6 +23,7 @@
   var capture = false;
   var PD = window.PD = {
     id: '', permissions: [], theme: {}, visible: false, ready: false,
+    widget: null, options: {}, // set when this frame is a widget: { id, instance, w, h } and the options chosen in the layout editor
     on: function (name, fn) {
       (handlers[name] = handlers[name] || []).push(fn);
       if (name === 'ready' && PD.ready) fn();
@@ -41,6 +43,7 @@
     if (!m || m.pd !== 1) return;
     if (m.t === 'init') {
       PD.id = m.d.id; PD.permissions = m.d.permissions || []; PD.theme = m.d.theme || {};
+      PD.widget = m.d.widget || null; PD.options = (m.d.widget && m.d.widget.options) || {};
       var root = document.documentElement;
       root.style.setProperty('--safe-top', '44px');     // PhoneDesk's battery pill and full-screen button sit here
       root.style.setProperty('--safe-bottom', '30px');  // and the page dots here
@@ -50,7 +53,8 @@
       emit('ready');
       return;
     }
-    if (m.t === 'visible') { PD.visible = !!m.d; last.visible = !!m.d; }
+    if (m.t === 'resize' && PD.widget) { PD.widget.w = m.d.w; PD.widget.h = m.d.h; last.resize = m.d; }
+    else if (m.t === 'visible') { PD.visible = !!m.d; last.visible = !!m.d; }
     else if (m.t !== 'message') last[m.t] = m.d;
     emit(m.t, m.d);
   });

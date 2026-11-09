@@ -61,7 +61,8 @@ const DEFAULTS = {
 
 const SCREENS = ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'];
 const TYPES = ['keys', 'url', 'app', 'addon'];
-const isScreen = (s) => SCREENS.includes(s) || /^addon:[a-z0-9][a-z0-9-]{1,39}$/.test(s); // addon screens are 'addon:<id>'
+const widgets = require('./widgets');
+const isScreen = (s) => SCREENS.includes(s) || /^addon:[a-z0-9][a-z0-9-]{1,39}$/.test(s) || /^page:pg-[a-z0-9]{4,12}$/.test(s); // addon screens are 'addon:<id>', your pages 'page:<id>'
 const LIVE = ['', 'media', 'sound']; // what a button shows under its label: nothing, the playing track, or whether the PC's sound is muted
 
 let current = load();
@@ -116,6 +117,8 @@ function sanitize(c) {
   out.spicyKey = /^sl_[sp]k_[A-Za-z0-9_-]{10,200}$/.test(String(c.spicyKey || '').trim()) ? String(c.spicyKey).trim() : '';
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';
   out.screens = Array.isArray(c.screens) ? [...new Set(c.screens.filter(isScreen))] : DEFAULTS.screens.slice();
+  out.pages = widgets.sanitizePages(c.pages);
+  out.screens = out.screens.filter((x) => !x.startsWith('page:') || out.pages.some((p) => 'page:' + p.id === x)); // a page that is gone leaves the swipe row
   if (!out.screens.length) out.screens = ['media'];
   // Screens added in a newer version show up once for existing users (after Now playing).
   out.knownScreens = Array.isArray(c.knownScreens) ? c.knownScreens.filter((s) => SCREENS.includes(s)) : ['media', 'clock', 'stats', 'shortcuts'];

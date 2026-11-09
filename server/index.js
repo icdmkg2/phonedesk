@@ -25,6 +25,7 @@ const notify = require('./notify');
 const updater = require('./updater');
 const firewall = require('./firewall');
 const addons = require('./addons');
+const widgets = require('./widgets');
 
 const { ROOT } = require('./paths');
 const PUBLIC = path.join(ROOT, 'public');
@@ -351,6 +352,7 @@ async function handleApi(req, res, url) {
       if (next.weather !== before.weather || next.weatherCity !== before.weatherCity || next.weatherUnit !== before.weatherUnit) weather.reload(next);
       return send(res, 200, next);
     }
+    if (p === '/api/widgets' && req.method === 'GET') return send(res, 200, Object.assign(widgets.catalog(), { addonWidgets: addons.widgetList() }));
     if (p === '/api/addons' && req.method === 'GET') {
       const reg = await addons.loadRegistry();
       return send(res, 200, { installed: addons.list(), registry: addons.registryView(reg), actions: addons.actionList(), version: VERSION });
@@ -531,6 +533,8 @@ function publicConfig() {
     accent: c.accent,
     screens: c.screens.filter((x) => !x.startsWith('addon:') || addonScreens.includes(x)),
     addons: addons.phoneScreens(),
+    addonWidgets: addons.widgetList().map(({ type, entry, aid, wid, name, version, permissions }) => ({ type, entry, aid, wid, name, version, permissions })),
+    pages: c.pages,
     dimAfter: c.dimAfter,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
@@ -642,7 +646,7 @@ function handleClientMessage(client, m) {
     case 'like': spotify.toggleLike(config.get()).catch((e) => log.warn('spotify like: ' + e.message)); return;
     case 'shortcut': return runShortcut(String(m.id || ''));
     case 'addon': // a message from an addon's screen on the phone to the addon's PC-side code
-      if (typeof m.id === 'string' && JSON.stringify(m.d === undefined ? null : m.d).length < 64 * 1024) addons.fromPhone(m.id, m.d);
+      if (typeof m.id === 'string' && JSON.stringify(m.d === undefined ? null : m.d).length < 64 * 1024) addons.fromPhone(m.id, m.d, typeof m.w === 'string' ? m.w.slice(0, 30) : '');
       return;
     case 'screen': client.info.screen = String(m.v || '').slice(0, 20); return;
     case 'diag': log.info('phone info: ' + JSON.stringify(m.d || {}).slice(0, 300)); return;
@@ -712,6 +716,7 @@ addons.init({
   },
   changed: () => { broadcast({ t: 'config', d: publicConfig() }); broadcast({ t: 'addons' }, 'dashboard'); },
 });
+widgets.setAddonLookup(addons.widgetDesc);
 process.on('exit', () => addons.stopAll());
 
 // ---------------------------------------------------------------- start

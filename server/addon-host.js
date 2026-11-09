@@ -72,7 +72,8 @@ const pd = {
     delete: (k) => { delete store[k]; saveStore(); },
     all: () => JSON.parse(JSON.stringify(store)),
   },
-  // The screen on the phone: send(data) reaches the screen's PD.on('message'); on(fn) gets PD.send(data) from it.
+  // The screen (and widgets) on the phone: send(data) reaches every frame of this addon's PD.on('message');
+  // on(fn) gets PD.send(data) from them, with { widget: id } as the second argument when it came from a widget.
   screen: { send: (data) => process.send({ op: 'screen', data }), on: (fn) => { handlers.screen.push(fn); } },
   // 'media' | 'volume' | 'stats' (need those permissions), 'settings', 'stop'
   on(name, fn) {
@@ -120,7 +121,7 @@ process.on('message', (m) => {
       if (m.ok) w.resolve(m.value); else w.reject(new Error(m.value));
       return;
     }
-    case 'screenMessage': handlers.screen.forEach((fn) => safely(fn, m.data)); return;
+    case 'screenMessage': handlers.screen.forEach((fn) => safely(fn, m.data, m.widget ? { widget: m.widget } : {})); return;
     case 'event': (handlers.event[m.name] || []).forEach((fn) => safely(fn, m.data)); return;
     case 'action': if (handlers.action[m.id]) safely(handlers.action[m.id]); return;
     case 'settings': settings = m.values || {}; handlers.settings.forEach((fn) => safely(fn, pd.settings.all())); return;
