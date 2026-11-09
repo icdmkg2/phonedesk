@@ -121,6 +121,24 @@ const rejectsMsg = async (p, re) => { try { await p; } catch (e) { assert.match(
     assert.deepStrictEqual(addons.phoneScreens().map((s) => s.id), ['demo']);
     assert.deepStrictEqual(addons.screenIds(), ['addon:demo']);
   });
+  await run('a zip from this PC installs after the same checks, marked as not reviewed', async () => {
+    const p = addons.prepareFile(pkg(manifest({ id: 'local', permissions: ['keys'] })));
+    assert.strictEqual(p.source, 'file');
+    assert.strictEqual(p.manifest.id, 'local');
+    assert.ok(p.warnings.length);
+    assert.ok(/^[a-f0-9]{64}$/.test(p.sha256));
+    assert.throws(() => addons.confirm(p.token, []), /approve all/);
+    const d = addons.confirm(p.token, ['keys']);
+    assert.strictEqual(d.source, 'file');
+    addons.remove('local');
+  });
+  await run('a file that is not an addon is refused with a reason', () => {
+    throwsMsg(() => addons.prepareFile(Buffer.from('not a zip at all, just text')), /not a PhoneDesk addon/);
+    throwsMsg(() => addons.prepareFile(Buffer.alloc(0)), /empty/);
+    throwsMsg(() => addons.prepareFile(zip([{ name: 'readme.txt', data: 'x' }])), /addon\.json is missing/);
+    throwsMsg(() => addons.prepareFile(zip([{ name: 'addon.json', data: JSON.stringify(manifest()) }, { name: '../evil', data: 'x' }])), /unsafe file name/);
+    throwsMsg(() => addons.prepareFile(pkg(manifest({ id: 'far', phonedesk: '9.0.0' }))), /needs PhoneDesk 9/);
+  });
   await run('links outside GitHub are refused', async () => {
     await rejectsMsg(addons.prepare({ url: 'https://evil.example/a.zip' }), /GitHub/);
     await rejectsMsg(addons.prepare({ url: 'http://github.com/a.zip' }), /GitHub/);

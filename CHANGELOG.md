@@ -7,6 +7,19 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.9.1] — 2026-11-09
+
+Install addons from a .zip file.
+
+### Added
+- **Install an addon from a file.** On the *Addons* page, *Install from a file or link* now lets you choose a `.zip`
+  on this PC (or drop one on the page). It is checked like a download, then you see the same permission prompt before
+  anything installs. Addons from a file are marked as not reviewed. The *From a link* option is still there.
+
+<p>
+<img src="docs/changelog/1.9.1/dashboard-install-file.png" width="49%" alt="The install dialog with a place to choose or drop a .zip, and a link field">
+</p>
+
 ## [1.9.0] — 2026-11-09
 
 Addons: screens and features made by anyone, with a marketplace. Pages and widgets: build your own screens.
@@ -673,6 +686,7 @@ First version: a lightweight desk display for Windows, made to run smoothly on o
 
 ![Dashboard](docs/changelog/1.0.0/dashboard.png)
 
+[1.9.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.9.1
 [1.9.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.9.0
 [1.8.1]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.1
 [1.8.0]: https://github.com/icdmkg2/phonedesk/releases/tag/v1.8.0
