@@ -66,6 +66,19 @@ const rejectsMsg = async (p, re) => { try { await p; } catch (e) { assert.match(
     throwsMsg(() => addons.validateManifest(manifest({ actions: [{ id: 'a' }] })), /need a "server"/);
     throwsMsg(() => addons.validateManifest(manifest({ screen: { entry: 'screen/missing.html' } }), [{ name: 'addon.json' }]), /not in the package/);
   });
+  await run('widgets in the manifest are checked and given sizes', () => {
+    const m = addons.validateManifest(manifest({ screen: undefined, widgets: [{ id: 'timer', title: 'Timer', entry: 'w/index.html', minW: 3, defW: 1, options: [{ key: 'minutes', label: 'Minutes', type: 'number', default: 25, min: 1, max: 90 }] }] }));
+    assert.strictEqual(m.widgets.length, 1);
+    assert.strictEqual(m.widgets[0].minW, 3);
+    assert.ok(m.widgets[0].defW >= 3, 'the default size is never below the minimum');
+    assert.deepStrictEqual(m.widgets[0].options[0].max, 90);
+    throwsMsg(() => addons.validateManifest(manifest({ widgets: [{ id: 'Bad Id' }] })), /needs an "id"/);
+    throwsMsg(() => addons.validateManifest(manifest({ widgets: [{ id: 'a' }, { id: 'a' }] })), /two widgets/);
+    throwsMsg(() => addons.validateManifest(manifest({ widgets: [{ id: 'a', entry: '../x.html' }] })), /valid file path/);
+    throwsMsg(() => addons.validateManifest(manifest({ widgets: [{ id: 'a', entry: 'w/a.js' }] }), [{ name: 'w/a.js' }]), /\.html/);
+    // an addon with only widgets is fine
+    addons.validateManifest(manifest({ screen: undefined, widgets: [{ id: 'a', entry: 'w/a.html' }] }));
+  });
   await run('network permissions match hosts', () => {
     const p = ['network:api.example.com', 'network:*.home.test'];
     assert.ok(addons.hostAllowed(p, 'api.example.com'));
@@ -262,6 +275,33 @@ const rejectsMsg = async (p, re) => { try { await p; } catch (e) { assert.match(
     await until(() => addons.describe('rt').running);
     await sleep(600);
     assert.strictEqual(JSON.parse(fs.readFileSync(path.join(process.env.PHONEDESK_DATA, 'addons', 'data', 'rt', 'storage.json'), 'utf8')).n, 2);
+  });
+
+  await run('an installed addon lists its widgets, for the layout editor and the page checks', async () => {
+    const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-dev2-'));
+    fs.mkdirSync(path.join(dir2, 'w'));
+    fs.writeFileSync(path.join(dir2, 'w', 'index.html'), '<p>w</p>');
+    fs.writeFileSync(path.join(dir2, 'server.js'), "module.exports = (pd) => { pd.screen.on((m, from) => pd.screen.send({ got: m, from })); };");
+    fs.writeFileSync(path.join(dir2, 'addon.json'), JSON.stringify(manifest({ id: 'wid', screen: undefined, server: 'server.js', widgets: [{ id: 'tile', title: 'Tile', entry: 'w/index.html', minW: 2, minH: 2, defW: 3, defH: 2, options: [{ key: 'label', label: 'Label', type: 'text', default: 'x' }] }] })));
+    addons.installLocal(dir2);
+    const list = addons.widgetList();
+    assert.deepStrictEqual(list.map((w) => w.type), ['addon:wid:tile']);
+    assert.strictEqual(list[0].minW, 2);
+    assert.deepStrictEqual(list[0].opts.map((o) => o.key), ['label']);
+    const d = addons.widgetDesc('wid', 'tile');
+    assert.strictEqual(d.defW, 3);
+    assert.strictEqual(addons.widgetDesc('wid', 'nope'), null);
+    assert.strictEqual(addons.widgetDesc('nope', 'tile'), null);
+    assert.deepStrictEqual(addons.describe('wid').widgets, [{ id: 'tile', title: 'Tile' }]);
+    assert.deepStrictEqual(addons.phoneScreens().filter((s) => s.id === 'wid'), []); // no screen, so no page in the swipe row
+    await until(() => addons.describe('wid').running);
+    broadcasts = [];
+    addons.fromPhone('wid', 'hi', 'tile');
+    const b = await until(() => broadcasts.find((m) => m.d && m.d.got === 'hi'));
+    assert.deepStrictEqual(b.d.from, { widget: 'tile' }); // the addon can tell which widget sent it
+    addons.setEnabled('wid', false);
+    assert.deepStrictEqual(addons.widgetList(), []);
+    fs.rmSync(dir2, { recursive: true, force: true });
   });
 
   addons.stopAll();

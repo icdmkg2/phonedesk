@@ -704,7 +704,7 @@ updater.start(() => config.get(), VERSION, (s) => broadcast({ t: 'update', d: s 
 // ---------------------------------------------------------------- addons
 addons.init({
   version: VERSION,
-  broadcast: (m) => broadcast(m, 'phone'),
+  broadcast: (m) => broadcast(m), // phones, and the layout editor's preview (which connects as a dashboard)
   media: () => state.media,
   volume: () => state.volume,
   stats: () => Object.assign({}, stats.latest(), { gpu: state.gpu }),

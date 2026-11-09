@@ -12,8 +12,8 @@ function inline(text, linkMap) {
   s = esc(s);
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, u) => {
     u = u.replace(/&amp;/g, '&');
-    const m = /^([\w-]+)\.md$/.exec(u);
-    if (m && linkMap[m[1]]) return `<a href="#${linkMap[m[1]]}">${t}</a>`;
+    const m = /^([\w-]+)\.md(?:#([\w-]+))?$/.exec(u);
+    if (m && linkMap[m[1]]) return `<a href="#${linkMap[m[1]]}${m[2] ? '-' + m[2] : ''}">${t}</a>`;
     if (/^https:\/\//.test(u)) return `<a href="${esc(u)}" rel="noopener">${t}</a>`;
     return t;
   });

@@ -9,9 +9,21 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 ## [1.9.0] — 2026-11-09
 
-Addons: screens and features made by anyone, with a marketplace.
+Addons: screens and features made by anyone, with a marketplace. Pages and widgets: build your own screens.
 
 ## Added
+- **Pages made of widgets.** The new *Layouts* page in the PhoneDesk window lets you build your own screens: pick a
+  template (*Clock layout*, *Desk overview* or a blank page), then drag widgets onto a 12 by 6 grid and resize them.
+  A page joins the phone's swipe row, and the editor shows the real page live, so every change is on the phone as you
+  make it. Move and resize with the mouse, or with the arrow keys (Shift resizes); a widget turns red where it would
+  overlap another.
+- **Built-in widgets:** Clock (digital, analog or big, with the date and optional seconds), Weather, 5-day forecast,
+  Calendar agenda, Now playing (with controls), PC stats (CPU, memory, GPU or network), Volume, Shortcut buttons (all
+  of them, or one group) and Text. Each has its own options. Mix them in any way, and put the same widget on several
+  pages.
+- **Widgets from addons.** An addon can list widgets in its manifest, with the sizes it supports and options people can
+  set. They appear in the editor's palette next to the built-in ones and run in the same sandbox as addon screens. The
+  Pomodoro timer and Home Assistant addons now each have one.
 - **Addons.** An addon adds a screen to the phone (a page in the swipe row) and can run code on the PC to feed it or to
   do things. Install them from the new *Addons* page of the PhoneDesk window: browse the marketplace, see every
   permission an addon asks for in plain words, approve, install. Turn an addon on or off, change its settings, update or
@@ -36,9 +48,17 @@ Addons: screens and features made by anyone, with a marketplace.
 <img src="docs/changelog/1.9.0/dashboard-addon-install.png" width="49%" alt="The install prompt listing the permissions an addon asks for">
 </p>
 <p>
+<img src="docs/changelog/1.9.0/dashboard-layouts.png" width="49%" alt="The layout editor: a page of widgets with a live preview">
+<img src="docs/changelog/1.9.0/phone-page-widgets.png" width="49%" alt="A page of built-in and addon widgets on the phone">
+</p>
+<p>
 <img src="docs/changelog/1.9.0/phone-addon-pomodoro.png" width="49%" alt="The Pomodoro timer addon on the phone">
 <img src="docs/changelog/1.9.0/phone-addon-home.png" width="49%" alt="The Home Assistant addon on the phone">
 </p>
+
+## Fixed
+- On the offline screen (PC disconnected), the time and weather pills of Now playing no longer sit on top of the
+  offline clock and weather.
 
 ## [1.8.1] — 2026-11-09
 

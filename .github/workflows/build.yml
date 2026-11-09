@@ -39,6 +39,7 @@ jobs:
         run: |
           node test/updater.test.js
           node test/addons.test.js
+          node test/widgets.test.js
           node registry/check.js --offline
 
       - name: Changelog has the current version

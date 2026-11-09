@@ -26,6 +26,19 @@ It runs in a sandboxed frame: it can not reach the rest of PhoneDesk, it has no 
 
 **Files.** Your screen can load its own files (scripts, styles, images, fonts, audio) from the package. It can not load anything from the internet.
 
+## Widgets
+
+A widget is a page like a screen, but small, and sitting on a page next to other widgets. Load the same SDK. What is different:
+
+- `PD.widget` is `{ id, instance, w, h }`: which widget this is, and its size in pixels. `PD.on('resize', fn)` runs when the size changes (a person resized it, or the phone turned). Draw for the size you are given.
+- `PD.options` holds the options the person set in the layout editor, as listed in your manifest.
+- Several widgets (and the screen) of one addon can be on the phone at the same time. They share one PC-side `server.js`. Everything your server sends with `pd.screen.send(data)` reaches **all** of them, so put a `type` in your messages. Messages from a widget arrive in `pd.screen.on((msg, from) => ...)` with `from = { widget: 'timer' }`; from the screen `from` is empty.
+- Media, volume and stats events (with the permissions) reach a widget while its page is showing. `PD.on('visible', fn)` tells you when the page is shown or hidden.
+- Give your widget a card look that matches PhoneDesk, or none, as suits it: the frame is transparent. The colours come as CSS variables, like on a screen.
+- Taps work as usual. A horizontal swipe on your widget changes the page, unless you call `PD.captureSwipe(true)`.
+
+A widget with no `server` is fine: a clock face, a timer or a counter can run entirely on the phone.
+
 ## The server (PC side)
 
 `server.js` exports one function. PhoneDesk calls it with a `pd` object when the addon starts:
@@ -36,7 +49,7 @@ It runs in a sandboxed frame: it can not reach the rest of PhoneDesk, it has no 
 
 It runs in its own Node process, started again if it crashes (five times in five minutes at most). Output goes to PhoneDesk's activity log.
 
-- `pd.screen.send(data)`: send JSON to the screen on every connected phone. Up to 64 KB, 30 messages a second.
+- `pd.screen.send(data)`: send JSON to the screen and the widgets of this addon on every connected phone. Up to 64 KB, 30 messages a second.
 - `pd.screen.on(fn)`: receive what the screen sent with `PD.send`.
 - `pd.settings.get(key, fallback)` and `pd.settings.all()`: the values people set. `pd.on('settings', fn)` runs when they change.
 - `pd.storage.get(key, fallback)`, `.set(key, value)`, `.delete(key)`, `.all()`: your own saved data (JSON, up to 1 MB), kept between runs.

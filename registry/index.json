@@ -9,7 +9,7 @@
       "description": "Lights, switches and scenes from your Home Assistant, as tap-to-toggle tiles on the phone.",
       "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/home-assistant",
       "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/home-assistant-1.0.0.zip",
-      "sha256": "93f3963ff5c5f08f8202f111d6ba9aaf7bf6b75bd0eb0f792adb570f3b7491ba",
+      "sha256": "34812f6d78c88d36db1a7999b2cbc178d48af368a96c8db8434492ad61d1282e",
       "permissions": [
         "network:lan"
       ],
@@ -47,7 +47,7 @@
       "description": "A big focus timer on the phone: focus, short break and long break, with a count of today's sessions.",
       "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/pomodoro",
       "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/pomodoro-1.0.0.zip",
-      "sha256": "26b218803f73bcc0b95ba80142a12a4e0789d8eb77b0eabd0ff3f630cff98a9b",
+      "sha256": "955e78fe9bc611d7c889618fe81ef1a566cc393f817f755639be01afcf6aa1f6",
       "permissions": [],
       "phonedesk": "1.9.0",
       "tags": [

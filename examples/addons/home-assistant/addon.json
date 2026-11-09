@@ -6,12 +6,55 @@
   "author": "PhoneDesk",
   "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/home-assistant",
   "phonedesk": "1.9.0",
-  "permissions": ["network:lan"],
-  "screen": { "title": "Home", "entry": "screen/index.html", "icon": "globe" },
+  "permissions": [
+    "network:lan"
+  ],
+  "screen": {
+    "title": "Home",
+    "entry": "screen/index.html",
+    "icon": "globe"
+  },
   "server": "server.js",
   "settings": [
-    { "key": "url", "label": "Home Assistant address", "type": "text", "placeholder": "http://homeassistant.local:8123", "hint": "On your home network. Addresses like 192.168.x.x or .local names only." },
-    { "key": "token", "label": "Long-lived access token", "type": "password", "hint": "In Home Assistant: your profile, Security, Long-lived access tokens. The token stays on this PC; the phone never sees it." },
-    { "key": "entities", "label": "What to show", "type": "text", "placeholder": "light.desk, switch.fan, scene.movie", "hint": "Entity ids separated by commas: lights, switches, fans, input booleans and scenes." }
+    {
+      "key": "url",
+      "label": "Home Assistant address",
+      "type": "text",
+      "placeholder": "http://homeassistant.local:8123",
+      "hint": "On your home network. Addresses like 192.168.x.x or .local names only."
+    },
+    {
+      "key": "token",
+      "label": "Long-lived access token",
+      "type": "password",
+      "hint": "In Home Assistant: your profile, Security, Long-lived access tokens. The token stays on this PC; the phone never sees it."
+    },
+    {
+      "key": "entities",
+      "label": "What to show",
+      "type": "text",
+      "placeholder": "light.desk, switch.fan, scene.movie",
+      "hint": "Entity ids separated by commas: lights, switches, fans, input booleans and scenes."
+    }
+  ],
+  "widgets": [
+    {
+      "id": "switches",
+      "title": "Home switches",
+      "description": "Your Home Assistant lights, switches and scenes as tap-to-toggle tiles.",
+      "entry": "widget/index.html",
+      "minW": 3,
+      "minH": 2,
+      "defW": 6,
+      "defH": 2,
+      "options": [
+        {
+          "key": "only",
+          "label": "Only these entities (empty: all)",
+          "type": "text",
+          "placeholder": "light.desk, switch.fan"
+        }
+      ]
+    }
   ]
 }

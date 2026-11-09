@@ -4,6 +4,7 @@ Addons add screens and features to PhoneDesk. An addon can:
 
 - **add a screen to the phone**, a web page (HTML, CSS, JavaScript) that appears as one more page in the swipe row
 - **run code on the PC**, in its own process, to feed that screen or to do things (talk to a service on your network, press keys, add shortcut actions)
+- **add widgets** that people place on their own pages, next to the built-in ones (clock, weather, calendar, PC stats...)
 - **add shortcut actions** that any shortcut button can use
 
 People install addons from the **Addons** page of the PhoneDesk window: from the marketplace, or from a link to a package on GitHub. Before anything installs they see exactly what the addon is allowed to do.
@@ -25,6 +26,7 @@ An addon is a folder, shipped as a `.zip`, with a file called `addon.json` at it
     my-addon/
       addon.json          what it is, what it needs
       screen/index.html   the phone screen (optional)
+      widget/index.html   a widget (optional, any number)
       server.js           the PC-side code (optional)
 
 - [The manifest](manifest.md): every field of `addon.json`
