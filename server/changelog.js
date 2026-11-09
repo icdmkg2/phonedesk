@@ -26,6 +26,8 @@ function inline(text, opt) {
   // Pull out code spans first so their contents stay literal.
   const codes = [];
   let s = String(text).replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
+  // Curly quotes and apostrophes (code spans were taken out above, so they stay literal)
+  s = s.replace(/(\w)'(\w)/g, '$1’$2').replace(/(\w)'(\s|$|[.,;:)])/g, '$1’$2').replace(/(^|[\s(])'/g, '$1‘').replace(/(^|[\s(\[])"/g, '$1“').replace(/"/g, '”');
   s = esc(s);
   s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, u) => {
     const src = (opt.imgUrl || url)(u, opt.ref, 'img');

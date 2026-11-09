@@ -53,11 +53,13 @@ function fillTemplate(file, vars) {
 // ---------------------------------------------------------------- build
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, 'assets', 'fonts'), { recursive: true });
-for (const f of ['style.css', 'main.js']) fs.copyFileSync(path.join(__dirname, 'assets', f), path.join(OUT, 'assets', f));
+copyDir(path.join(__dirname, 'assets'), path.join(OUT, 'assets')); // the taste-skill kit, the changelog page's style.css and main.js
 for (const f of ['Inter.woff2', 'SpaceGrotesk.woff2']) fs.copyFileSync(path.join(ROOT, 'public', 'dashboard', 'fonts', f), path.join(OUT, 'assets', 'fonts', f));
 fs.copyFileSync(path.join(ROOT, 'public', 'favicon.svg'), path.join(OUT, 'assets', 'favicon.svg'));
 copyDir(path.join(ROOT, 'docs', 'changelog'), path.join(OUT, 'shots'));
+copyDir(path.join(__dirname, 'img'), path.join(OUT, 'img')); // web-sized copies for the home page (make-images.py)
 fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
+fs.copyFileSync(path.join(__dirname, 'share.jpg'), path.join(OUT, 'share.jpg')); // the hero's tile from shoot.mjs, for link previews
 
 const latest = all.find((s) => s.version === version) || all[0];
 const headline = plain(firstPara(latest.md)).replace(/\.$/, '');
@@ -73,7 +75,7 @@ const recent = all.slice(0, 3).map((s) => {
 
 const toc = all.map((s, i) => `      <a href="#v${s.version.replace(/\./g, '-')}">${esc(s.version)}${i === 0 ? ' <small>latest</small>' : ''}</a>`).join('\n');
 const releases = all.map((s, i) => `      <article class="release" id="v${s.version.replace(/\./g, '-')}">
-        <div class="rel-head"><h2>${esc(s.version)}</h2><span class="date">${esc(s.date)}</span>${i === 0 ? '<span class="tag">Latest</span>' : ''}<a href="https://github.com/${changelog.REPO}/releases/tag/v${esc(s.version)}">GitHub release →</a></div>
+        <div class="rel-head"><h2>${esc(s.version)}</h2><span class="date">${esc(s.date)}</span>${i === 0 ? '<span class="tag">Latest</span>' : ''}<a class="link" href="https://github.com/${changelog.REPO}/releases/tag/v${esc(s.version)}">GitHub release</a></div>
         <div class="notes">${changelog.render(s.md, opts)}</div>
       </article>`).join('\n');
 

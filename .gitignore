@@ -5,3 +5,9 @@ dist/
 build/.cache/
 android/out/
 site/dist/
+# taste-skill checker output (the deal history and waivers stay)
+site/.taste-skill/*
+!site/.taste-skill/history.json
+!site/.taste-skill/layout-history.json
+!site/.taste-skill/waivers.json
+!site/.taste-skill/build.json
