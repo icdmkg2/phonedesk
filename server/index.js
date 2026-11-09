@@ -352,6 +352,14 @@ async function handleApi(req, res, url) {
       if (next.weather !== before.weather || next.weatherCity !== before.weatherCity || next.weatherUnit !== before.weatherUnit) weather.reload(next);
       return send(res, 200, next);
     }
+    if (p === '/api/pages/new' && req.method === 'POST') {
+      const b = await readBody(req), c = config.get();
+      if (c.pages.length >= widgets.LIMITS.pages) throw new Error(`${widgets.LIMITS.pages} pages is the most`);
+      const page = widgets.fromTemplate(String(b.template || 'blank'), String(b.name || ''));
+      const next = config.update({ pages: [...c.pages, page], screens: [...c.screens, 'page:' + page.id] });
+      broadcast({ t: 'config', d: publicConfig() });
+      return send(res, 200, { page, config: next });
+    }
     if (p === '/api/widgets' && req.method === 'GET') return send(res, 200, Object.assign(widgets.catalog(), { addonWidgets: addons.widgetList() }));
     if (p === '/api/addons' && req.method === 'GET') {
       const reg = await addons.loadRegistry();

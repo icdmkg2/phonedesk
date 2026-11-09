@@ -42,6 +42,7 @@
     <button class="nav on" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Overview</button>
     <button class="nav" data-view="shortcuts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3 5.5 13.5h6l-1 7.5 8-10.5h-6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Shortcuts</button>
     <button class="nav" data-view="display"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6.5" width="19" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Phone display</button>
+    <button class="nav" data-view="layouts"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="10" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="16" y="3.5" width="4.5" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="14" width="4.5" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="10.5" y="14" width="10" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Layouts</button>
     <button class="nav" data-view="addons"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8.5v7M8.5 12h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Addons<span class="count" id="nav-addons" hidden>1</span></button>
     <button class="nav" data-view="connection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a5.5 5.5 0 0 1 8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor"/></svg>Connection<span class="count" id="nav-warn" hidden>!</span></button>
     <button class="nav" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Activity</button>
@@ -317,6 +318,30 @@
     </section>
 
     <!-- =============================== CONNECTION =============================== -->
+    <section class="view" id="v-layouts" aria-label="Layouts">
+      <div class="head"><div><h1>Layouts</h1><p>Build your own pages from widgets. They join the phone's swipe row, and changes show on the phone right away.</p></div>
+        <div class="row"><span class="save-state" id="ly-state"></span><button class="btn primary" id="ly-new">New page</button></div></div>
+      <div class="ly-wrap">
+        <section class="card ly-pages" aria-label="Pages"><div class="card-head"><h3>Pages</h3><span class="badge" id="ly-count">None</span></div><div class="ly-list" id="ly-list"></div></section>
+        <div class="ly-main" id="ly-main" hidden>
+          <section class="card" aria-label="Layout">
+            <div class="ly-top">
+              <label class="ly-name">Name<input type="text" id="ly-name" maxlength="24" autocomplete="off"></label>
+              <label class="ly-show"><span class="switch"><input type="checkbox" id="ly-onphone"><span></span></span>Show on the phone</label>
+              <button class="btn sm ghost" id="ly-del">Delete page</button>
+            </div>
+            <div class="ly-stage" id="ly-stage"><div class="ly-canvas" id="ly-canvas"><iframe id="ly-frame" title="Live preview of this page" tabindex="-1"></iframe><div class="ly-over" id="ly-over"></div></div></div>
+            <div class="small muted">Drag a widget to move it and its corner to resize. With a widget selected, the arrow keys move it and Shift with the arrows resizes it.</div>
+          </section>
+          <div class="ly-row">
+            <section class="card" aria-label="Add a widget"><h3>Add a widget</h3><div class="ly-palette" id="ly-palette"></div></section>
+            <section class="card" aria-label="Selected widget" id="ly-opts"></section>
+          </div>
+        </div>
+        <section class="card ly-none" id="ly-none"><h3>Make a page</h3><p class="small muted">A page is a grid you fill with widgets: a clock with the weather, your calendar, PC stats, shortcut buttons, and widgets from addons. Start from a template or a blank page.</p><div class="row"><button class="btn primary" id="ly-new2">New page</button></div></section>
+      </div>
+    </section>
+
     <section class="view" id="v-addons" aria-label="Addons">
       <div class="head"><div><h1>Addons</h1><p>Add screens and features to the phone. Anyone can build one.</p></div>
         <div class="row"><button class="btn" id="ad-link">Install from a link</button><button class="btn" id="ad-refresh">Check for updates</button></div></div>
