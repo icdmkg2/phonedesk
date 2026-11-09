@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-type="software" data-radius="soft" data-ground="sky" data-buttons="solid" data-motion>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,99 +10,34 @@
 <meta property="og:description" content="Every PhoneDesk version, with patch notes and screenshots of what changed on screen.">
 <meta property="og:image" content="https://phonedesk.orreinis.me/share.jpg">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#07090d">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#0a0d14">
 <link rel="canonical" href="https://phonedesk.orreinis.me/changelog.html">
-<meta name="site-kind" content="software">
-<meta name="page-type" content="software">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400..700&family=Funnel+Sans:wght@400..600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/system.css">
-<link rel="stylesheet" href="assets/ui/cards.css">
-<link rel="stylesheet" href="assets/motion/motion.css">
-<link rel="stylesheet" href="assets/layout/layout.css">
-<style>
-:root {
-  --p-bg: #0a0d14; --p-surface: #131824; --p-ink: #e9edf3; --p-muted: #8891a1;
-  --p-accent: #5ab9fc; --p-accent-ink: #0a0d14; --p-action: #5ab9fc; --p-action-ink: #0a0d14;
-  --p-inv-bg: #e9edf3; --p-inv-surface: #d7dbe1; --p-inv-ink: #0a0d14; --p-inv-muted: #54575f;
-  --p-inv-accent: #0a0d14; --p-inv-accent-ink: #e9edf3; --p-inv-action: #0a0d14; --p-inv-action-ink: #e9edf3;
-  --font-display: "Funnel Display", system-ui, sans-serif;
-  --font-text: "Funnel Sans", system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --display-weight: 400;
-  --display-tracking: -0.03em;
-  --display-tracking-xl: -0.04em;
-  --ly-scale: 0.98;
-}
-</style>
-<!-- page CSS: the changelog is one long list (an inner page, not a stack of screens): the version index on the left,
-     each version's notes and screenshots on the right -->
-<style>
-  html { color-scheme: dark; }
-  section[id], main[id], h2[id], h3[id] { scroll-margin-top: calc(var(--nav) + var(--s-4)); }
-  a, button { touch-action: manipulation; }
-
-  .cl { padding: calc(var(--nav) + var(--s-8)) 0 var(--s-9); }
-  .cl-head { max-width: 760px; margin-bottom: var(--s-8); }
-  .cl-head h1 { margin: 0 0 var(--s-5); }
-  .cl-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--s-8); align-items: start; }
-  .cl-toc { overscroll-behavior: contain; position: sticky; top: calc(var(--nav) + var(--s-5)); max-height: calc(100vh - var(--nav) - var(--s-7)); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin; }
-  .cl-toc a { display: flex; justify-content: space-between; gap: var(--s-2); padding: 6px 10px; border-radius: var(--r-sm); color: var(--muted); text-decoration: none; font-size: var(--t-small); }
-  .cl-toc a:hover, .cl-toc a.on { color: var(--ink); background: var(--surface); }
-  .release { padding: var(--s-7) 0; border-top: 1px solid var(--line); }
-  .release:first-child { padding-top: 0; border-top: 0; }
-  .rel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-4); margin-bottom: var(--s-4); }
-  .rel-head h2 { margin: 0; }
-  .rel-head .date { color: var(--muted); font-size: var(--t-small); }
-  .rel-head .tag { font-size: 13px; font-weight: 500; padding: 2px 10px; border-radius: 99px; background: var(--surface); color: var(--ink); }
-  .rel-head a { margin-left: auto; }
-  .notes { max-width: 860px; }
-  .notes > p:first-child { font-size: var(--t-lead); }
-  .notes h4 { margin: var(--s-6) 0 var(--s-3); font: 500 var(--t-label)/1.3 var(--font-text); color: var(--muted); letter-spacing: 0; }
-  .notes ul { margin: 0; padding-left: 20px; display: grid; gap: var(--s-2); }
-  .notes code { font: 400 .9em var(--font-mono); background: var(--surface); padding: 1px 6px; border-radius: 6px; }
-  .notes .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s-3); margin-top: var(--s-3); }
-  .notes .shots img { width: 100%; height: auto; border-radius: var(--r-md); border: 1px solid var(--line); background: #000; }
-  .notes hr { display: none; }
-  .notes .shots img { cursor: zoom-in; }
-  .lightbox { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--s-5);
-    background: rgb(4 5 8 / .9); opacity: 0; pointer-events: none; transition: opacity .2s var(--ease); cursor: zoom-out; }
-  .lightbox { overscroll-behavior: contain; }
-  .lightbox.on { opacity: 1; pointer-events: auto; }
-  .lightbox img { max-width: min(1400px, 100%); max-height: 100%; border-radius: var(--r-md); }
-  @media (max-width: 1023px) { .cl-layout { grid-template-columns: minmax(0, 1fr); } .cl-toc { display: none; } .rel-head a { margin-left: 0; flex-basis: 100%; } }
-  .closing__cta.close--type > .btn--xl { align-self: flex-start !important; width: auto !important; justify-content: center; gap: var(--s-5); padding-inline: var(--s-7); }
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
+<a class="skip" href="#top">Skip to content</a>
 <header class="nav">
   <div class="wrap nav__bar">
-    <a class="skip-link" href="#top">Skip to content</a>
-    <a class="nav__logo" translate="no" href="./"><img src="assets/favicon.svg" alt="" width="28" height="28">PhoneDesk</a>
+    <a class="logo" href="./" translate="no"><img src="assets/favicon.svg" alt="" width="28" height="28">PhoneDesk</a>
     <nav class="nav__links" aria-label="Main">
-      <div class="nav__item"><a class="nav__link" href="./#screens">Screens</a></div>
-      <div class="nav__item"><a class="nav__link" href="./#lyrics">Lyrics</a></div>
-      <div class="nav__item"><a class="nav__link" href="./#setup">Setup</a></div>
-      <div class="nav__item"><a class="nav__link" href="./#faq">Questions</a></div>
-      <div class="nav__item"><a class="nav__link" href="changelog.html" aria-current="page">Changelog</a></div>
+      <a href="./#screens">Screens</a>
+      <a href="./#window">On the PC</a>
+      <a href="./#setup">Setup</a>
+      <a href="./#faq">Questions</a>
+      <a href="changelog.html" aria-current="page">Changelog</a>
     </nav>
-    <div class="nav__actions">
-      <a class="btn btn--primary" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows</a>
-    </div>
-    <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu">
-      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-    </button>
+    <a class="btn btn--p btn--sm" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows</a>
   </div>
 </header>
 
 <main id="top" class="cl">
   <div class="wrap">
-    <div class="cl-head">
-      <h1>PhoneDesk changelog</h1>
-      <p class="t-lead">{{VERSION_COUNT}} versions with notes, and screenshots where the screen changed. Each one is also a <a class="link" href="https://github.com/icdmkg2/phonedesk/releases">GitHub Release</a>.</p>
-    </div>
+    <h1>PhoneDesk changelog</h1>
+    <p class="lead">{{VERSION_COUNT}} versions with notes, and screenshots where the screen changed. Each one is also a <a class="link" href="https://github.com/icdmkg2/phonedesk/releases">GitHub Release</a>.</p>
     <div class="cl-layout">
       <nav class="cl-toc" aria-label="Versions">
 {{TOC}}
@@ -114,35 +49,18 @@
   </div>
 </main>
 
-<footer class="footer closing footer--dark ground-inverse" id="contact" aria-labelledby="close-h">
-  <div class="wrap">
-    <div class="closing__cta close--type">
-      <div class="section-head">
-        <h2 id="close-h">Download PhoneDesk {{VERSION}} for Windows</h2>
-        <p>Free and open source. Windows 10 and 11, Android 7 or newer.</p>
-      </div>
-      <a class="btn btn--primary btn--xl" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
-    </div>
-    <div class="closing__links">
-      <div class="grid">
-        <div class="span-4 stack-4">
-          <a class="nav__logo" translate="no" href="./"><img src="assets/favicon.svg" alt="" width="28" height="28" loading="lazy">PhoneDesk</a>
-          <p class="footer__lede">A desk display for Windows on an old Android phone.</p>
-        </div>
-        <div class="span-2 start-7 footer__col"><h3>Screens</h3><ul><li><a href="./#screens">Screens</a></li><li><a href="./#lyrics">Lyrics</a></li><li><a href="./#night">Night mode</a></li></ul></div>
-        <div class="span-2 footer__col"><h3>Help</h3><ul><li><a href="./#setup">Setup</a></li><li><a href="./#faq">Questions</a></li><li><a href="https://github.com/icdmkg2/phonedesk/issues/new/choose">Report a problem</a></li></ul></div>
-        <div class="span-2 footer__col"><h3>Project</h3><ul><li><a href="https://github.com/icdmkg2/phonedesk">GitHub</a></li><li><a href="https://github.com/icdmkg2/phonedesk/releases">Releases</a></li><li><a href="changelog.html">Changelog</a></li></ul></div>
-      </div>
-      <div class="footer__legal">
-        <span>&copy; 2026 PhoneDesk</span>
-        <span>Lyrics via Spicy Lyrics and LRCLIB, weather via Open-Meteo.</span>
-      </div>
-    </div>
+<footer class="foot">
+  <div class="wrap foot__row">
+    <span>&copy; 2026 PhoneDesk · v{{VERSION}}</span>
+    <nav aria-label="Project">
+      <a href="https://github.com/icdmkg2/phonedesk">GitHub</a>
+      <a href="https://github.com/icdmkg2/phonedesk/releases">Releases</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="https://github.com/icdmkg2/phonedesk/issues/new/choose">Report a problem</a>
+    </nav>
+    <span>Lyrics via Spicy Lyrics and LRCLIB, weather via Open-Meteo.</span>
   </div>
 </footer>
-
-<script type="module" src="assets/system.js"></script>
-<script type="module" src="assets/motion/motion.js"></script>
 <script src="assets/main.js" defer></script>
 </body>
 </html>

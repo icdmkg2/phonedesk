@@ -54,7 +54,7 @@ function fillTemplate(file, vars) {
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, 'assets', 'fonts'), { recursive: true });
 copyDir(path.join(__dirname, 'assets'), path.join(OUT, 'assets')); // the taste-skill kit, the changelog page's style.css and main.js
-for (const f of ['Inter.woff2', 'SpaceGrotesk.woff2']) fs.copyFileSync(path.join(ROOT, 'public', 'dashboard', 'fonts', f), path.join(OUT, 'assets', 'fonts', f));
+for (const f of ['Inter.woff2']) fs.copyFileSync(path.join(ROOT, 'public', 'dashboard', 'fonts', f), path.join(OUT, 'assets', 'fonts', f));
 fs.copyFileSync(path.join(ROOT, 'public', 'favicon.svg'), path.join(OUT, 'assets', 'favicon.svg'));
 copyDir(path.join(ROOT, 'docs', 'changelog'), path.join(OUT, 'shots'));
 copyDir(path.join(__dirname, 'img'), path.join(OUT, 'img')); // web-sized copies for the home page (make-images.py)
