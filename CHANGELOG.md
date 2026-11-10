@@ -7,14 +7,25 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
-## [1.9.4] — 2026-11-10
+## [1.10.0] — 2026-11-10
 
-A fix for the layout editor going blank, and a tidier window.
+Easier updates, more control over pages, and tools for addon makers.
+
+### Added
+
+- **Updates have their own page.** An update shows as a *New* badge on Updates and an *Update available* button at the bottom of the sidebar. With *Download updates automatically* turned off, a new version waits as "available" until you press Download, and its release notes are shown in the page.
+- **Layouts: undo and redo, duplicate, reset.** Ctrl+Z, Ctrl+Shift+Z and Ctrl+D work on the Layouts page. Reset goes back to how the page was when you opened the editor. A widget you drag onto another now snaps to the nearest free space (and a resize shrinks to fit) instead of being refused.
+- **Tap actions.** A widget can open a screen, press a shortcut button or control the music when you tap it (set in *When tapped* in the widget's options).
+- **Page backgrounds and accents.** Each page can have its own background (Black, Aurora, Dusk, Forest, Slate) and accent colour.
+- **Schedule.** In Phone display, choose a screen to show during certain hours, such as the clock overnight. You can swipe away; the phone goes back when the time ends.
+- **Addon log and health.** Addons > Log shows what an addon printed, how many messages it sent, how many were dropped, how fast its PC-side code answers and any slow request, with a Copy button for bug reports.
+- Two new first-party addons: **Countdown** and **World clock** (widgets, no permissions). `pd-addon dev` now says where to find the addon on the phone.
+- A browser test of the phone screens runs on every pull request: it swipes through every screen with touch and edits a page in the layout editor.
 
 ### Changed
 
 - The sidebar is grouped: Overview, then Customize (Phone display, Layouts, Shortcuts, Addons), then System (Connection, Updates, Activity).
-- Updates has its own page instead of sitting inside Connection. When an update is downloading or ready, the Updates item shows a *New* badge and the bottom of the sidebar shows an *Update available* button that opens it.
+- A phone that still has an old copy of the screens (kept by its browser) now loads the current one when it connects to a newer PhoneDesk.
 
 ### Fixed
 

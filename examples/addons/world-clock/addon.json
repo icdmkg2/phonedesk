@@ -1,0 +1,27 @@
+{
+  "id": "world-clock",
+  "name": "World clock",
+  "version": "1.0.0",
+  "description": "A widget with the time in another city or time zone. Add it more than once for more zones. Needs no permissions.",
+  "author": "PhoneDesk",
+  "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/world-clock",
+  "phonedesk": "1.9.0",
+  "permissions": [],
+  "widgets": [
+    {
+      "id": "zone",
+      "title": "World clock",
+      "description": "The time in one time zone.",
+      "entry": "widget/index.html",
+      "minW": 2,
+      "minH": 1,
+      "defW": 3,
+      "defH": 2,
+      "options": [
+        { "key": "label", "label": "Name", "type": "text", "default": "London", "placeholder": "London" },
+        { "key": "zone", "label": "Time zone", "type": "text", "default": "Europe/London", "placeholder": "Europe/London" },
+        { "key": "hour12", "label": "12-hour clock", "type": "boolean", "default": false }
+      ]
+    }
+  ]
+}

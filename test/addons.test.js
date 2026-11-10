@@ -322,6 +322,24 @@ const rejectsMsg = async (p, re) => { try { await p; } catch (e) { assert.match(
     fs.rmSync(dir2, { recursive: true, force: true });
   });
 
+  await run('an addon has a log and health numbers in the PC window', async () => {
+    const dir3 = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-dev3-'));
+    fs.writeFileSync(path.join(dir3, 'server.js'), "module.exports = (pd) => { console.log('hello out'); pd.log.warn('careful now'); pd.screen.on(() => { for (let i = 0; i < 60; i++) pd.screen.send({ n: i }); }); };");
+    fs.writeFileSync(path.join(dir3, 'addon.json'), JSON.stringify(manifest({ id: 'diag', screen: undefined, server: 'server.js' })));
+    addons.installLocal(dir3);
+    await until(() => addons.describe('diag').running);
+    await until(() => addons.diag('diag').logs.some((l) => /careful now/.test(l.text)));
+    addons.fromPhone('diag', 'go');
+    await until(() => addons.diag('diag').droppedTotal > 0);
+    const d = addons.diag('diag');
+    assert.ok(d.logs.some((l) => l.text === 'hello out' && l.level === 'info'), 'console output is logged');
+    assert.ok(d.logs.some((l) => /more than 30 messages/.test(l.text)), 'the flood is explained in the log');
+    assert.ok(d.sentLastMinute >= 20 && d.droppedTotal >= 1);
+    assert.strictEqual(d.running, true);
+    assert.throws(() => addons.diag('nope'), /not installed/);
+    fs.rmSync(dir3, { recursive: true, force: true });
+  });
+
   addons.stopAll();
   await sleep(1300);
   fs.rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });

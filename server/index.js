@@ -404,6 +404,7 @@ async function handleApi(req, res, url) {
     if (p === '/api/addons/confirm' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.confirm(String(b.token || ''), b.permissions)); }
     if (p === '/api/addons/remove' && req.method === 'POST') { const b = await readBody(req); addons.remove(String(b.id || ''), b.keepData === true); return send(res, 200, { ok: true }); }
     if (p === '/api/addons/enable' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.setEnabled(String(b.id || ''), b.enabled !== false)); }
+    if (p === '/api/addons/log' && req.method === 'GET') return send(res, 200, addons.diag(String(url.searchParams.get('id') || '')));
     if (p === '/api/addons/settings' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.setSettings(String(b.id || ''), b.values || {})); }
     if (p === '/api/addons/dev' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.installLocal(String(b.dir || ''))); }
     if (p === '/api/logs' && req.method === 'GET') return send(res, 200, log.recent());

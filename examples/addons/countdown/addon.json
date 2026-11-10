@@ -1,0 +1,26 @@
+{
+  "id": "countdown",
+  "name": "Countdown",
+  "version": "1.0.0",
+  "description": "A widget that counts the days to a date: a trip, a birthday, an exam. Needs no permissions.",
+  "author": "PhoneDesk",
+  "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/countdown",
+  "phonedesk": "1.9.0",
+  "permissions": [],
+  "widgets": [
+    {
+      "id": "days",
+      "title": "Countdown",
+      "description": "Days until a date you choose.",
+      "entry": "widget/index.html",
+      "minW": 2,
+      "minH": 2,
+      "defW": 4,
+      "defH": 3,
+      "options": [
+        { "key": "label", "label": "What for", "type": "text", "default": "New Year", "placeholder": "Summer trip" },
+        { "key": "date", "label": "Date (YYYY-MM-DD)", "type": "text", "default": "2027-01-01", "placeholder": "2027-01-01" }
+      ]
+    }
+  ]
+}

@@ -964,6 +964,7 @@
       </div><div class="ad-actions">
         ${x.update ? `<button class="btn sm primary" data-ad="update" data-id="${esc(x.id)}">Update</button>` : ''}
         ${x.settings.length ? `<button class="btn sm" data-ad="settings" data-id="${esc(x.id)}">Settings</button>` : ''}
+        ${x.hasServer || x.screen ? `<button class="btn sm ghost" data-ad="log" data-id="${esc(x.id)}">Log</button>` : ''}
         <span class="switch"><input type="checkbox" data-ad="toggle" data-id="${esc(x.id)}" ${x.enabled ? 'checked' : ''} aria-label="Turn ${esc(x.name)} on or off"><span></span></span>
         <button class="btn sm ghost" data-ad="remove" data-id="${esc(x.id)}">Remove</button>
       </div></div>`;
@@ -1072,6 +1073,27 @@
   $('ad-refresh').addEventListener('click', async () => { $('ad-refresh').disabled = true; await loadAddons(true); $('ad-refresh').disabled = false; toast('Checked for updates'); });
   $('ad-auto').addEventListener('change', (e) => saveConfig({ autoUpdateAddons: e.target.checked }));
 
+  // The addon's log and health: what it printed, how many messages it sent, how fast its code answers.
+  async function adLog(x) {
+    const d = await api('addons/log?id=' + encodeURIComponent(x.id)).catch((e) => { toast(e.message); return null; });
+    if (!d) return;
+    const fmt = (t) => new Date(t).toLocaleTimeString();
+    const stat = (k, v, warn) => `<div class="ad-stat${warn ? ' warn' : ''}"><span>${esc(k)}</span><b>${esc(v)}</b></div>`;
+    const stats = d.hasServer ? [
+      stat('PC-side code', d.running ? 'running' : (d.error || 'not running'), !d.running),
+      stat('Answers in', d.lagMs == null ? 'not measured yet' : d.lagMs + ' ms' + (d.lagMaxMs > 1000 ? ' (slowest ' + d.lagMaxMs + ' ms)' : ''), d.lagMaxMs > 1000),
+      stat('Messages to its screen, last minute', String(d.sentLastMinute)), stat('Dropped for sending too fast', String(d.droppedTotal), d.droppedTotal > 0),
+      stat('Requests to PhoneDesk', d.rpcTotal + (d.rpcFailed ? ` (${d.rpcFailed} failed)` : ''), d.rpcFailed > 0), stat('Restarts in 5 minutes', String(d.restarts), d.restarts > 0),
+    ].join('') : '<p class="small muted">This addon has no PC-side code, so there is nothing to measure here. If its screen feels slow, the page itself is doing too much work on the phone.</p>';
+    const lines = d.logs.length ? d.logs.map((l) => `${fmt(l.t)}  ${l.level.toUpperCase().padEnd(5)} ${l.text}`).join('\n') : 'Nothing logged yet.';
+    adOpen({
+      kicker: x.name, title: 'Log and health',
+      body: `<div class="ad-stats">${stats}</div>${d.slowRpc.length ? `<p class="small muted">Slow requests: ${d.slowRpc.map((s) => esc(s.method) + ' ' + s.ms + ' ms').join(', ')}</p>` : ''}<pre class="ad-log" tabindex="0">${esc(lines)}</pre>`,
+      ok: 'Copy', cancel: 'Close',
+      onOk: async () => { try { await navigator.clipboard.writeText(`${d.name} ${d.version}\n` + lines); toast('Copied'); } catch (e) { toast('Couldn\'t copy'); } return false; },
+    });
+  }
+
   function adSettings(x) {
     const field = (s) => {
       const id = 'ad-s-' + s.key, hint = s.hint ? `<span class="hint">${esc(s.hint)}</span>` : '';
@@ -1097,6 +1119,7 @@
     const id = b.dataset.id, x = ((state.addons && state.addons.installed) || []).find((a) => a.id === id);
     if (b.dataset.ad === 'install' || b.dataset.ad === 'update') adInstall({ registryId: id });
     else if (b.dataset.ad === 'settings' && x) adSettings(x);
+    else if (b.dataset.ad === 'log' && x) adLog(x);
     else if (b.dataset.ad === 'remove' && x) adOpen({
       kicker: 'Remove', title: x.name,
       body: `<p>Remove this addon from the phone and this PC?</p><label class="field"><span><input type="checkbox" id="ad-keep"> Keep its saved data</span></label>`,
