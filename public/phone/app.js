@@ -1277,6 +1277,12 @@
   function applyConfig(c) {
     var prevShortcuts = JSON.stringify(state.config.shortcuts), prevScreens = JSON.stringify(state.config.screens) + state.config.nowStyle;
     state.config = c;
+    // This page is older than the PC (an old copy kept by the phone's browser): load the current one, once.
+    var vmeta = document.querySelector('meta[name=pd-version]'), mine = vmeta && vmeta.getAttribute('content');
+    if (c.version && mine && mine !== c.version && !PREVIEW) {
+      var tried = ''; try { tried = sessionStorage.getItem('pd.reloaded') || ''; } catch (e) {}
+      if (tried !== c.version) { try { sessionStorage.setItem('pd.reloaded', c.version); } catch (e) {} location.reload(); return; }
+    }
     syncKinetic();
     document.body.classList.toggle('ns-imm', c.nowStyle !== 'classic');
     placeSourcePill();

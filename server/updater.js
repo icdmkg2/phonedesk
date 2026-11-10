@@ -49,19 +49,46 @@ async function check(cfg, current) {
     }
     if (!/^[a-f0-9]{64}$/i.test(sha)) throw new Error('the release has no SHA-256 checksum, so it was not downloaded');
     const file = path.join(DIR, asset.name);
-    if (!(fs.existsSync(file) && hash(fs.readFileSync(file)) === sha.toLowerCase())) {
-      set({ state: 'downloading', version, url: rel.html_url || '', notes: String(rel.body || '').slice(0, 2000) });
-      const buf = await get(asset.browser_download_url);
-      if (hash(buf) !== sha.toLowerCase()) throw new Error('the download did not match its checksum');
-      fs.mkdirSync(DIR, { recursive: true });
-      fs.writeFileSync(file, buf);
+    const info = { version, url: rel.html_url || '', notes: String(rel.body || '').slice(0, 4000), size: asset.size || 0 };
+    pending = { asset, sha: sha.toLowerCase(), file, info };
+    const have = fs.existsSync(file) && hash(fs.readFileSync(file)) === pending.sha;
+    if (!have && cfg.autoDownload === false) {
+      // The person chose to download by hand: say a version exists and wait.
+      set(Object.assign({ state: 'available', checkedAt: Date.now() }, info));
+      log.event('info', `PhoneDesk ${version} is available`);
+      return status;
     }
-    set({ state: 'ready', version, file, url: rel.html_url || '', notes: String(rel.body || '').slice(0, 2000), checkedAt: Date.now() });
-    log.event('info', `PhoneDesk ${version} is ready to install`);
+    await fetchFile(have);
   } catch (e) {
     set({ state: 'error', error: e.message, checkedAt: Date.now() });
     log.warn('update check: ' + e.message);
   }
+  return status;
+}
+
+let pending = null; // the release the last check found: its setup file, checksum and notes
+let busy = false;
+
+/** Downloads the pending release (unless its file is already here) and checks it. */
+async function fetchFile(have) {
+  const { asset, sha, file, info } = pending;
+  if (!have) {
+    set(Object.assign({ state: 'downloading' }, info));
+    const buf = await get(asset.browser_download_url);
+    if (hash(buf) !== sha) throw new Error('the download did not match its checksum');
+    fs.mkdirSync(DIR, { recursive: true });
+    fs.writeFileSync(file, buf);
+  }
+  set(Object.assign({ state: 'ready', file, checkedAt: Date.now() }, info));
+  log.event('info', `PhoneDesk ${info.version} is ready to install`);
+}
+
+/** The "Download" button: fetch the update a check found, so it can be installed. */
+async function download() {
+  if (status.state !== 'available' || !pending) throw new Error('No update is waiting to be downloaded');
+  if (busy) return status;
+  busy = true;
+  try { await fetchFile(false); } catch (e) { set({ state: 'error', error: e.message, checkedAt: Date.now() }); log.warn('update download: ' + e.message); } finally { busy = false; }
   return status;
 }
 
@@ -70,6 +97,7 @@ function hash(buf) { return crypto.createHash('sha256').update(buf).digest('hex'
 module.exports = {
   status: () => status,
   check,
+  download,
   start(getConfig, current, cb) {
     onChange = cb;
     status.current = current;

@@ -45,6 +45,7 @@ const DEFAULTS = {
   nightRed: true,              // red clock at night (easier on the eyes)
   nightClock: true,            // switch to the clock screen at night
   burnIn: true,                // shift the picture a few pixels now and then
+  autoDownload: true,          // download an update as soon as one is found (off: ask first)
   seenVersion: '',             // notes of this version were shown (What's new)
   screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
   shortcuts: [
@@ -138,6 +139,7 @@ function sanitize(c) {
   out.spotifyClientId = /^[a-f0-9]{32}$/i.test(c.spotifyClientId || '') ? c.spotifyClientId : '';
   out.updateRepo = /^[\w.-]+\/[\w.-]+$/.test(c.updateRepo || '') ? c.updateRepo : DEFAULTS.updateRepo;
   out.autoUpdate = c.autoUpdate !== false;
+  out.autoDownload = c.autoDownload !== false;
   out.onboarded = c.onboarded === true;
   out.autoUpdateAddons = c.autoUpdateAddons !== false;
   out.addonRegistry = /^https:\/\/[^\s]{1,300}$/.test(c.addonRegistry || '') ? c.addonRegistry : '';

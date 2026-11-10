@@ -757,6 +757,7 @@
     const u = state.update || {};
     const badge = $('up-badge'), text = $('up-text');
     $('up-install').hidden = u.state !== 'ready';
+    $('up-download').hidden = u.state !== 'available';
     $('up-check').disabled = u.state === 'source' || u.state === 'checking' || u.state === 'downloading';
     const ver = state.status ? 'v' + state.status.version : '';
     const map = {
@@ -765,6 +766,7 @@
       idle: [ver, 'Updates are checked a minute after start and every 6 hours.'],
       checking: ['Checking', 'Looking for a newer version…'],
       latest: [ver, 'You have the latest version.'],
+      available: ['New version', `PhoneDesk ${u.version || ''} is available. Download it when you are ready; it installs after you press Install.`],
       downloading: ['Downloading', `Downloading PhoneDesk ${u.version || ''}…`],
       ready: ['Update ready', `PhoneDesk ${u.version} is downloaded and checked. Installing takes a few seconds; PhoneDesk restarts by itself.`],
       installing: ['Installing', 'Installing the update. PhoneDesk will restart.'],
@@ -772,25 +774,48 @@
     };
     const [b, t] = map[u.state] || [ver, ''];
     setText(badge, b);
-    badge.className = 'badge' + (u.state === 'ready' ? ' usb' : u.state === 'error' ? ' warn' : '');
+    badge.className = 'badge' + (u.state === 'ready' || u.state === 'available' ? ' usb' : u.state === 'error' ? ' warn' : '');
     setText(text, t);
     // Patch notes live on GitHub Releases (one per version, from CHANGELOG.md).
     const repo = /^[\w.-]+\/[\w.-]+$/.test((state.config && state.config.updateRepo) || '') ? state.config.updateRepo : DEFAULT_REPO;
-    const shown = u.state === 'ready' || u.state === 'downloading' ? u.version : state.status && state.status.version;
+    const pend = u.state === 'ready' || u.state === 'downloading' || u.state === 'available';
+    const shown = pend ? u.version : state.status && state.status.version;
     $('up-notes').href = u.url && shown === u.version ? u.url : `https://github.com/${repo}/releases/tag/v${shown || ''}`;
-    setText($('up-notes'), u.state === 'ready' || u.state === 'downloading' ? `What's new in ${u.version}` : `What's new in ${shown ? 'v' + shown : 'this version'}`);
+    setText($('up-notes'), pend ? `What's new in ${u.version}` : `What's new in ${shown ? 'v' + shown : 'this version'}`);
     $('up-all').href = `https://github.com/${repo}/releases`;
     // An update shows as a badge on the Updates item and a pill in the sidebar, not only inside the page.
     const nav = $('nav-updates'), pill = $('up-pill');
-    const avail = u.state === 'ready' || u.state === 'downloading' || u.state === 'installing';
+    const avail = u.state === 'ready' || u.state === 'available' || u.state === 'downloading' || u.state === 'installing';
     const bad = u.state === 'error';
     nav.hidden = !(avail || bad);
     setText(nav, bad ? '!' : 'New');
     nav.className = 'count ' + (bad ? 'bad' : 'new');
     pill.hidden = !(avail || bad);
+    renderUpdateNotes(u, pend);
     pill.classList.toggle('err', bad);
     setText($('up-pill-text'), bad ? 'Update problem' : u.state === 'downloading' ? `Downloading ${u.version || 'update'}…` : u.state === 'installing' ? 'Installing…' : u.version ? 'v' + String(u.version).replace(/^v/, '') + ' available' : 'Update available');
   }
+  // The release notes of the waiting version, shown here so there is no need to open GitHub to decide.
+  function renderUpdateNotes(u, pend) {
+    const card = $('up-notes-card'), body = $('up-notes-body');
+    const text = pend && u.notes ? String(u.notes).split(/\n-{3,}\n/)[0] : '';
+    card.hidden = !text;
+    if (!text) { body.textContent = ''; return; }
+    setText($('up-notes-title'), `What's new in ${u.version}`);
+    const key = u.version + '|' + text.length;
+    if (body.dataset.key === key) return;
+    body.dataset.key = key; body.textContent = '';
+    let list = null;
+    text.split('\n').forEach((raw) => {
+      const line = raw.trim(); if (!line) { list = null; return; }
+      const h = /^#{1,4}\s+(.*)$/.exec(line), li = /^[-*]\s+(.*)$/.exec(line);
+      if (li) { if (!list) { list = document.createElement('ul'); body.appendChild(list); } const el = document.createElement('li'); el.textContent = li[1].replace(/\*\*|\*|`/g, ''); list.appendChild(el); return; }
+      list = null;
+      const el = document.createElement(h ? 'h4' : 'p'); el.textContent = (h ? h[1] : line).replace(/\*\*|\*|`/g, ''); body.appendChild(el);
+    });
+  }
+  $('up-download').addEventListener('click', async () => { state.update = Object.assign({}, state.update, { state: 'downloading' }); renderUpdate(); state.update = await api('update/download', {}).catch((e) => ({ state: 'error', error: e.message })); renderUpdate(); });
+  $('up-autodl').addEventListener('change', (e) => saveConfig({ autoDownload: e.target.checked }));
   $('up-check').addEventListener('click', async () => { state.update = await api('update/check', {}).catch((e) => ({ state: 'error', error: e.message })); renderUpdate(); });
   $('up-install').addEventListener('click', async () => { await api('update/install', {}).catch((e) => toast(e.message)); });
   $('up-auto').addEventListener('change', (e) => saveConfig({ autoUpdate: e.target.checked }));
@@ -800,6 +825,7 @@
   function renderUpdateSettings() {
     const c = state.config;
     $('up-auto').checked = c.autoUpdate !== false;
+    $('up-autodl').checked = c.autoDownload !== false;
     if (document.activeElement !== $('up-repo')) $('up-repo').value = c.updateRepo || '';
     renderUpdate();
   }

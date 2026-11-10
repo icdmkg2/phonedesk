@@ -459,10 +459,15 @@
       <div class="card-head"><h3>Updates</h3><span class="badge" id="up-badge">–</span></div>
       <p class="small muted" id="up-text">Checking…</p>
       <p class="small up-links"><a id="up-notes" href="#" target="_blank" rel="noopener">What's new</a><a id="up-all" href="#" target="_blank" rel="noopener">All releases</a></p>
-      <div class="row"><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div>
+      <div class="row"><button class="btn primary" id="up-download" hidden>Download update</button><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div>
       <label class="toggle-row">Check automatically<span class="switch"><input type="checkbox" id="up-auto"><span></span></span></label>
+        <label class="toggle-row">Download updates automatically<span class="switch"><input type="checkbox" id="up-autodl"><span></span></span></label>
       <label class="field">GitHub repository<input type="text" id="up-repo" placeholder="icdmkg2/phonedesk" maxlength="100" class="mono"><span class="hint">Official releases. Leave it empty to use them; turn off <i>Check automatically</i> to stop updates.</span></label>
     </section>
+        <section class="card" id="up-notes-card" aria-label="What is in this update" hidden>
+          <div class="card-head"><h3 id="up-notes-title">What's new</h3></div>
+          <div class="up-notes" id="up-notes-body"></div>
+        </section>
       </div>
     </section>
 
