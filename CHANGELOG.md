@@ -7,6 +7,14 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.9.3] — 2026-11-10
+
+A fix for getting stuck on the Shortcuts screen.
+
+### Fixed
+
+- Swiping to another screen works again after you scroll or touch the Shortcuts screen. The browser was cancelling the swipe whenever it started on a shortcut button or on the scrolling pad, so the phone stayed on that screen. Swipes are now read from touch events on every screen.
+
 ## [1.9.2] — 2026-11-09
 
 A fix for addon screens on the phone.

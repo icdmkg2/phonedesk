@@ -1243,14 +1243,18 @@
   (function () {
     var sx = 0, sy = 0, st = 0, active = false;
     var root = $('screens');
-    root.addEventListener('pointerdown', function (e) {
+    // Touches are read from touch events: the browser cancels pointer events as soon as it treats a touch as a
+    // pan (any scrollable area, e.g. the Shortcuts pad), which left the phone stuck on that screen.
+    // Pointer events are kept for a mouse or a pen.
+    var lastTouch = 0;
+    function down(e, x, y) {
       if (e.target.closest('.slider, .track, .ly-pill, .ly-close, .ly-nudge')) { active = false; return; }
-      var p = pt(e); active = true; sx = p.x; sy = p.y; st = Date.now();
-    });
-    root.addEventListener('pointerup', function (e) {
+      var p = pt({ clientX: x, clientY: y }); active = true; sx = p.x; sy = p.y; st = Date.now();
+    }
+    function up(x, y) {
       if (!active) return;
       active = false;
-      var p = pt(e), dx = p.x - sx, dy = p.y - sy;
+      var p = pt({ clientX: x, clientY: y }), dx = p.x - sx, dy = p.y - sy;
       if (Date.now() - st > 800) return;
       var lyOpen = document.body.classList.contains('ly-open');
       if (Math.abs(dy) > 55 && Math.abs(dy) > Math.abs(dx) * 1.4 && imm()) {
@@ -1260,8 +1264,14 @@
       }
       if (lyOpen) return;
       if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) step(dx < 0 ? 1 : -1);
-    });
-    root.addEventListener('pointercancel', function () { active = false; });
+    }
+    function byTouch(e) { return e.pointerType === 'touch' || Date.now() - lastTouch < 800; }
+    root.addEventListener('touchstart', function (e) { lastTouch = Date.now(); var t = e.touches[0]; if (e.touches.length === 1 && t) down(e, t.clientX, t.clientY); else active = false; }, { passive: true });
+    root.addEventListener('touchend', function (e) { lastTouch = Date.now(); var t = e.changedTouches[0]; if (t) up(t.clientX, t.clientY); }, { passive: true });
+    root.addEventListener('touchcancel', function () { active = false; }, { passive: true });
+    root.addEventListener('pointerdown', function (e) { if (!byTouch(e)) down(e, e.clientX, e.clientY); });
+    root.addEventListener('pointerup', function (e) { if (!byTouch(e)) up(e.clientX, e.clientY); });
+    root.addEventListener('pointercancel', function (e) { if (!byTouch(e)) active = false; });
   })();
 
   function applyConfig(c) {
