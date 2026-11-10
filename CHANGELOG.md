@@ -7,6 +7,14 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.9.4] — 2026-11-10
+
+A fix for the layout editor going blank.
+
+### Fixed
+
+- Changing a page in Layouts no longer leaves the preview (and the phone, when it is on that page) empty. The page was rebuilt but never shown again, so its widgets disappeared until you switched screens.
+
 ## [1.9.3] — 2026-11-10
 
 A fix for getting stuck on the Shortcuts screen.

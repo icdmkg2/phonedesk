@@ -1074,7 +1074,7 @@
     Object.keys(pagesBuilt).forEach(function (id) {
       var page = pageById(id);
       if (!page) { dropPage(id); return; }
-      if (pagesBuilt[id].key !== pageKey(page)) { dropPage(id); if (state.screen === 'page:' + id) { ensurePage('page:' + id); } }
+      if (pagesBuilt[id].key !== pageKey(page)) { dropPage(id); if (state.screen === 'page:' + id) { show(state.screen); } } // show() rebuilds it AND marks the new section visible
     });
   }
   window.addEventListener('resize', function () { setTimeout(function () { Object.keys(pagesBuilt).forEach(layoutPage); }, 50); });
