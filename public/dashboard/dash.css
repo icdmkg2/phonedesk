@@ -486,3 +486,6 @@ select { background: var(--panel2, #1b1e25); border: 1px solid var(--line); bord
 .up-notes p { margin: 0 0 8px; }
 .up-notes ul { margin: 0 0 8px; padding-left: 20px; }
 .up-notes li { margin: 0 0 6px; }
+
+.ly-tools { display: flex; gap: 4px; margin-left: auto; }
+.ly-tools .btn[disabled] { opacity: .4; cursor: default; }

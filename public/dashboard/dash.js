@@ -1085,7 +1085,7 @@
 
   /* ------------------------------------------------------------ layouts (pages made of widgets) */
   const LY = { W: 960, H: 444, pad: 8, gap: 8, cols: 12, rows: 6 };
-  const ly = { sel: '', wsel: '', draft: [], cat: null, timer: null, scale: 1, drag: null };
+  const ly = { sel: '', wsel: '', draft: [], cat: null, timer: null, scale: 1, drag: null, base: [], undo: [], redo: [], open: {}, pending: false };
   const lyCell = () => ({ cw: (LY.W - 2 * LY.pad - LY.gap * (LY.cols - 1)) / LY.cols, ch: (LY.H - 2 * LY.pad - LY.gap * (LY.rows - 1)) / LY.rows });
   function lyPage() { return ly.draft.find((p) => p.id === ly.sel) || null; }
   function lyWidget() { const p = lyPage(); return p ? p.widgets.find((w) => w.id === ly.wsel) || null : null; }
@@ -1098,14 +1098,58 @@
     for (let y = 0; y + h <= LY.rows; y++) for (let x = 0; x + w <= LY.cols; x++) if (!p.widgets.some((o) => lyOverlap({ x, y, w, h }, o))) return { x, y };
     return null;
   }
+  // Undo and redo: one step for each burst of edits (a drag, some typing). Adding or deleting a page starts a fresh history.
+  function lyHistReset() { ly.base = clone(ly.draft); ly.undo = []; ly.redo = []; ly.open = {}; ly.draft.forEach((p) => { ly.open[p.id] = clone(p); }); lyHistButtons(); }
+  function lyHistButtons() {
+    const p = lyPage();
+    $('ly-undo').disabled = !ly.undo.length; $('ly-redo').disabled = !ly.redo.length;
+    $('ly-reset').disabled = !p || !ly.open[p.id] || JSON.stringify(ly.open[p.id].widgets) === JSON.stringify(p.widgets);
+  }
+  async function lyJump(stack, other) {
+    if (!stack.length) return;
+    other.push(clone(ly.draft));
+    ly.draft = stack.pop(); ly.base = clone(ly.draft);
+    if (!lyWidget()) ly.wsel = '';
+    clearTimeout(ly.timer); ly.pending = false;
+    try { state.config = await api('config', { pages: ly.draft }); ly.draft = clone(state.config.pages); ly.base = clone(ly.draft); setText($('ly-state'), 'Saved'); renderDisplay(); } catch (e) { setText($('ly-state'), 'Couldn\'t save: ' + e.message); }
+    renderLayouts(true);
+  }
+  const lyUndo = () => lyJump(ly.undo, ly.redo), lyRedo = () => lyJump(ly.redo, ly.undo);
+  $('ly-undo').addEventListener('click', lyUndo);
+  $('ly-redo').addEventListener('click', lyRedo);
+  $('ly-reset').addEventListener('click', () => {
+    const p = lyPage(); if (!p || !ly.open[p.id]) return;
+    ly.undo.push(clone(ly.draft)); ly.redo = [];
+    p.widgets = clone(ly.open[p.id].widgets); ly.wsel = '';
+    ly.pending = true; renderLayouts(true); lySave();
+  });
+  function lyDuplicate() {
+    const p = lyPage(), w = lyWidget(); if (!p || !w) return;
+    if (p.widgets.length >= ly.cat.limits.widgets) return toast(`${ly.cat.limits.widgets} widgets is the most on a page`);
+    const spot = lyFree(p, w.w, w.h);
+    if (!spot) return toast('No room for a copy. Make some space first.');
+    const nw = Object.assign(clone(w), { id: 'w' + Math.random().toString(36).slice(2, 10), x: spot.x, y: spot.y });
+    p.widgets.push(nw); ly.wsel = nw.id; renderLayouts(true); lySave();
+  }
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y / Ctrl+D while the Layouts page is open (not while typing in a field)
+  document.addEventListener('keydown', (e) => {
+    if (!$('v-layouts').classList.contains('on') || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.target.closest && e.target.closest('input[type=text], input[type=number], textarea, select')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); lyUndo(); }
+    else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); lyRedo(); }
+    else if (k === 'd') { e.preventDefault(); lyDuplicate(); }
+  });
   async function openLayouts() {
     if (!state.config) { try { await loadConfig(); } catch (e) { return; } }
     try { ly.cat = await api('widgets'); } catch (e) { toast('Couldn\'t load widgets: ' + e.message); return; }
     ly.draft = clone((state.config && state.config.pages) || []);
     if (!ly.draft.some((p) => p.id === ly.sel)) { ly.sel = ly.draft.length ? ly.draft[0].id : ''; ly.wsel = ''; }
+    lyHistReset();
     renderLayouts();
   }
   function lySave() {
+    if (!ly.pending) { ly.pending = true; ly.undo.push(ly.base); if (ly.undo.length > 50) ly.undo.shift(); ly.redo = []; }
     setText($('ly-state'), 'Saving…');
     clearTimeout(ly.timer);
     ly.timer = setTimeout(async () => {
@@ -1113,7 +1157,8 @@
         state.config = await api('config', { pages: ly.draft });
         // the server may have tidied the pages (kept inside the grid, moved overlaps); follow it unless a drag is going on
         if (!ly.drag) { ly.draft = clone(state.config.pages); renderLayouts(true); }
-        setText($('ly-state'), 'Saved'); renderDisplay();
+        ly.pending = false; ly.base = clone(state.config.pages);
+        setText($('ly-state'), 'Saved'); renderDisplay(); lyHistButtons();
       } catch (e) { setText($('ly-state'), 'Couldn\'t save: ' + e.message); }
     }, 350);
   }
@@ -1128,7 +1173,7 @@
     $('ly-onphone').checked = onPhone.includes('page:' + p.id);
     const fr = $('ly-frame'), want = '/phone/?preview=' + p.id;
     if (fr.getAttribute('data-src') !== want) { fr.setAttribute('data-src', want); fr.src = want; }
-    lyFit(); renderLyOverlay(); renderLyPalette(); renderLyOpts();
+    lyFit(); renderLyOverlay(); renderLyPalette(); renderLyOpts(); lyHistButtons();
   }
   function lyFit() {
     const st = $('ly-stage'), w = st.clientWidth || 600;
@@ -1166,17 +1211,36 @@
     const w = lyWidget(), box = $('ly-opts');
     if (!w) { box.innerHTML = '<h3>Widget</h3><p class="small muted">Select a widget on the page to change its size and options, or add one from the left.</p>'; return; }
     const t = lyType(w.type), min = t ? { w: t.minW || 1, h: t.minH || 1 } : { w: 1, h: 1 };
-    box.innerHTML = `<div class="card-head"><h3>${esc(t ? t.name : 'Missing widget')}</h3><button class="btn sm ghost" id="ly-rm">Remove</button></div>
+    box.innerHTML = `<div class="card-head"><h3>${esc(t ? t.name : 'Missing widget')}</h3><span class="row"><button class="btn sm ghost" id="ly-dup" title="Duplicate (Ctrl+D)">Duplicate</button><button class="btn sm ghost" id="ly-rm">Remove</button></span></div>
       <p class="small muted">${esc(t ? t.desc || '' : 'This widget comes from an addon that is turned off or removed. It shows nothing on the phone until the addon is back.')}</p>
       <div class="ly-opts-grid"><div class="ly-size"><label>Width<input type="number" id="ly-w" min="${min.w}" max="${LY.cols}" value="${w.w}"></label><label>Height<input type="number" id="ly-h" min="${min.h}" max="${LY.rows}" value="${w.h}"></label></div>
       ${((t && t.opts) || []).map((f) => lyField(f, w.opts && w.opts[f.key] !== undefined ? w.opts[f.key] : f.default)).join('')}</div>`;
   }
   function lySelect(id) { ly.wsel = id || ''; renderLyOverlay(); renderLyOpts(); }
-  function lyApply(w, next) {
+  // Where a widget may go. If the asked spot overlaps another widget it snaps to the nearest free one: a move
+  // slides to the closest free cell (up to 2 cells away), a resize shrinks to the largest size that fits.
+  function lyApply(w, next, resize) {
     const p = lyPage(), t = lyType(w.type), minW = (t && t.minW) || 1, minH = (t && t.minH) || 1;
     const n = { x: next.x, y: next.y, w: Math.max(minW, Math.min(LY.cols, next.w)), h: Math.max(minH, Math.min(LY.rows, next.h)) };
     n.x = Math.max(0, Math.min(LY.cols - n.w, n.x)); n.y = Math.max(0, Math.min(LY.rows - n.h, n.y));
-    return { n, ok: !p.widgets.some((o) => o.id !== w.id && lyOverlap(n, o)) };
+    const free = (r) => !p.widgets.some((o) => o.id !== w.id && lyOverlap(r, o));
+    if (free(n)) return { n, ok: true };
+    if (resize) {
+      let best = null;
+      for (let ww = n.w; ww >= minW; ww--) for (let hh = n.h; hh >= minH; hh--) {
+        const r = { x: n.x, y: n.y, w: ww, h: hh };
+        if (free(r) && (!best || ww * hh > best.w * best.h)) best = r;
+      }
+      return best ? { n: best, ok: true } : { n, ok: false };
+    }
+    let best = null, bd = 1e9;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const r = { x: n.x + dx, y: n.y + dy, w: n.w, h: n.h };
+      if (r.x < 0 || r.y < 0 || r.x + r.w > LY.cols || r.y + r.h > LY.rows || !free(r)) continue;
+      const d = Math.abs(dx) + Math.abs(dy);
+      if (d < bd) { bd = d; best = r; }
+    }
+    return best ? { n: best, ok: true } : { n, ok: false };
   }
   function lyCommit(w, n) { Object.assign(w, n); renderLyOverlay(); renderLyOpts(); lySave(); }
 
@@ -1194,7 +1258,7 @@
     const { cw, ch } = lyCell();
     const dx = Math.round(((e.clientX - d.sx) / ly.scale) / (cw + LY.gap)), dy = Math.round(((e.clientY - d.sy) / ly.scale) / (ch + LY.gap));
     const w = lyPage().widgets.find((x) => x.id === d.id);
-    const r = lyApply(w, d.resize ? { x: d.orig.x, y: d.orig.y, w: d.orig.w + dx, h: d.orig.h + dy } : { x: d.orig.x + dx, y: d.orig.y + dy, w: d.orig.w, h: d.orig.h });
+    const r = lyApply(w, d.resize ? { x: d.orig.x, y: d.orig.y, w: d.orig.w + dx, h: d.orig.h + dy } : { x: d.orig.x + dx, y: d.orig.y + dy, w: d.orig.w, h: d.orig.h }, d.resize);
     d.next = r.n; d.ok = r.ok; lyPlace(d.box, r.n); d.box.classList.toggle('bad', !r.ok);
   });
   function lyEnd(e) {
@@ -1214,7 +1278,7 @@
     const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
     if (!d) return;
     e.preventDefault();
-    const r = lyApply(w, e.shiftKey ? { x: w.x, y: w.y, w: w.w + d[0], h: w.h + d[1] } : { x: w.x + d[0], y: w.y + d[1], w: w.w, h: w.h });
+    const r = lyApply(w, e.shiftKey ? { x: w.x, y: w.y, w: w.w + d[0], h: w.h + d[1] } : { x: w.x + d[0], y: w.y + d[1], w: w.w, h: w.h }, e.shiftKey);
     if (r.ok) { lyCommit(w, r.n); const nb = $('ly-over').querySelector(`[data-id="${w.id}"]`); if (nb) nb.focus(); } else toast('That would overlap another widget');
   });
   function lyRemove() {
@@ -1222,11 +1286,11 @@
     p.widgets = p.widgets.filter((x) => x.id !== ly.wsel); ly.wsel = '';
     renderLyOverlay(); renderLyOpts(); renderLayouts(true); lySave();
   }
-  $('ly-opts').addEventListener('click', (e) => { if (e.target.closest('#ly-rm')) lyRemove(); });
+  $('ly-opts').addEventListener('click', (e) => { if (e.target.closest('#ly-rm')) lyRemove(); else if (e.target.closest('#ly-dup')) lyDuplicate(); });
   $('ly-opts').addEventListener('change', (e) => {
     const w = lyWidget(); if (!w) return;
     if (e.target.id === 'ly-w' || e.target.id === 'ly-h') {
-      const r = lyApply(w, { x: w.x, y: w.y, w: +$('ly-w').value, h: +$('ly-h').value });
+      const r = lyApply(w, { x: w.x, y: w.y, w: +$('ly-w').value, h: +$('ly-h').value }, true);
       if (r.ok) lyCommit(w, r.n); else { toast('That would overlap another widget'); renderLyOpts(); }
       return;
     }
@@ -1267,7 +1331,7 @@
       onOk: async () => {
         ly.draft = ly.draft.filter((x) => x.id !== p.id);
         state.config = await api('config', { pages: ly.draft });
-        ly.draft = clone(state.config.pages); ly.sel = ly.draft.length ? ly.draft[0].id : ''; ly.wsel = '';
+        ly.draft = clone(state.config.pages); ly.sel = ly.draft.length ? ly.draft[0].id : ''; ly.wsel = ''; lyHistReset();
         renderLayouts(); renderDisplay(); toast('Page deleted');
       },
     });
@@ -1284,7 +1348,7 @@
       ok: 'Customize', cancel: 'Cancel',
       onOk: async () => {
         const r = await api('pages/from-screen', { screen });
-        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = '';
+        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = ''; lyHistReset();
         renderDisplay(); go('layouts'); toast(name + ' is now a page you can edit');
       },
     });
@@ -1300,7 +1364,7 @@
       onOk: async () => {
         const tpl = document.querySelector('input[name="ly-tpl"]:checked').value;
         const r = await api('pages/new', { template: tpl, name: $('ly-newname').value.trim() });
-        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = '';
+        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = ''; lyHistReset();
         renderLayouts(); renderDisplay(); toast('Page created. It is on the phone now.');
       },
     });

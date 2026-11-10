@@ -331,6 +331,11 @@
             <div class="ly-top">
               <label class="ly-name">Name<input type="text" id="ly-name" maxlength="24" autocomplete="off"></label>
               <label class="ly-show"><span class="switch"><input type="checkbox" id="ly-onphone"><span></span></span>Show on the phone</label>
+              <div class="ly-tools" role="group" aria-label="Edit">
+                <button class="btn sm ghost" id="ly-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+                <button class="btn sm ghost" id="ly-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+                <button class="btn sm ghost" id="ly-reset" title="Go back to how this page was when you opened it" disabled>Reset</button>
+              </div>
               <button class="btn sm ghost" id="ly-del">Delete page</button>
             </div>
             <div class="ly-stage" id="ly-stage"><div class="ly-canvas" id="ly-canvas"><iframe id="ly-frame" title="Live preview of this page" tabindex="-1"></iframe><div class="ly-over" id="ly-over"></div></div></div>

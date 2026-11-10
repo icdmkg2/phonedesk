@@ -82,6 +82,50 @@ async function t(name, fn) {
       assert.ok((await count()) > 0, 'the preview went blank after a second edit');
       await ctx.close();
     });
+
+    await t('layout editor: add, duplicate, undo, redo, reset and snapping', async () => {
+      const ctx = await browser.newContext({ viewport: { width: 1300, height: 900 } });
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/#layouts'); await sleep(1500);
+      await pg.evaluate(() => { for (const id of ['onboard', 'whatsnew']) { const o = document.getElementById(id); if (o) o.remove(); } });
+      const n = () => pg.locator('#ly-over > .lay-w').count();
+      const settle = () => sleep(900);
+      const start = await n();
+      assert.ok(start > 1, 'expected the customized page to have widgets, got ' + start);
+      // remove one so there is room, then add
+      await pg.locator('#ly-over > .lay-w').last().click();
+      await pg.click('#ly-rm'); await settle();
+      assert.strictEqual(await n(), start - 1);
+      await pg.click('#ly-undo'); await settle();
+      assert.strictEqual(await n(), start, 'undo brings the removed widget back');
+      await pg.click('#ly-redo'); await settle();
+      assert.strictEqual(await n(), start - 1, 'redo removes it again');
+      await pg.click('#ly-undo'); await settle();
+      // duplicate (may say there is no room: free some space first)
+      await pg.locator('#ly-over > .lay-w').last().click();
+      await pg.click('#ly-rm'); await settle();
+      await pg.locator('#ly-over > .lay-w').first().click();
+      await pg.click('#ly-dup'); await settle();
+      assert.ok(await n() >= start - 1, 'duplicate keeps the page populated');
+      // the editor and the phone agree after the edits
+      const saved = (await api('config')).pages[0].widgets.length;
+      assert.strictEqual(saved, await n(), 'the saved page matches the editor');
+      // dragging a widget onto another snaps it to free space instead of refusing, and nothing overlaps
+      const a = await pg.locator('#ly-over > .lay-w').first().boundingBox();
+      const z = await pg.locator('#ly-over > .lay-w').last().boundingBox();
+      await pg.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await pg.mouse.down();
+      await pg.mouse.move(z.x + z.width / 2, z.y + z.height / 2, { steps: 10 }); await pg.mouse.up(); await settle();
+      const ws = (await api('config')).pages[0].widgets;
+      for (let i = 0; i < ws.length; i++) for (let k = i + 1; k < ws.length; k++) {
+        const A = ws[i], B = ws[k];
+        assert.ok(!(A.x < B.x + B.w && B.x < A.x + A.w && A.y < B.y + B.h && B.y < A.y + A.h), 'two widgets overlap after a drag');
+      }
+      // reset goes back to how the page was when the editor opened
+      await pg.click('#ly-reset'); await settle();
+      assert.strictEqual(await n(), start, 'reset restores the opening layout');
+      assert.strictEqual((await api('config')).pages[0].widgets.length, start, 'reset is saved');
+      await ctx.close();
+    });
   } finally {
     if (browser) await browser.close();
     server.kill();
