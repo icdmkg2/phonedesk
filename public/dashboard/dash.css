@@ -489,3 +489,12 @@ select { background: var(--panel2, #1b1e25); border: 1px solid var(--line); bord
 
 .ly-tools { display: flex; gap: 4px; margin-left: auto; }
 .ly-tools .btn[disabled] { opacity: .4; cursor: default; }
+
+.sched { display: flex; flex-direction: column; gap: 8px; }
+.sched-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sched-row input, .sched-row select { min-width: 0; }
+.sched-row select { flex: 1; min-width: 120px; }
+
+.ly-bg { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.ly-bg select { min-width: 110px; }
+.ly-bg input[type=color] { width: 40px; height: 32px; padding: 2px; background: none; border: 1px solid var(--line); border-radius: 8px; }

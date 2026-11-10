@@ -574,6 +574,7 @@ function publicConfig() {
     addonWidgets: addons.widgetList().map(({ type, entry, aid, wid, name, version, permissions }) => ({ type, entry, aid, wid, name, version, permissions })),
     pages: c.pages,
     dimAfter: c.dimAfter,
+    schedule: c.schedule,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
     lyricsFont: c.lyricsFont,

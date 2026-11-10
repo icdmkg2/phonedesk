@@ -857,3 +857,13 @@ body:not(.fullscreen) #s-shortcuts, #s-shortcuts { padding-top: 46px; }
 .w-text { font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
 html.preview body #dots, html.preview body .fs, html.preview body .batt, html.preview body .np-top { display: none !important; }
 html.preview .screen.page { padding: 8px; }
+
+/* page backgrounds and tappable widgets (set in the layout editor) */
+.screen.page[data-bg] { background-color: var(--pgbg, transparent); background-image: var(--pgimg, none); }
+.screen.page[data-bg=black] { --pgbg: #000; }
+.screen.page[data-bg=aurora] { --pgbg: #07110f; --pgimg: radial-gradient(120% 90% at 15% 0%, rgba(46,160,120,.38), transparent 60%), radial-gradient(90% 80% at 100% 100%, rgba(70,90,220,.34), transparent 60%); }
+.screen.page[data-bg=dusk] { --pgbg: #0d0a14; --pgimg: radial-gradient(110% 90% at 85% 0%, rgba(220,90,120,.32), transparent 60%), radial-gradient(90% 90% at 0% 100%, rgba(100,70,200,.30), transparent 60%); }
+.screen.page[data-bg=forest] { --pgbg: #08100b; --pgimg: radial-gradient(100% 100% at 50% 0%, rgba(60,140,80,.30), transparent 65%); }
+.screen.page[data-bg=slate] { --pgbg: #101319; --pgimg: linear-gradient(160deg, rgba(120,140,180,.18), transparent 60%); }
+.wg.tappable { cursor: pointer; }
+.wg.tappable:active { transform: scale(.985); transition: transform .08s; }

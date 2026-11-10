@@ -1027,6 +1027,18 @@
     return wd.type.indexOf('addon:') === 0 ? wAddon(wd, pageId) : null;
   }
 
+  // A tap on a widget (set in the layout editor): open a screen, press a shortcut button, or control the music.
+  function tapAction(el, tap) {
+    el.classList.add('tappable');
+    el.addEventListener('click', function (e) {
+      if (e.target.closest('button, a, input, select, iframe, .slider, .track')) return; // the widget's own controls come first
+      var kind = tap.split(':')[0], arg = tap.slice(kind.length + 1);
+      buzz();
+      if (kind === 'screen') { if (screens().indexOf(arg) >= 0) show(arg); }
+      else if (kind === 'shortcut') { if (!send({ t: 'shortcut', id: arg })) toast('Not connected'); }
+      else if (kind === 'media') send({ t: 'cmd', a: arg });
+    });
+  }
   function pageKey(page) { return JSON.stringify(page) + '|' + JSON.stringify(state.config.addonWidgets || []) + '|' + JSON.stringify(state.config.shortcuts || []); }
   function ensurePage(name) {
     var id = name.slice(5), page = pageById(id);
@@ -1035,12 +1047,15 @@
     if (b && b.key === key) return;
     if (b) dropPage(id);
     var sec = document.createElement('section'), grid = document.createElement('div'), live = [], insts = [];
-    sec.className = 'screen page'; sec.id = 's-page-' + id; sec.setAttribute('data-screen', name);
+    sec.className = 'screen page'; sec.id = 's-page-' + id;
+    if (page.bg) sec.setAttribute('data-bg', page.bg);
+    if (page.accent) sec.style.setProperty('--accent', page.accent); sec.setAttribute('data-screen', name);
     grid.className = 'wgrid'; grid.setAttribute('aria-label', page.name);
     page.widgets.forEach(function (wd) {
       var inst = makeWidget(wd, live, id);
       if (!inst) return;
       inst.wd = wd;
+      if (wd.tap) tapAction(inst.el, wd.tap);
       inst.el.style.gridArea = (wd.y + 1) + ' / ' + (wd.x + 1) + ' / span ' + wd.h + ' / span ' + wd.w;
       grid.appendChild(inst.el); insts.push(inst);
     });
@@ -1274,6 +1289,27 @@
     root.addEventListener('pointercancel', function (e) { if (!byTouch(e)) active = false; });
   })();
 
+  // Scheduled screens: during a time window the phone moves to the screen chosen for it, once, when the window starts.
+  // The person can still swipe away; when the window ends the phone goes back to where it was (if it is still on that screen).
+  var schedKey = '', schedBack = '';
+  function schedNow() {
+    var rules = state.config.schedule || [], d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+    for (var i = 0; i < rules.length; i++) {
+      var f = rules[i].from.split(':'), t = rules[i].to.split(':'), a = +f[0] * 60 + +f[1], b = +t[0] * 60 + +t[1];
+      if (a < b ? (m >= a && m < b) : (m >= a || m < b)) return rules[i];
+    }
+    return null;
+  }
+  function schedTick() {
+    if (PREVIEW || !state.configured) return;
+    var r = schedNow(), key = r ? r.from + '-' + r.to + '-' + r.screen : '';
+    if (key === schedKey) return;
+    var was = schedKey; schedKey = key;
+    if (r) { if (screens().indexOf(r.screen) >= 0 && state.screen !== r.screen) { schedBack = state.screen; show(r.screen); } }
+    else if (was && schedBack) { var go = schedBack; schedBack = ''; if (screens().indexOf(go) >= 0) show(go); }
+  }
+  setInterval(schedTick, 15000);
+
   function applyConfig(c) {
     var prevShortcuts = JSON.stringify(state.config.shortcuts), prevScreens = JSON.stringify(state.config.screens) + state.config.nowStyle;
     state.config = c;
@@ -1303,6 +1339,7 @@
     if (JSON.stringify(c.screens) + c.nowStyle !== prevScreens || !$('dots').children.length) { renderDots(); show(state.screen); }
     else renderAll();
     armDim();
+    schedTick();
     if (pendingScreen) { var w = pendingScreen; pendingScreen = ''; if (screens().indexOf(w) >= 0) show(w); }
   }
 

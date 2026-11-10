@@ -82,3 +82,17 @@ t('the config keeps pages, and a page that is gone leaves the swipe row', () => 
 });
 require('fs').rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
 process.exit(failed ? 1 : 0);
+t('a tap action, a page background and an accent are kept only when valid', () => {
+  const [p] = w.sanitizePages([{ name: 'P', bg: 'aurora', accent: '#FFAA00', widgets: [
+    { type: 'text', x: 0, y: 0, w: 2, h: 1, tap: 'screen:stats' },
+    { type: 'text', x: 2, y: 0, w: 2, h: 1, tap: 'shortcut:abc123' },
+    { type: 'text', x: 4, y: 0, w: 2, h: 1, tap: 'media:toggle' },
+    { type: 'text', x: 6, y: 0, w: 2, h: 1, tap: 'javascript:alert(1)' },
+    { type: 'addon:pomodoro:timer', x: 8, y: 0, w: 2, h: 1, tap: 'screen:media' },
+  ] }]);
+  assert.strictEqual(p.bg, 'aurora');
+  assert.strictEqual(p.accent, '#ffaa00');
+  assert.deepStrictEqual(p.widgets.map((x) => x.tap), ['screen:stats', 'shortcut:abc123', 'media:toggle', undefined, undefined]);
+  const [q] = w.sanitizePages([{ bg: 'neon', accent: 'red', widgets: [] }]);
+  assert.ok(!('bg' in q) && !('accent' in q));
+});

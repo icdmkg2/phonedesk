@@ -126,6 +126,18 @@ async function t(name, fn) {
       assert.strictEqual((await api('config')).pages[0].widgets.length, start, 'reset is saved');
       await ctx.close();
     });
+
+    await t('a scheduled screen is shown when its time window is open', async () => {
+      const hm = (d) => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      const now = Date.now();
+      await api('config', { schedule: [{ from: hm(new Date(now - 60000)), to: hm(new Date(now + 3600000)), screen: 'stats' }] });
+      const ctx = await browser.newContext({ viewport: { width: 800, height: 360 }, hasTouch: true, isMobile: true });
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/phone/'); await sleep(2500);
+      assert.strictEqual(await pg.evaluate(() => document.querySelector('.screen.on').getAttribute('data-screen')), 'stats');
+      await api('config', { schedule: [] });
+      await ctx.close();
+    });
   } finally {
     if (browser) await browser.close();
     server.kill();

@@ -30,6 +30,7 @@ const DEFAULTS = {
   theme: 'dark',
   accent: 'auto',
   dimAfter: 0,
+  schedule: [],                // [{ from: '22:00', to: '07:00', screen: 'clock' }]: the phone shows that screen during those hours
   nowStyle: 'immersive',
   lyricsMode: 'scroll',
   lyricsFont: 'serif',
@@ -100,6 +101,8 @@ function sanitize(c) {
   out.theme = ['dark', 'black', 'light'].includes(c.theme) ? c.theme : 'dark';
   out.accent = typeof c.accent === 'string' && /^(auto|#[0-9a-f]{6})$/i.test(c.accent) ? c.accent : 'auto';
   out.dimAfter = Math.max(0, Math.min(3600, +c.dimAfter || 0));
+  out.schedule = (Array.isArray(c.schedule) ? c.schedule : []).slice(0, 6).filter((r) => r && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.from) && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.to) && /^[a-z]+(:[\w.-]{1,60})?$/.test(r.screen || '') && r.from !== r.to)
+    .map((r) => ({ from: r.from, to: r.to, screen: r.screen }));
   out.nowStyle = c.nowStyle === 'classic' ? 'classic' : 'immersive';
   out.lyricsMode = ['scroll', 'kinetic', 'kinetic-dark'].includes(c.lyricsMode) ? c.lyricsMode : 'scroll';
   out.lyricsOffset = Math.max(-2000, Math.min(2000, Math.round(+c.lyricsOffset || 0)));

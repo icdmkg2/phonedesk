@@ -513,9 +513,37 @@
     try { state.config = await api('config', patch); renderDisplay(); renderMirrors(); }
     catch (e) { toast('Couldn\'t save: ' + e.message); }
   }
+  // Schedule rows: from, to, screen. Saved as the person edits them.
+  function renderSchedule() {
+    const c = state.config, box = $('ds-sched'); if (!c || !box) return;
+    if (box.contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;
+    const rules = c.schedule || [], screens = c.screens || [];
+    $('ds-sched-add').disabled = rules.length >= 6;
+    box.innerHTML = rules.length ? rules.map((r, i) => `<div class="sched-row" data-i="${i}">
+      <input type="time" data-f="from" value="${esc(r.from)}" aria-label="From"><span class="muted">to</span><input type="time" data-f="to" value="${esc(r.to)}" aria-label="To">
+      <select data-f="screen" aria-label="Screen">${[...new Set([...screens, r.screen])].map((s) => `<option value="${esc(s)}"${s === r.screen ? ' selected' : ''}>${esc(screenName(s))}</option>`).join('')}</select>
+      <button class="btn sm ghost" data-rm="${i}" aria-label="Remove this time">Remove</button></div>`).join('') : '<p class="small muted">No times set.</p>';
+  }
+  $('ds-sched').addEventListener('change', (e) => {
+    const row = e.target.closest('.sched-row'), f = e.target.dataset.f; if (!row || !f) return;
+    const rules = clone(state.config.schedule || []); rules[+row.dataset.i][f] = e.target.value;
+    if (!/^\d\d:\d\d$/.test(rules[+row.dataset.i].from) || !/^\d\d:\d\d$/.test(rules[+row.dataset.i].to) || rules[+row.dataset.i].from === rules[+row.dataset.i].to) return toast('Pick two different times');
+    saveConfig({ schedule: rules }).then(renderSchedule);
+  });
+  $('ds-sched').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rm]'); if (!b) return;
+    const rules = clone(state.config.schedule || []); rules.splice(+b.dataset.rm, 1); saveConfig({ schedule: rules }).then(renderSchedule);
+  });
+  $('ds-sched-add').addEventListener('click', () => {
+    const rules = clone(state.config.schedule || []);
+    rules.push({ from: '22:00', to: '07:00', screen: (state.config.screens || []).includes('clock') ? 'clock' : (state.config.screens || [])[0] });
+    saveConfig({ schedule: rules }).then(renderSchedule);
+  });
+
   function renderDisplay() {
     const c = state.config;
     if (!c) return;
+    renderSchedule();
     $$('#ds-nstyle .theme').forEach((b) => { const on = b.dataset.v === (c.nowStyle || 'immersive'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-lystyle .theme').forEach((b) => { const on = b.dataset.v === (c.lyricsMode || 'scroll'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     if (document.activeElement !== $('ds-lyoffset')) { $('ds-lyoffset').value = c.lyricsOffset || 0; setText($('ds-lyoffset-n'), ((c.lyricsOffset || 0) > 0 ? '+' : '') + (c.lyricsOffset || 0) + ' ms'); }
@@ -1171,6 +1199,7 @@
     if (!p) return;
     if (document.activeElement !== $('ly-name')) $('ly-name').value = p.name;
     $('ly-onphone').checked = onPhone.includes('page:' + p.id);
+    $('ly-bg').value = p.bg || ''; $('ly-accent').value = p.accent || '#5b8cff'; $('ly-accent-clear').hidden = !p.accent;
     const fr = $('ly-frame'), want = '/phone/?preview=' + p.id;
     if (fr.getAttribute('data-src') !== want) { fr.setAttribute('data-src', want); fr.src = want; }
     lyFit(); renderLyOverlay(); renderLyPalette(); renderLyOpts(); lyHistButtons();
@@ -1214,7 +1243,17 @@
     box.innerHTML = `<div class="card-head"><h3>${esc(t ? t.name : 'Missing widget')}</h3><span class="row"><button class="btn sm ghost" id="ly-dup" title="Duplicate (Ctrl+D)">Duplicate</button><button class="btn sm ghost" id="ly-rm">Remove</button></span></div>
       <p class="small muted">${esc(t ? t.desc || '' : 'This widget comes from an addon that is turned off or removed. It shows nothing on the phone until the addon is back.')}</p>
       <div class="ly-opts-grid"><div class="ly-size"><label>Width<input type="number" id="ly-w" min="${min.w}" max="${LY.cols}" value="${w.w}"></label><label>Height<input type="number" id="ly-h" min="${min.h}" max="${LY.rows}" value="${w.h}"></label></div>
-      ${((t && t.opts) || []).map((f) => lyField(f, w.opts && w.opts[f.key] !== undefined ? w.opts[f.key] : f.default)).join('')}</div>`;
+      ${((t && t.opts) || []).map((f) => lyField(f, w.opts && w.opts[f.key] !== undefined ? w.opts[f.key] : f.default)).join('')}
+      ${w.type.startsWith('addon:') ? '' : lyTapField(w)}</div>`;
+  }
+  // "When tapped": open a screen, press a shortcut button, or control the music
+  function lyTapField(w) {
+    const c = state.config || {}, cur = w.tap || '';
+    const opt = (v, label) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
+    return `<label class="field">When tapped<select id="ly-tap"><option value="">Nothing</option>
+      <optgroup label="Open a screen">${(c.screens || []).map((s) => opt('screen:' + s, screenName(s))).join('')}</optgroup>
+      <optgroup label="Press a shortcut">${(c.shortcuts || []).map((s) => opt('shortcut:' + s.id, s.label)).join('')}</optgroup>
+      <optgroup label="Music">${opt('media:toggle', 'Play or pause')}${opt('media:next', 'Next song')}${opt('media:prev', 'Previous song')}</optgroup></select></label>`;
   }
   function lySelect(id) { ly.wsel = id || ''; renderLyOverlay(); renderLyOpts(); }
   // Where a widget may go. If the asked spot overlaps another widget it snaps to the nearest free one: a move
@@ -1294,6 +1333,7 @@
       if (r.ok) lyCommit(w, r.n); else { toast('That would overlap another widget'); renderLyOpts(); }
       return;
     }
+    if (e.target.id === 'ly-tap') { if (e.target.value) w.tap = e.target.value; else delete w.tap; lySave(); return; }
     const key = e.target.dataset.opt; if (!key) return;
     w.opts = w.opts || {};
     w.opts[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' ? Number(e.target.value) : e.target.value;
@@ -1316,6 +1356,9 @@
     renderLayouts(true); lySave();
   });
   $('ly-list').addEventListener('click', (e) => { const b = e.target.closest('[data-pg]'); if (b) { ly.sel = b.dataset.pg; ly.wsel = ''; renderLayouts(); } });
+  $('ly-bg').addEventListener('change', (e) => { const p = lyPage(); if (!p) return; if (e.target.value) p.bg = e.target.value; else delete p.bg; lySave(); });
+  $('ly-accent').addEventListener('input', (e) => { const p = lyPage(); if (!p) return; p.accent = e.target.value; $('ly-accent-clear').hidden = false; lySave(); });
+  $('ly-accent-clear').addEventListener('click', () => { const p = lyPage(); if (!p) return; delete p.accent; $('ly-accent-clear').hidden = true; lySave(); });
   $('ly-name').addEventListener('input', (e) => { const p = lyPage(); if (!p) return; p.name = e.target.value.slice(0, 24); renderLayouts(true); lySave(); });
   $('ly-onphone').addEventListener('change', async (e) => {
     const p = lyPage(); if (!p) return;
