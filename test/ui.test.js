@@ -138,6 +138,52 @@ async function t(name, fn) {
       await api('config', { schedule: [] });
       await ctx.close();
     });
+
+    await t('the built-in widgets draw: PC stats with graphs, Now playing with its source, and the Lyrics widget', async () => {
+      const w = require('../server/widgets');
+      const page = w.sanitizePages([{ name: 'Widgets', widgets: [
+        { type: 'nowplaying', x: 0, y: 0, w: 5, h: 3 }, { type: 'lyrics', x: 5, y: 0, w: 7, h: 3 },
+        { type: 'stats', x: 0, y: 3, w: 12, h: 3, opts: { metric: 'all' } },
+      ] }])[0];
+      const before = await api('config');
+      await api('config', { pages: [...before.pages, page], screens: [...before.screens, 'page:' + page.id] });
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      // pretend the PC is playing a song and reporting stats
+      await ctx.addInitScript(() => {
+        const lines = ['one', 'two', 'Every little thing you said stayed with me', 'four'].map((text, i) => ({ t: i * 60, text }));
+        const stats = (i) => ({ cpu: 20 + (i % 30), cores: 8, coresLoad: [10, 20, 30, 40, 50, 60, 70, 80], memUsed: 8e9, memTotal: 16e9, uptime: 1000, host: 'PC', gpu: { load: 40, temp: 60 }, net: { rx: 500000 + i * 1000, tx: 90000 } });
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('open', () => {
+              const d = (m) => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(m) }));
+              setTimeout(() => {
+                d({ t: 'media', d: { active: true, title: 'A very long song title that cannot possibly fit in the box', artist: 'Someone', app: 'Spotify', status: 'Playing', position: 130, duration: 200, updated: Date.now() } });
+                d({ t: 'lyrics', d: { synced: true, lines } });
+                let i = 0; setInterval(() => d({ t: 'stats', d: stats(i++) }), 250); // keeps ahead of the real server's own (GPU-less) stats
+              }, 300);
+            });
+          }
+        };
+      });
+      await ctx.addInitScript((id) => { if (window === window.top) localStorage.setItem('pd.screen', JSON.stringify('page:' + id)); }, page.id);
+      const pg = await ctx.newPage();
+      const errors = []; pg.on('pageerror', (e) => errors.push(e.message));
+      await pg.goto(BASE + '/phone/'); await sleep(3000);
+      assert.deepStrictEqual(errors, []);
+      assert.strictEqual(await pg.locator('.wg-stats .st-t:not([hidden])').count(), 4, 'CPU, memory, GPU and network tiles: ' + await pg.evaluate(() => [...document.querySelectorAll('.wg-stats .st-t')].map((e) => e.className + (e.hidden ? ' hidden' : '')).join(' / ')));
+      assert.ok(await pg.locator('.wg-stats .st-g .st-l[d^="M"]').count() >= 3, 'the graphs have lines');
+      assert.match(await pg.locator('.wg-nowplaying .w-title').innerText(), /A very long song title/);
+      assert.strictEqual((await pg.locator('.wg-nowplaying .w-srcn').innerText()).toLowerCase(), 'spotify');
+      assert.ok(await pg.locator('.wg-nowplaying .w-title.run').count() === 1, 'a title that does not fit scrolls');
+      assert.strictEqual(await pg.locator('.wg-lyrics .lw-c').innerText(), 'Every little thing you said stayed with me');
+      // nothing is clipped: every widget's content fits inside its box
+      const clipped = await pg.evaluate(() => [...document.querySelectorAll('.wgrid > .wg')].filter((e) => e.scrollHeight > e.clientHeight + 2).map((e) => e.className));
+      assert.deepStrictEqual(clipped, [], 'content spills out of: ' + clipped);
+      await ctx.close();
+      await api('config', { pages: before.pages, screens: before.screens });
+    });
   } finally {
     if (browser) await browser.close();
     server.kill();
