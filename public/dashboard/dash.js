@@ -780,6 +780,16 @@
     $('up-notes').href = u.url && shown === u.version ? u.url : `https://github.com/${repo}/releases/tag/v${shown || ''}`;
     setText($('up-notes'), u.state === 'ready' || u.state === 'downloading' ? `What's new in ${u.version}` : `What's new in ${shown ? 'v' + shown : 'this version'}`);
     $('up-all').href = `https://github.com/${repo}/releases`;
+    // An update shows as a badge on the Updates item and a pill in the sidebar, not only inside the page.
+    const nav = $('nav-updates'), pill = $('up-pill');
+    const avail = u.state === 'ready' || u.state === 'downloading' || u.state === 'installing';
+    const bad = u.state === 'error';
+    nav.hidden = !(avail || bad);
+    setText(nav, bad ? '!' : 'New');
+    nav.className = 'count ' + (bad ? 'bad' : 'new');
+    pill.hidden = !(avail || bad);
+    pill.classList.toggle('err', bad);
+    setText($('up-pill-text'), bad ? 'Update problem' : u.state === 'downloading' ? `Downloading ${u.version || 'update'}…` : u.state === 'installing' ? 'Installing…' : u.version ? 'v' + String(u.version).replace(/^v/, '') + ' available' : 'Update available');
   }
   $('up-check').addEventListener('click', async () => { state.update = await api('update/check', {}).catch((e) => ({ state: 'error', error: e.message })); renderUpdate(); });
   $('up-install').addEventListener('click', async () => { await api('update/install', {}).catch((e) => toast(e.message)); });

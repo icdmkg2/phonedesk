@@ -9,7 +9,12 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 ## [1.9.4] — 2026-11-10
 
-A fix for the layout editor going blank.
+A fix for the layout editor going blank, and a tidier window.
+
+### Changed
+
+- The sidebar is grouped: Overview, then Customize (Phone display, Layouts, Shortcuts, Addons), then System (Connection, Updates, Activity).
+- Updates has its own page instead of sitting inside Connection. When an update is downloading or ready, the Updates item shows a *New* badge and the bottom of the sidebar shows an *Update available* button that opens it.
 
 ### Fixed
 

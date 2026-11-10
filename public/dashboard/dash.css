@@ -61,6 +61,15 @@ body.in-app .brand { display: none; } /* the window title bar already says Phone
 .nav.on { background: var(--raised); color: var(--fg); font-weight: 600; }
 .nav.on svg { color: var(--accent-text); }
 .nav .count { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--accent-fg); background: var(--accent); border-radius: 10px; padding: 1px 7px; }
+.nav-group { margin: 14px 12px 4px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.nav .count.new { background: var(--ok-bg); color: var(--ok-text); }
+.nav .count.bad { background: #3A2A10; color: var(--warn); }
+.up-pill { display: flex; align-items: center; gap: 8px; width: 100%; border: 1px solid var(--accent); background: #1A2340; color: var(--accent-text); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
+.up-pill:hover { background: #202B50; }
+.up-pill[hidden] { display: none; }
+.up-pill .up-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(91,141,255,.25); flex: none; }
+.up-pill.err { border-color: var(--warn); background: #3A2A10; color: var(--warn); }
+.up-pill.err .up-dot { background: var(--warn); box-shadow: none; }
 .side-foot { margin-top: auto; border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .status { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
 .status .ver { margin-left: auto; font-weight: 500; color: var(--dim); font-size: 12px; }
@@ -292,7 +301,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   body { overflow: auto; }
   .shell { flex-direction: column; height: auto; }
   .side { width: auto; border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; padding: 10px; }
-  .side-foot, .brand { display: none; }
+  .side-foot, .brand, .nav-group { display: none; }
   .nav { width: auto; }
   .view { padding: 20px 16px 32px; }
 }
