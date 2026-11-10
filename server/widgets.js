@@ -27,12 +27,16 @@ const WIDGETS = {
   forecast: { name: '5-day forecast', desc: 'The next five days', defW: 6, defH: 2, minW: 4, minH: 1, opts: [] },
   agenda: { name: 'Calendar agenda', desc: 'Your next events', defW: 4, defH: 4, minW: 3, minH: 2, opts: [T('count', 'Events to show', 'number', { default: 4, min: 1, max: 8 })] },
   nowplaying: {
-    name: 'Now playing', desc: 'What is playing, with controls', defW: 5, defH: 3, minW: 3, minH: 2,
-    opts: [T('cover', 'Show the cover', 'boolean', { default: true }), T('controls', 'Show the controls', 'boolean', { default: true })],
+    name: 'Now playing', desc: 'What is playing: cover, source, title, progress and controls', defW: 5, defH: 3, minW: 2, minH: 1,
+    opts: [T('cover', 'Show the cover', 'boolean', { default: true }), T('source', 'Show the app it plays in', 'boolean', { default: true }), T('progress', 'Show the progress bar', 'boolean', { default: true }), T('controls', 'Show the controls', 'boolean', { default: true })],
+  },
+  lyrics: {
+    name: 'Lyrics', desc: 'The line being sung, with the lines around it', defW: 6, defH: 3, minW: 3, minH: 1,
+    opts: [T('context', 'Show the lines before and after', 'boolean', { default: true }), T('align', 'Align', 'select', { options: ['left', 'center'], default: 'center' })],
   },
   stats: {
-    name: 'PC stats', desc: 'CPU, memory, GPU or network', defW: 4, defH: 2, minW: 2, minH: 1,
-    opts: [T('metric', 'Show', 'select', { options: ['cpu', 'memory', 'gpu', 'network'], default: 'cpu' })],
+    name: 'PC stats', desc: 'CPU, memory, GPU and network with graphs, all together or one at a time', defW: 6, defH: 3, minW: 2, minH: 1,
+    opts: [T('metric', 'Show', 'select', { options: ['all', 'cpu', 'memory', 'gpu', 'network'], default: 'all' }), T('graph', 'Show graphs', 'boolean', { default: true })],
   },
   volume: { name: 'Volume', desc: 'The PC\'s volume, with a slider', defW: 4, defH: 1, minW: 3, minH: 1, opts: [] },
   shortcuts: {
@@ -65,6 +69,14 @@ const TEMPLATES = {
       { type: 'stats', x: 9, y: 2, w: 3, h: 2, opts: { metric: 'memory' } },
       { type: 'shortcuts', x: 0, y: 3, w: 6, h: 3 },
       { type: 'volume', x: 6, y: 4, w: 6, h: 2 },
+    ],
+  },
+  music: {
+    name: 'Music', desc: 'Now playing next to the lyrics, with the volume',
+    widgets: [
+      { type: 'nowplaying', x: 0, y: 0, w: 5, h: 5 },
+      { type: 'lyrics', x: 5, y: 0, w: 7, h: 5 },
+      { type: 'volume', x: 0, y: 5, w: 12, h: 1 },
     ],
   },
   blank: { name: 'Blank page', desc: 'Start from nothing and add widgets', widgets: [] },

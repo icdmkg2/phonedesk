@@ -623,13 +623,14 @@
 
   /* ============================================================ stats */
   // Live: the last 3 minutes of CPU (a point every 2 s). History: the last hour from the PC (a point every 10 s).
-  var graph = { el: $('st-graph'), points: [], hist: [], dpr: Math.min(window.devicePixelRatio || 1, 2) };
+  var graph = { el: $('st-graph'), points: [], hist: [], net: [], dpr: Math.min(window.devicePixelRatio || 1, 2) };
   var HIST_COLORS = { mem: '#a78bfa', gpu: '#34d399' };
   function pushGraph(s) {
     if (!s) return;
     var mem = s.memTotal ? Math.round((s.memUsed / s.memTotal) * 100) : 0;
     graph.points.push({ cpu: s.cpu, mem: mem, gpu: s.gpu && s.gpu.load >= 0 ? s.gpu.load : -1 });
     if (graph.points.length > 90) graph.points.shift();
+    if (s.net) { graph.net.push(s.net.rx >= 0 ? s.net.rx : 0); if (graph.net.length > 90) graph.net.shift(); }
   }
   function setHistory(list) { graph.hist = Array.isArray(list) ? list.slice(-360) : []; if (state.screen === 'stats') drawGraph(); }
   function addHistory(p) { if (!p) return; graph.hist.push(p); if (graph.hist.length > 360) graph.hist.shift(); }
@@ -882,7 +883,7 @@
         if (html === last) return; last = html;
         if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
       },
-      resize: function (w, h) { el.style.setProperty('--wf', Math.max(11, Math.min(h * .2, w * .1)) + 'px'); },
+      resize: function (w, h) { wScale(el, w, h, 150, 98, 10, 30); },
     };
   }
   function wForecast() {
@@ -898,7 +899,7 @@
         if (html === last) return; last = html;
         if (html) el.innerHTML = html; else wEmpty(el, 'No forecast yet');
       },
-      resize: function (w, h) { el.style.setProperty('--wf', Math.max(11, Math.min(h * .2, w * .045)) + 'px'); },
+      resize: function (w, h) { var b = wScale(el, w, h, 340, 76, 9, 26); el.classList.toggle('compact', b.h < 52); },
     };
   }
   function wAgenda(wd) {
@@ -917,44 +918,206 @@
         if (html === last) return; last = html;
         if (html) el.innerHTML = html; else wEmpty(el, agenda ? 'No events coming up' : 'Add a calendar in PhoneDesk');
       },
-      resize: function (w, h) { el.style.setProperty('--wf', Math.max(11, Math.min(h * .09, w * .06)) + 'px'); },
+      resize: function (w, h) { wScale(el, w, h, 230, 170, 10, 22); },
     };
   }
+  // Every widget is drawn in ems at a reference size and then scaled to the box it was given, so it keeps its proportions
+  // at any size instead of clipping or leaving gaps. The box is measured without the widget's padding.
+  function wScale(el, w, h, rw, rh, lo, hi) {
+    var iw = Math.max(10, w - 24), ih = Math.max(10, h - 20);
+    var f = 14 * Math.min(iw / rw, ih / rh);
+    el.style.setProperty('--wf', Math.max(lo || 9, Math.min(hi || 44, f)).toFixed(1) + 'px');
+    return { w: iw, h: ih };
+  }
+  // A title that is too long for its box scrolls to the end and back, instead of being cut off.
+  var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function mqNew(cls) { var b = document.createElement('div'); b.className = 'mq ' + cls; b.innerHTML = '<span class="mq-in"></span>'; return b; }
+  function mqSet(box, text) {
+    var inn = box.firstChild;
+    if (inn.textContent === text) return;
+    inn.textContent = text; box.classList.remove('run'); box._need = true;
+    requestAnimationFrame(function () { mqCheck(box); });
+  }
+  function mqCheck(box) {
+    var inn = box.firstChild, over = inn.scrollWidth - box.clientWidth;
+    box._need = false;
+    if (over > 3 && !reduceMotion) {
+      box.style.setProperty('--mq', (-over - 2) + 'px'); box.style.setProperty('--mqt', Math.max(4, over / 28 + 3).toFixed(1) + 's');
+      box.classList.remove('run'); void box.offsetWidth; box.classList.add('run');
+    } else box.classList.remove('run');
+  }
+
   function wNow(wd) {
     var o = wd.opts || {}, el = wEl('nowplaying');
-    el.innerHTML = (o.cover !== false ? '<div class="w-cover"><img alt=""></div>' : '') + '<div class="w-np"><b class="w-title"></b><span class="w-sub w-artist"></span>' +
-      (o.controls !== false ? '<div class="w-ctl"><button type="button" data-a="prev" aria-label="Previous"><svg class="ic"><use href="#i-prev"/></svg></button><button type="button" data-a="toggle" class="play" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button type="button" data-a="next" aria-label="Next"><svg class="ic"><use href="#i-next"/></svg></button></div>' : '') + '</div>';
-    var img = el.querySelector('img'), title = el.querySelector('.w-title'), artist = el.querySelector('.w-artist'), play = el.querySelector('.play use'), lastArtUrl = '';
+    var showCover = o.cover !== false, showCtl = o.controls !== false, showSrc = o.source !== false, showProg = o.progress !== false;
+    el.innerHTML = (showCover ? '<div class="w-cover empty"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg><img alt=""></div>' : '') +
+      '<div class="w-np">' + (showSrc ? '<div class="w-src"><span class="w-srcic"></span><span class="w-srcn"></span></div>' : '') +
+      '<div class="w-lines"></div>' +
+      (showProg ? '<div class="w-prog"><i></i></div>' : '') +
+      (showCtl ? '<div class="w-ctl"><button type="button" data-a="prev" aria-label="Previous"><svg class="ic"><use href="#i-prev"/></svg></button><button type="button" data-a="toggle" class="play" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button type="button" data-a="next" aria-label="Next"><svg class="ic"><use href="#i-next"/></svg></button></div>' : '') + '</div>';
+    var lines = el.querySelector('.w-lines'), titleBox = mqNew('w-title'), artistBox = mqNew('w-artist');
+    lines.appendChild(titleBox); lines.appendChild(artistBox);
+    var img = el.querySelector('img'), srcIc = el.querySelector('.w-srcic'), srcN = el.querySelector('.w-srcn'), bar = el.querySelector('.w-prog i'), play = el.querySelector('.play use');
+    var lastArtUrl = '', lastIcon = null;
     el.addEventListener('click', function (e) { var b = e.target.closest('button[data-a]'); if (b) { buzz(); send({ t: 'cmd', a: b.getAttribute('data-a') }); } });
     return {
       el: el,
       update: function () {
         var m = state.media;
-        setText(title, m.active ? (m.title || 'Unknown title') : 'Nothing playing');
-        setText(artist, m.active ? (m.artist || m.album || '') : 'Play something on your PC');
+        mqSet(titleBox, m.active ? (m.title || 'Unknown title') : 'Nothing playing');
+        mqSet(artistBox, m.active ? (m.artist || m.album || '') : 'Play something on your PC');
+        if (srcN) {
+          var name = m.active ? (m.game ? 'Game · ' : '') + (m.app || '') : '', icon = m.active ? (m.site === 'youtube' ? 'video' : m.appIcon || '') : '';
+          setText(srcN, name); el.classList.toggle('no-src', !name);
+          if (icon !== lastIcon) {
+            lastIcon = icon; srcIc.textContent = '';
+            if (icon === 'video') srcIc.innerHTML = VIDEO_ICON;
+            else if (icon) { var im = new Image(); im.alt = ''; im.onerror = function () { srcIc.textContent = ''; }; im.src = pcUrl(icon); srcIc.appendChild(im); }
+          }
+        }
         if (img) { var u = m.active && m.art ? pcUrl(m.art) : ''; if (u !== lastArtUrl) { lastArtUrl = u; if (u) img.src = u; else img.removeAttribute('src'); } img.parentNode.classList.toggle('empty', !u); }
         if (play) setHref(play, isPlaying() ? '#i-pause' : '#i-play');
+        if (bar) { var d = m.active ? m.duration : 0; bar.style.transform = 'scaleX(' + (d > 0 ? Math.min(1, currentPos() / d) : 0).toFixed(4) + ')'; }
+        el.classList.toggle('idle', !m.active);
       },
-      resize: function (w, h) { el.style.setProperty('--wf', Math.max(12, Math.min(h * .14, w * .06)) + 'px'); if (img) img.parentNode.style.width = Math.min(h - 16, w * .45) + 'px'; },
+      resize: function (w, h) {
+        var iw = w - 24, ih = h - 20;
+        // wide: the cover beside the text; tall: the cover above it; very short: no cover, just the essentials
+        var mode = ih < 62 ? 'mini' : (ih > iw * 0.95 && showCover ? 'col' : 'row');
+        el.setAttribute('data-mode', mode);
+        var box = mode === 'col' ? wScale(el, w, h, 170, 250, 9, 34) : mode === 'mini' ? wScale(el, w, h, 260, 44, 9, 22) : wScale(el, w, h, 330, 112, 9, 34);
+        if (img) {
+          var side = mode === 'col' ? Math.min(box.w, box.h * 0.52) : mode === 'mini' ? 0 : Math.min(box.h, box.w * 0.4);
+          img.parentNode.style.width = img.parentNode.style.height = Math.max(0, side) + 'px';
+        }
+        requestAnimationFrame(function () { mqCheck(titleBox); mqCheck(artistBox); });
+      },
     };
   }
+
+  // PC stats: CPU, memory, GPU and network, each with a graph. "All" lays the tiles out to fit the box.
+  var STAT_COLORS = { cpu: null, memory: '#a78bfa', gpu: '#34d399', network: '#f59e0b' };
+  function wGraphPath(vals, max) {
+    var n = vals.length; if (n < 2) return ['', ''];
+    var line = '';
+    for (var i = 0; i < n; i++) {
+      var x = (i / (n - 1)) * 100, y = 39 - Math.min(1, Math.max(0, vals[i] / max)) * 36;
+      line += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }
+    return [line, line + 'L100 40L0 40Z'];
+  }
+  function wStatSeries(k) {
+    var src = graph.hist.length >= 12 ? graph.hist : graph.points, key = k === 'memory' ? 'mem' : k, out = [];
+    if (k === 'network') return graph.net.slice(-90);
+    for (var i = Math.max(0, src.length - 120); i < src.length; i++) out.push(src[i][key] >= 0 ? src[i][key] : 0);
+    return out;
+  }
   function wStats(wd) {
-    var metric = (wd.opts || {}).metric || 'cpu', el = wEl('stats');
-    el.innerHTML = '<span class="w-lab"></span><b class="w-big"></b><div class="bar"><div class="fill"></div></div><span class="w-sub"></span>';
-    var lab = el.querySelector('.w-lab'), big = el.querySelector('.w-big'), fill = el.querySelector('.fill'), sub = el.querySelector('.w-sub');
+    var o = wd.opts || {}, mode = ['cpu', 'memory', 'gpu', 'network'].indexOf(o.metric) >= 0 ? o.metric : 'all', graphOn = o.graph !== false;
+    var el = wEl('stats'), kinds = mode === 'all' ? ['cpu', 'memory', 'gpu', 'network'] : [mode], tiles = [];
+    el.setAttribute('data-mode', mode === 'all' ? 'all' : 'one');
+    kinds.forEach(function (k) {
+      var t = document.createElement('div'); t.className = 'st-t st-' + k;
+      if (STAT_COLORS[k]) t.style.setProperty('--tc', STAT_COLORS[k]);
+      t.innerHTML = '<div class="st-h"><span class="st-lab"></span><span class="st-note"></span></div><b class="st-val"></b>' + (k === 'cpu' && mode === 'cpu' ? '<div class="sw-cores"></div>' : '') + '<div class="st-sub"></div>' +
+        (graphOn ? '<svg class="st-g" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path class="st-a"/><path class="st-l"/></svg>' : '');
+      el.appendChild(t);
+      tiles.push({ k: k, el: t, lab: t.querySelector('.st-lab'), note: t.querySelector('.st-note'), val: t.querySelector('.st-val'), sub: t.querySelector('.st-sub'), a: t.querySelector('.st-a'), l: t.querySelector('.st-l'), cores: t.querySelector('.sw-cores'), coreN: -1 });
+    });
+    var shown = tiles.length;
+    function fill(t, name, val, note, sub, vals, max) {
+      setText(t.lab, name); if (t.val.innerHTML !== val) t.val.innerHTML = val; setText(t.note, note); setText(t.sub, sub);
+      if (t.l && vals) { var d = wGraphPath(vals, max); t.l.setAttribute('d', d[0]); t.a.setAttribute('d', d[1]); }
+    }
     return {
       el: el,
       update: function () {
         var s = state.stats; if (!s) return;
-        var pct = null, txt = '', note = '', name = '';
-        if (metric === 'memory') { pct = s.memTotal ? Math.round(s.memUsed / s.memTotal * 100) : 0; txt = pct + '%'; note = gb(s.memUsed) + ' / ' + gb(s.memTotal) + ' GB'; name = 'Memory'; }
-        else if (metric === 'gpu') { var g = s.gpu; name = 'GPU'; if (g && g.load >= 0) { pct = g.load; txt = pct + '%'; note = g.temp > 0 ? g.temp + '°C' : ''; } else { txt = '–'; note = 'No GPU data'; } }
-        else if (metric === 'network') { name = 'Network'; if (s.net) { var rx = speed(s.net.rx), tx = speed(s.net.tx); txt = rx[0] + '<small>' + rx[1] + '</small>'; note = '↑ ' + tx.join(' ') + ' up'; } else { txt = '–'; } }
-        else { pct = s.cpu; txt = pct + '%'; note = s.cores + ' threads'; name = 'CPU'; }
-        setText(lab, name); if (big.innerHTML !== txt) big.innerHTML = txt; setText(sub, note);
-        fill.parentNode.hidden = pct == null; if (pct != null) fill.style.transform = 'scaleX(' + pct / 100 + ')';
+        var n = 0;
+        tiles.forEach(function (t) {
+          var k = t.k, g = s.gpu, vis = true;
+          if (k === 'cpu') {
+            var cl = s.coresLoad || [], peak = cl.length ? Math.max.apply(null, cl) : -1;
+            fill(t, 'CPU', s.cpu + '<small>%</small>', s.cores + ' threads', peak >= 0 ? 'busiest thread ' + peak + '%' : '', wStatSeries('cpu'), 100);
+            if (t.cores) {
+              if (t.coreN !== cl.length) { t.coreN = cl.length; t.cores.innerHTML = cl.map(function () { return '<i></i>'; }).join(''); }
+              for (var c = 0; c < cl.length; c++) t.cores.children[c].style.height = Math.max(4, cl[c]) + '%';
+            }
+          } else if (k === 'memory') {
+            var pct = s.memTotal ? Math.round(s.memUsed / s.memTotal * 100) : 0;
+            fill(t, 'Memory', pct + '<small>%</small>', gb(s.memUsed) + ' / ' + gb(s.memTotal) + ' GB', '', wStatSeries('memory'), 100);
+          } else if (k === 'gpu') {
+            vis = !!g && g.load >= 0;
+            if (vis) { var bits = []; if (g.hotspot > 0) bits.push('hotspot ' + g.hotspot + '°C'); if (g.power > 0) bits.push(g.power + ' W'); if (g.vram > 0) bits.push((g.vram / 1024).toFixed(1) + ' GB VRAM'); fill(t, 'GPU', g.load + '<small>%</small>', g.temp > 0 ? g.temp + '°C' : '', bits.join(' · '), wStatSeries('gpu'), 100); }
+            else if (mode === 'gpu') { vis = true; fill(t, 'GPU', '–', '', 'No GPU data', [], 100); }
+          } else {
+            vis = !!s.net;
+            if (vis) {
+              var rx = speed(s.net.rx), tx = speed(s.net.tx), ser = wStatSeries('network'), mx = Math.max.apply(null, ser.concat([102400]));
+              fill(t, 'Network', rx[0] + '<small>' + rx[1] + '</small>', '↑ ' + tx.join(' '), '', ser, mx);
+            } else if (mode === 'network') { vis = true; fill(t, 'Network', '–', '', 'No network data', [], 1); }
+          }
+          t.el.hidden = !vis; if (vis) n++;
+        });
+        if (n !== shown) { shown = n; if (el._last) this.resize(el._last[0], el._last[1]); }
       },
-      resize: function (w, h) { el.style.setProperty('--wf', Math.max(10, Math.min(h * .115, w * .07)) + 'px'); },
+      resize: function (w, h) {
+        el._last = [w, h];
+        var iw = w - 16, ih = h - 16, vis = tiles.filter(function (t) { return !t.el.hidden; }), n = Math.max(1, vis.length), gap = 8;
+        // the number of columns that makes the roundest tiles without leaving empty cells (or as few as possible)
+        var cols = 1, best = 1e9;
+        if (mode === 'all') for (var cc = 1; cc <= n; cc++) {
+          var rr = Math.ceil(n / cc), ar = ((iw - gap * (cc - 1)) / cc) / ((ih - gap * (rr - 1)) / rr), sc = Math.abs(Math.log(ar / 1.8)) + (cc * rr - n) * 0.9;
+          if (sc < best) { best = sc; cols = cc; }
+        }
+        var rows = Math.ceil(n / cols);
+        el.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))'; el.style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
+        var tw = (iw - gap * (cols - 1)) / cols, th = (ih - gap * (rows - 1)) / rows;
+        var f = Math.max(8, Math.min(mode === 'all' ? 22 : 30, 14 * Math.min(tw / 165, th / 100)));
+        el.style.setProperty('--wf', f.toFixed(1) + 'px');
+        el.classList.toggle('tight', th < 70); // too short for a note and a graph: value and graph only
+        tiles.forEach(function (t) { if (t.cores) t.cores.hidden = th < 130; });
+      },
+    };
+  }
+
+  // Lyrics: the line being sung, with the lines before and after it. Follows the song like the Lyrics screen does.
+  function wLyrics(wd) {
+    var o = wd.opts || {}, el = wEl('lyrics'), ctx = o.context !== false;
+    el.setAttribute('data-align', o.align === 'left' ? 'left' : 'center');
+    el.innerHTML = '<div class="lw-msg" hidden></div><div class="lw-lines"><div class="lw-l lw-p2"></div><div class="lw-l lw-p1"></div><div class="lw-l lw-c"></div><div class="lw-l lw-n1"></div><div class="lw-l lw-n2"></div></div>';
+    var msg = el.querySelector('.lw-msg'), box = el.querySelector('.lw-lines'), L = {
+      p2: el.querySelector('.lw-p2'), p1: el.querySelector('.lw-p1'), c: el.querySelector('.lw-c'), n1: el.querySelector('.lw-n1'), n2: el.querySelector('.lw-n2'),
+    }, lastIdx = -3, lastKey = '', rows = 5;
+    function note(text) { msg.hidden = !text; box.hidden = !!text; setText(msg, text || ''); }
+    function upd() {
+      var m = state.media, d = lyr;
+      if (!m.active) return note('Play a song on your PC');
+      if (!d) return note('Looking for lyrics…');
+      if (d.instrumental) return note('Instrumental');
+      if (!d.lines || !d.lines.length) return note('No lyrics for this song');
+      note('');
+      var lines = d.lines, idx = d.synced ? lyIndexAt(currentPos() + lyLead()) : -1, key = lyTrackKey();
+      if (idx === lastIdx && key === lastKey) return;
+      var fresh = idx !== lastIdx; lastIdx = idx; lastKey = key;
+      function at(i) { return i >= 0 && i < lines.length ? lines[i].text || '' : ''; }
+      setText(L.c, idx >= 0 ? (at(idx) || '♪') : (d.synced ? '♪' : at(0)));
+      setText(L.p1, at(idx - 1)); setText(L.p2, at(idx - 2)); setText(L.n1, at(idx + 1)); setText(L.n2, at(idx + 2));
+      if (fresh) { L.c.classList.remove('pop'); void L.c.offsetWidth; L.c.classList.add('pop'); }
+    }
+    var timer = setInterval(function () { if (document.visibilityState === 'visible' && el.offsetParent !== null) upd(); }, 250);
+    return {
+      el: el,
+      update: function () { lastIdx = -3; upd(); },
+      destroy: function () { clearInterval(timer); },
+      resize: function (w, h) {
+        var iw = w - 24, ih = h - 20;
+        rows = !ctx ? 1 : ih >= 230 ? 5 : ih >= 120 ? 3 : 1; // how many lines fit
+        el.setAttribute('data-rows', rows);
+        // the sung line is as large as the box lets it be; the rest are smaller
+        var f = Math.max(11, Math.min(rows === 1 ? ih * 0.4 : ih / (rows + 1.2) * 0.62, iw * 0.09, 40));
+        el.style.setProperty('--wf', f.toFixed(1) + 'px');
+      },
     };
   }
   function wVolume() {
@@ -967,7 +1130,7 @@
     return {
       el: el,
       update: function () { drawSlider(slider, state.volume.muted ? 0 : state.volume.level); if (!slider._dragging) setText(pct, state.volume.muted ? 'Muted' : Math.round(state.volume.level * 100) + '%'); },
-      resize: function (w, h) { el.style.setProperty('--wf', Math.max(12, Math.min(h * .3, w * .06)) + 'px'); },
+      resize: function (w, h) { wScale(el, w, h, 300, 40, 11, 24); },
     };
   }
   function wShortcuts(wd, live) {
@@ -1020,6 +1183,7 @@
       case 'agenda': return wAgenda(wd);
       case 'nowplaying': return wNow(wd);
       case 'stats': return wStats(wd);
+      case 'lyrics': return wLyrics(wd);
       case 'volume': return wVolume(wd);
       case 'shortcuts': return wShortcuts(wd, live);
       case 'text': return wText(wd);

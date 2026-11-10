@@ -7,6 +7,22 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.11.0] — 2026-11-10
+
+Better widgets: they scale to any size, PC stats has graphs, Now playing is redone and there is a Lyrics widget.
+
+### Added
+
+- **PC stats shows everything.** The widget now shows CPU, memory, GPU and network together, each with a graph, laid out to fit the box. Choose *All* or a single metric (a single CPU adds a bar for every thread). Existing stats widgets keep their metric and gain the graph.
+- **Lyrics widget.** The line being sung, with the lines before and after it when there is room. It follows the song and shows messages while lyrics load or when a song has none.
+- **A Music page template**: Now playing, lyrics and the volume.
+
+### Changed
+
+- **Now playing is redone.** It shows the app the music plays in (Spotify, YouTube and so on), scrolls a long title instead of cutting it off, has smaller buttons and a progress bar, and changes its layout to fit: cover beside the text, cover above it, or a single compact row.
+- **Widgets scale properly.** Every built-in widget is drawn at a reference size and scaled to the box it is given, so text and icons keep their proportions and nothing is clipped. The five-day forecast drops to icons and highs when it is only one row tall.
+- In the layout editor, a widget's name only shows when you point at it or select it, so it no longer covers the preview.
+
 ## [1.10.0] — 2026-11-10
 
 Easier updates, more control over pages, and tools for addon makers.
