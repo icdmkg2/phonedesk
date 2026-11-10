@@ -1,0 +1,24 @@
+# Phone UI checks in a real browser: swiping through every screen with touch, and editing a page.
+name: UI check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Install Playwright (not saved in package.json: the app itself does not need it)
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - run: node test/ui.test.js
