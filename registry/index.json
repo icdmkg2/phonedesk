@@ -2,6 +2,20 @@
   "schema": 1,
   "addons": [
     {
+      "id": "countdown",
+      "name": "Countdown",
+      "version": "1.0.0",
+      "author": "PhoneDesk",
+      "description": "A widget that counts the days to a date: a trip, a birthday, an exam. Needs no permissions.",
+      "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/countdown",
+      "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/countdown-1.0.0.zip",
+      "sha256": "e61710ebc7e2b4c8b1c6a939651c440aa485202f79297208beefa03578a12903",
+      "permissions": [],
+      "phonedesk": "1.9.0",
+      "tags": [],
+      "firstParty": true
+    },
+    {
       "id": "home-assistant",
       "name": "Home Assistant",
       "version": "1.0.0",
@@ -54,6 +68,20 @@
         "screen",
         "pc"
       ],
+      "firstParty": true
+    },
+    {
+      "id": "world-clock",
+      "name": "World clock",
+      "version": "1.0.0",
+      "author": "PhoneDesk",
+      "description": "A widget with the time in another city or time zone. Add it more than once for more zones. Needs no permissions.",
+      "homepage": "https://github.com/icdmkg2/phonedesk/tree/main/examples/addons/world-clock",
+      "download": "https://raw.githubusercontent.com/icdmkg2/phonedesk/main/registry/packages/world-clock-1.0.0.zip",
+      "sha256": "a1c48fdc414db9b6d096335bc7ed36a7145e32e32f282d2dddbd1119b92c55fe",
+      "permissions": [],
+      "phonedesk": "1.9.0",
+      "tags": [],
       "firstParty": true
     }
   ]

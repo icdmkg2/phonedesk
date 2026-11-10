@@ -45,8 +45,13 @@ An addon is a folder, shipped as a `.zip`, with a file called `addon.json` at it
 
 ## Examples
 
-The `examples/addons` folder has three real addons, all in the marketplace:
+The `examples/addons` folder has five real addons, all in the marketplace:
 
 - **Pomodoro timer**: a screen with a server that keeps today's count. Needs no permissions.
 - **Home Assistant**: tap-to-toggle tiles; the server talks to Home Assistant on your network with a token that never reaches the phone.
 - **Media and system keys**: no screen, only shortcut actions.
+- **Countdown** and **World clock**: widgets only, no PC-side code and no permissions. The smallest useful addons: a good place to start.
+
+## When something is wrong
+
+In the PhoneDesk window, **Addons > Log** shows what an addon printed, how many messages it sent to its screen, how many were dropped for sending too fast (more than 30 a second), how long its PC-side code takes to answer (a busy loop shows up here) and any request that was slow. `dev` also prints where to find your addon on the phone.

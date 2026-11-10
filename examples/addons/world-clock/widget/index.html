@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>World clock widget</title>
+<style>
+  :root { --bg: #0e0f12; --fg: #edeff3; --fg2: #a3a8b3; --fg3: #6b717d; --card: #1c1f25; --line: #2a2e36; --accent: #5b8cff; --radius: 14px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: var(--radius); font: 500 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; padding: 8px; overflow: hidden; }
+  b { font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+  span { color: var(--accent); font-weight: 600; }
+  small { color: var(--fg3); }
+</style>
+</head>
+<body>
+<span id="l"></span><b id="t">--:--</b><small id="d"></small>
+<script src="/addons/sdk.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function draw() {
+    var zone = String(PD.options.zone || '').trim() || undefined, now = new Date(), t, d;
+    $('l').textContent = String(PD.options.label || '');
+    try {
+      t = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit', hour12: !!PD.options.hour12, timeZone: zone }).format(now);
+      d = new Intl.DateTimeFormat([], { weekday: 'short', day: 'numeric', month: 'short', timeZone: zone }).format(now);
+    } catch (e) { t = '?'; d = 'Unknown time zone. Use a name like Europe/London.'; }
+    $('t').textContent = t; $('d').textContent = d;
+  }
+  function size() { var w = (PD.widget && PD.widget.w) || 300, h = (PD.widget && PD.widget.h) || 150; $('t').style.fontSize = Math.max(18, Math.min(h * .38, w * .22)) + 'px'; document.body.style.fontSize = Math.max(11, Math.min(h * .13, 16)) + 'px'; }
+  PD.on('ready', function () { size(); draw(); });
+  PD.on('resize', size);
+  setInterval(draw, 5000);
+  size(); draw();
+})();
+</script>
+</body>
+</html>

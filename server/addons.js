@@ -483,6 +483,31 @@ function screenFile(id, rel) {
 /* ---------------------------------------------------------------- PC-side runtime */
 const hosts = new Map(); // id -> { child, restarts: [times], error, actions: Map }
 
+/** A line in the addon's own log (kept in memory, shown in the PC window) and in PhoneDesk's activity log. */
+function note(id, level, text) {
+  const h = hosts.get(id); if (!h) return;
+  (h.logs = h.logs || []).push({ t: Date.now(), level, text: String(text).slice(0, 400) });
+  if (h.logs.length > 200) h.logs.shift();
+  log[level](`[${id}] ${String(text).slice(0, 300)}`);
+}
+/** How an addon is doing: its recent log, what it sent, and how quickly its code answers (a busy loop shows up as lag). */
+function diag(id) {
+  const h = hosts.get(id), m = readManifest(id);
+  if (!state[id] || !m) throw new Error('that addon is not installed');
+  const now = Date.now();
+  const c = (h && h.counts) || {};
+  const sent = ((h && h.sent) || []).filter((t) => now - t < 60000).length;
+  return {
+    id, name: m.name, version: state[id].version, enabled: state[id].enabled !== false, hasServer: !!m.server,
+    running: !!(h && h.child && h.child.connected), error: (h && h.error) || '', restarts: ((h && h.restarts) || []).length,
+    startedAt: (h && h.startedAt) || 0,
+    sentLastMinute: sent, droppedTotal: c.dropped || 0, rpcTotal: c.rpc || 0, rpcFailed: c.rpcErr || 0,
+    slowRpc: ((h && h.slow) || []).slice(-5),
+    lagMs: h && h.lag != null ? h.lag : null, lagMaxMs: (h && h.lagMax) || 0,
+    logs: ((h && h.logs) || []).slice(-100),
+  };
+}
+
 function startAddon(id) {
   const m = readManifest(id);
   if (!m || !m.server || !state[id] || state[id].enabled === false) return;
@@ -503,18 +528,23 @@ function startAddon(id) {
       env: { PD_ADDON: id }, silent: true, serialization: 'json',
     });
   } catch (e) { h.error = e.message; log.error(`addon ${id}: could not start: ${e.message}`); return; }
-  h.child = child; h.error = '';
+  h.child = child; h.error = ''; h.startedAt = Date.now(); h.counts = h.counts || {}; h.sent = h.sent || []; h.slow = h.slow || []; h.lag = null; h.lagMax = 0;
+  clearInterval(h.ping);
+  // Ask the addon's code to answer now and then: if it takes long, the addon is busy (a tight loop, heavy work) and the phone feels it.
+  h.ping = setInterval(() => { if (h.child === child && child.connected) { h.pingAt = Date.now(); try { child.send({ op: 'ping', t: h.pingAt }); } catch {} } }, 10000);
+  h.ping.unref();
   h.actions = new Map(m.actions.map((a) => [a.id, a]));
   const lines = (s) => String(s).split(/\r?\n/).filter(Boolean).slice(0, 20);
-  child.stdout.on('data', (d) => lines(d).forEach((l) => log.info(`[${id}] ${l.slice(0, 300)}`)));
-  child.stderr.on('data', (d) => lines(d).forEach((l) => log.warn(`[${id}] ${l.slice(0, 300)}`)));
+  child.stdout.on('data', (d) => lines(d).forEach((l) => note(id, 'info', l)));
+  child.stderr.on('data', (d) => lines(d).forEach((l) => note(id, 'warn', l)));
   child.on('message', (msg) => onHostMessage(id, perms, msg));
   child.on('error', (e) => { h.error = e.message; });
   child.on('exit', (code, sig) => {
     if (h.child !== child) return; // stopped on purpose
     h.child = null;
     h.error = `stopped (${sig || 'exit ' + code})`;
-    log.warn(`addon ${id} ${h.error}`);
+    clearInterval(h.ping);
+    note(id, 'warn', h.error);
     const now = Date.now();
     h.restarts = h.restarts.filter((t) => now - t < 5 * 60 * 1000);
     if (h.restarts.length < 5 && state[id] && state[id].enabled !== false) {
@@ -545,18 +575,22 @@ function onHostMessage(id, perms, msg) {
   const h = hosts.get(id);
   if (!h || !msg || typeof msg !== 'object') return;
   const reply = (rid, ok, v) => { if (h.child && h.child.connected) h.child.send({ op: 'rpcResult', id: rid, ok, value: ok ? v : String(v) }); };
-  if (msg.op === 'log') return log[['info', 'warn', 'error'].includes(msg.level) ? msg.level : 'info'](`[${id}] ${String(msg.msg).slice(0, 300)}`);
+  if (msg.op === 'pong') { const lag = Date.now() - (h.pingAt || Date.now()); h.lag = lag; h.lagMax = Math.max(h.lagMax || 0, lag); if (lag > 1000) note(id, 'warn', `its code took ${lag} ms to answer: it is busy, which can make the phone feel slow`); return; }
+  if (msg.op === 'log') return note(id, ['info', 'warn', 'error'].includes(msg.level) ? msg.level : 'info', String(msg.msg));
   if (msg.op === 'screen') {
     const now = Date.now(), r = sendRate.get(id) || { n: 0, at: now };
     if (now - r.at > 1000) { r.n = 0; r.at = now; }
-    if (++r.n > 30) return;
+    if (++r.n > 30) { h.counts = h.counts || {}; h.counts.dropped = (h.counts.dropped || 0) + 1; if (h.counts.dropped === 1 || h.counts.dropped % 500 === 0) note(id, 'warn', 'it sends more than 30 messages a second to its screen; the extra ones are dropped'); return; }
+    (h.sent = h.sent || []).push(now); if (h.sent.length > 600) h.sent.shift();
     sendRate.set(id, r);
     const data = JSON.stringify(msg.data === undefined ? null : msg.data);
     if (data.length > 64 * 1024) return;
     return api.broadcast({ t: 'addon', id, d: JSON.parse(data) });
   }
   if (msg.op === 'rpc') {
-    Promise.resolve().then(() => rpc(id, perms, msg.method, msg.args || [])).then((v) => reply(msg.id, true, v), (e) => reply(msg.id, false, e && e.message || e));
+    const t0 = Date.now(); h.counts = h.counts || {}; h.counts.rpc = (h.counts.rpc || 0) + 1;
+    const done = () => { const ms = Date.now() - t0; if (ms > 1500) { (h.slow = h.slow || []).push({ t: t0, method: String(msg.method).slice(0, 30), ms }); if (h.slow.length > 20) h.slow.shift(); } };
+    Promise.resolve().then(() => rpc(id, perms, msg.method, msg.args || [])).then((v) => { done(); reply(msg.id, true, v); }, (e) => { done(); h.counts.rpcErr = (h.counts.rpcErr || 0) + 1; note(id, 'warn', `${String(msg.method).slice(0, 30)} failed: ${(e && e.message) || e}`); reply(msg.id, false, e && e.message || e); });
   }
 }
 
@@ -664,6 +698,7 @@ module.exports = {
   validateManifest, validateRegistryEntry, permissionInfo, hostAllowed, cmpVer, readPackage,
   init, startAll, stopAll, loadRegistry, registryView, checkUpdates, prepare, confirm, installLocal, remove, setEnabled, setSettings,
   prepareFile, list, describe, widgetList, widgetDesc, phoneScreens, screenIds, screenFile, fromPhone, emit, runAction, actionList,
+  diag,
   rpc, // exported for tests
   _state: () => state,
 };

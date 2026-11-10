@@ -238,6 +238,12 @@ function send(res, code, body, type) {
 function serveStatic(req, res, rel) {
   const file = path.normalize(path.join(PUBLIC, rel));
   if (!file.startsWith(PUBLIC)) return send(res, 403, 'forbidden', 'text/plain');
+  if (rel === 'phone/index.html') { // the phone page carries the version it came from, so an old copy can tell it is stale
+    return fs.readFile(file, 'utf8', (err, html) => {
+      if (err) return send(res, 404, 'not found', 'text/plain');
+      send(res, 200, html.replace('<meta name="pd-version" content="">', `<meta name="pd-version" content="${VERSION}">`), 'text/html; charset=utf-8');
+    });
+  }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return send(res, 404, 'not found', 'text/plain');
     const etag = '"' + st.size.toString(36) + '-' + st.mtimeMs.toString(36) + '"';
@@ -398,6 +404,7 @@ async function handleApi(req, res, url) {
     if (p === '/api/addons/confirm' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.confirm(String(b.token || ''), b.permissions)); }
     if (p === '/api/addons/remove' && req.method === 'POST') { const b = await readBody(req); addons.remove(String(b.id || ''), b.keepData === true); return send(res, 200, { ok: true }); }
     if (p === '/api/addons/enable' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.setEnabled(String(b.id || ''), b.enabled !== false)); }
+    if (p === '/api/addons/log' && req.method === 'GET') return send(res, 200, addons.diag(String(url.searchParams.get('id') || '')));
     if (p === '/api/addons/settings' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.setSettings(String(b.id || ''), b.values || {})); }
     if (p === '/api/addons/dev' && req.method === 'POST') { const b = await readBody(req); return send(res, 200, addons.installLocal(String(b.dir || ''))); }
     if (p === '/api/logs' && req.method === 'GET') return send(res, 200, log.recent());
@@ -446,6 +453,7 @@ async function handleApi(req, res, url) {
     if (p === '/api/weather' && req.method === 'GET') return send(res, 200, weather.latest() || {});
     if (p === '/api/update' && req.method === 'GET') return send(res, 200, updater.status());
     if (p === '/api/update/check' && req.method === 'POST') return send(res, 200, await updater.check(config.get(), VERSION));
+    if (p === '/api/update/download' && req.method === 'POST') return send(res, 200, await updater.download());
     if (p === '/api/update/install' && req.method === 'POST') { updater.install(); return send(res, 200, { ok: true }); }
     if (p === '/api/firewall' && req.method === 'GET') return send(res, 200, await firewall.check());
     if (p === '/api/firewall/fix' && req.method === 'POST') return send(res, 200, await firewall.fix());
@@ -557,6 +565,7 @@ function publicConfig() {
   const c = config.get();
   const addonScreens = addons.screenIds();
   return {
+    version: VERSION,
     shortcuts: c.shortcuts.map(({ id, label, icon, color, group, live }) => ({ id, label, icon, color, group, live })),
     clock24: c.clock24,
     theme: c.theme,
@@ -566,6 +575,7 @@ function publicConfig() {
     addonWidgets: addons.widgetList().map(({ type, entry, aid, wid, name, version, permissions }) => ({ type, entry, aid, wid, name, version, permissions })),
     pages: c.pages,
     dimAfter: c.dimAfter,
+    schedule: c.schedule,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
     lyricsFont: c.lyricsFont,

@@ -114,6 +114,7 @@ process.on('message', (m) => {
       } catch (e) { logger('error')('could not start: ' + (e && e.stack || e)); process.exit(1); }
       return;
     }
+    case 'ping': process.send({ op: 'pong', t: m.t }); return;
     case 'rpcResult': {
       const w = waiting.get(m.id);
       if (!w) return;

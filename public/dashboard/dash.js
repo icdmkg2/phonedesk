@@ -513,9 +513,37 @@
     try { state.config = await api('config', patch); renderDisplay(); renderMirrors(); }
     catch (e) { toast('Couldn\'t save: ' + e.message); }
   }
+  // Schedule rows: from, to, screen. Saved as the person edits them.
+  function renderSchedule() {
+    const c = state.config, box = $('ds-sched'); if (!c || !box) return;
+    if (box.contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;
+    const rules = c.schedule || [], screens = c.screens || [];
+    $('ds-sched-add').disabled = rules.length >= 6;
+    box.innerHTML = rules.length ? rules.map((r, i) => `<div class="sched-row" data-i="${i}">
+      <input type="time" data-f="from" value="${esc(r.from)}" aria-label="From"><span class="muted">to</span><input type="time" data-f="to" value="${esc(r.to)}" aria-label="To">
+      <select data-f="screen" aria-label="Screen">${[...new Set([...screens, r.screen])].map((s) => `<option value="${esc(s)}"${s === r.screen ? ' selected' : ''}>${esc(screenName(s))}</option>`).join('')}</select>
+      <button class="btn sm ghost" data-rm="${i}" aria-label="Remove this time">Remove</button></div>`).join('') : '<p class="small muted">No times set.</p>';
+  }
+  $('ds-sched').addEventListener('change', (e) => {
+    const row = e.target.closest('.sched-row'), f = e.target.dataset.f; if (!row || !f) return;
+    const rules = clone(state.config.schedule || []); rules[+row.dataset.i][f] = e.target.value;
+    if (!/^\d\d:\d\d$/.test(rules[+row.dataset.i].from) || !/^\d\d:\d\d$/.test(rules[+row.dataset.i].to) || rules[+row.dataset.i].from === rules[+row.dataset.i].to) return toast('Pick two different times');
+    saveConfig({ schedule: rules }).then(renderSchedule);
+  });
+  $('ds-sched').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rm]'); if (!b) return;
+    const rules = clone(state.config.schedule || []); rules.splice(+b.dataset.rm, 1); saveConfig({ schedule: rules }).then(renderSchedule);
+  });
+  $('ds-sched-add').addEventListener('click', () => {
+    const rules = clone(state.config.schedule || []);
+    rules.push({ from: '22:00', to: '07:00', screen: (state.config.screens || []).includes('clock') ? 'clock' : (state.config.screens || [])[0] });
+    saveConfig({ schedule: rules }).then(renderSchedule);
+  });
+
   function renderDisplay() {
     const c = state.config;
     if (!c) return;
+    renderSchedule();
     $$('#ds-nstyle .theme').forEach((b) => { const on = b.dataset.v === (c.nowStyle || 'immersive'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-lystyle .theme').forEach((b) => { const on = b.dataset.v === (c.lyricsMode || 'scroll'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     if (document.activeElement !== $('ds-lyoffset')) { $('ds-lyoffset').value = c.lyricsOffset || 0; setText($('ds-lyoffset-n'), ((c.lyricsOffset || 0) > 0 ? '+' : '') + (c.lyricsOffset || 0) + ' ms'); }
@@ -757,6 +785,7 @@
     const u = state.update || {};
     const badge = $('up-badge'), text = $('up-text');
     $('up-install').hidden = u.state !== 'ready';
+    $('up-download').hidden = u.state !== 'available';
     $('up-check').disabled = u.state === 'source' || u.state === 'checking' || u.state === 'downloading';
     const ver = state.status ? 'v' + state.status.version : '';
     const map = {
@@ -765,6 +794,7 @@
       idle: [ver, 'Updates are checked a minute after start and every 6 hours.'],
       checking: ['Checking', 'Looking for a newer version…'],
       latest: [ver, 'You have the latest version.'],
+      available: ['New version', `PhoneDesk ${u.version || ''} is available. Download it when you are ready; it installs after you press Install.`],
       downloading: ['Downloading', `Downloading PhoneDesk ${u.version || ''}…`],
       ready: ['Update ready', `PhoneDesk ${u.version} is downloaded and checked. Installing takes a few seconds; PhoneDesk restarts by itself.`],
       installing: ['Installing', 'Installing the update. PhoneDesk will restart.'],
@@ -772,15 +802,48 @@
     };
     const [b, t] = map[u.state] || [ver, ''];
     setText(badge, b);
-    badge.className = 'badge' + (u.state === 'ready' ? ' usb' : u.state === 'error' ? ' warn' : '');
+    badge.className = 'badge' + (u.state === 'ready' || u.state === 'available' ? ' usb' : u.state === 'error' ? ' warn' : '');
     setText(text, t);
     // Patch notes live on GitHub Releases (one per version, from CHANGELOG.md).
     const repo = /^[\w.-]+\/[\w.-]+$/.test((state.config && state.config.updateRepo) || '') ? state.config.updateRepo : DEFAULT_REPO;
-    const shown = u.state === 'ready' || u.state === 'downloading' ? u.version : state.status && state.status.version;
+    const pend = u.state === 'ready' || u.state === 'downloading' || u.state === 'available';
+    const shown = pend ? u.version : state.status && state.status.version;
     $('up-notes').href = u.url && shown === u.version ? u.url : `https://github.com/${repo}/releases/tag/v${shown || ''}`;
-    setText($('up-notes'), u.state === 'ready' || u.state === 'downloading' ? `What's new in ${u.version}` : `What's new in ${shown ? 'v' + shown : 'this version'}`);
+    setText($('up-notes'), pend ? `What's new in ${u.version}` : `What's new in ${shown ? 'v' + shown : 'this version'}`);
     $('up-all').href = `https://github.com/${repo}/releases`;
+    // An update shows as a badge on the Updates item and a pill in the sidebar, not only inside the page.
+    const nav = $('nav-updates'), pill = $('up-pill');
+    const avail = u.state === 'ready' || u.state === 'available' || u.state === 'downloading' || u.state === 'installing';
+    const bad = u.state === 'error';
+    nav.hidden = !(avail || bad);
+    setText(nav, bad ? '!' : 'New');
+    nav.className = 'count ' + (bad ? 'bad' : 'new');
+    pill.hidden = !(avail || bad);
+    renderUpdateNotes(u, pend);
+    pill.classList.toggle('err', bad);
+    setText($('up-pill-text'), bad ? 'Update problem' : u.state === 'downloading' ? `Downloading ${u.version || 'update'}…` : u.state === 'installing' ? 'Installing…' : u.version ? 'v' + String(u.version).replace(/^v/, '') + ' available' : 'Update available');
   }
+  // The release notes of the waiting version, shown here so there is no need to open GitHub to decide.
+  function renderUpdateNotes(u, pend) {
+    const card = $('up-notes-card'), body = $('up-notes-body');
+    const text = pend && u.notes ? String(u.notes).split(/\n-{3,}\n/)[0] : '';
+    card.hidden = !text;
+    if (!text) { body.textContent = ''; return; }
+    setText($('up-notes-title'), `What's new in ${u.version}`);
+    const key = u.version + '|' + text.length;
+    if (body.dataset.key === key) return;
+    body.dataset.key = key; body.textContent = '';
+    let list = null;
+    text.split('\n').forEach((raw) => {
+      const line = raw.trim(); if (!line) { list = null; return; }
+      const h = /^#{1,4}\s+(.*)$/.exec(line), li = /^[-*]\s+(.*)$/.exec(line);
+      if (li) { if (!list) { list = document.createElement('ul'); body.appendChild(list); } const el = document.createElement('li'); el.textContent = li[1].replace(/\*\*|\*|`/g, ''); list.appendChild(el); return; }
+      list = null;
+      const el = document.createElement(h ? 'h4' : 'p'); el.textContent = (h ? h[1] : line).replace(/\*\*|\*|`/g, ''); body.appendChild(el);
+    });
+  }
+  $('up-download').addEventListener('click', async () => { state.update = Object.assign({}, state.update, { state: 'downloading' }); renderUpdate(); state.update = await api('update/download', {}).catch((e) => ({ state: 'error', error: e.message })); renderUpdate(); });
+  $('up-autodl').addEventListener('change', (e) => saveConfig({ autoDownload: e.target.checked }));
   $('up-check').addEventListener('click', async () => { state.update = await api('update/check', {}).catch((e) => ({ state: 'error', error: e.message })); renderUpdate(); });
   $('up-install').addEventListener('click', async () => { await api('update/install', {}).catch((e) => toast(e.message)); });
   $('up-auto').addEventListener('change', (e) => saveConfig({ autoUpdate: e.target.checked }));
@@ -790,6 +853,7 @@
   function renderUpdateSettings() {
     const c = state.config;
     $('up-auto').checked = c.autoUpdate !== false;
+    $('up-autodl').checked = c.autoDownload !== false;
     if (document.activeElement !== $('up-repo')) $('up-repo').value = c.updateRepo || '';
     renderUpdate();
   }
@@ -900,6 +964,7 @@
       </div><div class="ad-actions">
         ${x.update ? `<button class="btn sm primary" data-ad="update" data-id="${esc(x.id)}">Update</button>` : ''}
         ${x.settings.length ? `<button class="btn sm" data-ad="settings" data-id="${esc(x.id)}">Settings</button>` : ''}
+        ${x.hasServer || x.screen ? `<button class="btn sm ghost" data-ad="log" data-id="${esc(x.id)}">Log</button>` : ''}
         <span class="switch"><input type="checkbox" data-ad="toggle" data-id="${esc(x.id)}" ${x.enabled ? 'checked' : ''} aria-label="Turn ${esc(x.name)} on or off"><span></span></span>
         <button class="btn sm ghost" data-ad="remove" data-id="${esc(x.id)}">Remove</button>
       </div></div>`;
@@ -1008,6 +1073,27 @@
   $('ad-refresh').addEventListener('click', async () => { $('ad-refresh').disabled = true; await loadAddons(true); $('ad-refresh').disabled = false; toast('Checked for updates'); });
   $('ad-auto').addEventListener('change', (e) => saveConfig({ autoUpdateAddons: e.target.checked }));
 
+  // The addon's log and health: what it printed, how many messages it sent, how fast its code answers.
+  async function adLog(x) {
+    const d = await api('addons/log?id=' + encodeURIComponent(x.id)).catch((e) => { toast(e.message); return null; });
+    if (!d) return;
+    const fmt = (t) => new Date(t).toLocaleTimeString();
+    const stat = (k, v, warn) => `<div class="ad-stat${warn ? ' warn' : ''}"><span>${esc(k)}</span><b>${esc(v)}</b></div>`;
+    const stats = d.hasServer ? [
+      stat('PC-side code', d.running ? 'running' : (d.error || 'not running'), !d.running),
+      stat('Answers in', d.lagMs == null ? 'not measured yet' : d.lagMs + ' ms' + (d.lagMaxMs > 1000 ? ' (slowest ' + d.lagMaxMs + ' ms)' : ''), d.lagMaxMs > 1000),
+      stat('Messages to its screen, last minute', String(d.sentLastMinute)), stat('Dropped for sending too fast', String(d.droppedTotal), d.droppedTotal > 0),
+      stat('Requests to PhoneDesk', d.rpcTotal + (d.rpcFailed ? ` (${d.rpcFailed} failed)` : ''), d.rpcFailed > 0), stat('Restarts in 5 minutes', String(d.restarts), d.restarts > 0),
+    ].join('') : '<p class="small muted">This addon has no PC-side code, so there is nothing to measure here. If its screen feels slow, the page itself is doing too much work on the phone.</p>';
+    const lines = d.logs.length ? d.logs.map((l) => `${fmt(l.t)}  ${l.level.toUpperCase().padEnd(5)} ${l.text}`).join('\n') : 'Nothing logged yet.';
+    adOpen({
+      kicker: x.name, title: 'Log and health',
+      body: `<div class="ad-stats">${stats}</div>${d.slowRpc.length ? `<p class="small muted">Slow requests: ${d.slowRpc.map((s) => esc(s.method) + ' ' + s.ms + ' ms').join(', ')}</p>` : ''}<pre class="ad-log" tabindex="0">${esc(lines)}</pre>`,
+      ok: 'Copy', cancel: 'Close',
+      onOk: async () => { try { await navigator.clipboard.writeText(`${d.name} ${d.version}\n` + lines); toast('Copied'); } catch (e) { toast('Couldn\'t copy'); } return false; },
+    });
+  }
+
   function adSettings(x) {
     const field = (s) => {
       const id = 'ad-s-' + s.key, hint = s.hint ? `<span class="hint">${esc(s.hint)}</span>` : '';
@@ -1033,6 +1119,7 @@
     const id = b.dataset.id, x = ((state.addons && state.addons.installed) || []).find((a) => a.id === id);
     if (b.dataset.ad === 'install' || b.dataset.ad === 'update') adInstall({ registryId: id });
     else if (b.dataset.ad === 'settings' && x) adSettings(x);
+    else if (b.dataset.ad === 'log' && x) adLog(x);
     else if (b.dataset.ad === 'remove' && x) adOpen({
       kicker: 'Remove', title: x.name,
       body: `<p>Remove this addon from the phone and this PC?</p><label class="field"><span><input type="checkbox" id="ad-keep"> Keep its saved data</span></label>`,
@@ -1049,7 +1136,7 @@
 
   /* ------------------------------------------------------------ layouts (pages made of widgets) */
   const LY = { W: 960, H: 444, pad: 8, gap: 8, cols: 12, rows: 6 };
-  const ly = { sel: '', wsel: '', draft: [], cat: null, timer: null, scale: 1, drag: null };
+  const ly = { sel: '', wsel: '', draft: [], cat: null, timer: null, scale: 1, drag: null, base: [], undo: [], redo: [], open: {}, pending: false };
   const lyCell = () => ({ cw: (LY.W - 2 * LY.pad - LY.gap * (LY.cols - 1)) / LY.cols, ch: (LY.H - 2 * LY.pad - LY.gap * (LY.rows - 1)) / LY.rows });
   function lyPage() { return ly.draft.find((p) => p.id === ly.sel) || null; }
   function lyWidget() { const p = lyPage(); return p ? p.widgets.find((w) => w.id === ly.wsel) || null : null; }
@@ -1062,14 +1149,58 @@
     for (let y = 0; y + h <= LY.rows; y++) for (let x = 0; x + w <= LY.cols; x++) if (!p.widgets.some((o) => lyOverlap({ x, y, w, h }, o))) return { x, y };
     return null;
   }
+  // Undo and redo: one step for each burst of edits (a drag, some typing). Adding or deleting a page starts a fresh history.
+  function lyHistReset() { ly.base = clone(ly.draft); ly.undo = []; ly.redo = []; ly.open = {}; ly.draft.forEach((p) => { ly.open[p.id] = clone(p); }); lyHistButtons(); }
+  function lyHistButtons() {
+    const p = lyPage();
+    $('ly-undo').disabled = !ly.undo.length; $('ly-redo').disabled = !ly.redo.length;
+    $('ly-reset').disabled = !p || !ly.open[p.id] || JSON.stringify(ly.open[p.id].widgets) === JSON.stringify(p.widgets);
+  }
+  async function lyJump(stack, other) {
+    if (!stack.length) return;
+    other.push(clone(ly.draft));
+    ly.draft = stack.pop(); ly.base = clone(ly.draft);
+    if (!lyWidget()) ly.wsel = '';
+    clearTimeout(ly.timer); ly.pending = false;
+    try { state.config = await api('config', { pages: ly.draft }); ly.draft = clone(state.config.pages); ly.base = clone(ly.draft); setText($('ly-state'), 'Saved'); renderDisplay(); } catch (e) { setText($('ly-state'), 'Couldn\'t save: ' + e.message); }
+    renderLayouts(true);
+  }
+  const lyUndo = () => lyJump(ly.undo, ly.redo), lyRedo = () => lyJump(ly.redo, ly.undo);
+  $('ly-undo').addEventListener('click', lyUndo);
+  $('ly-redo').addEventListener('click', lyRedo);
+  $('ly-reset').addEventListener('click', () => {
+    const p = lyPage(); if (!p || !ly.open[p.id]) return;
+    ly.undo.push(clone(ly.draft)); ly.redo = [];
+    p.widgets = clone(ly.open[p.id].widgets); ly.wsel = '';
+    ly.pending = true; renderLayouts(true); lySave();
+  });
+  function lyDuplicate() {
+    const p = lyPage(), w = lyWidget(); if (!p || !w) return;
+    if (p.widgets.length >= ly.cat.limits.widgets) return toast(`${ly.cat.limits.widgets} widgets is the most on a page`);
+    const spot = lyFree(p, w.w, w.h);
+    if (!spot) return toast('No room for a copy. Make some space first.');
+    const nw = Object.assign(clone(w), { id: 'w' + Math.random().toString(36).slice(2, 10), x: spot.x, y: spot.y });
+    p.widgets.push(nw); ly.wsel = nw.id; renderLayouts(true); lySave();
+  }
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y / Ctrl+D while the Layouts page is open (not while typing in a field)
+  document.addEventListener('keydown', (e) => {
+    if (!$('v-layouts').classList.contains('on') || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.target.closest && e.target.closest('input[type=text], input[type=number], textarea, select')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); lyUndo(); }
+    else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); lyRedo(); }
+    else if (k === 'd') { e.preventDefault(); lyDuplicate(); }
+  });
   async function openLayouts() {
     if (!state.config) { try { await loadConfig(); } catch (e) { return; } }
     try { ly.cat = await api('widgets'); } catch (e) { toast('Couldn\'t load widgets: ' + e.message); return; }
     ly.draft = clone((state.config && state.config.pages) || []);
     if (!ly.draft.some((p) => p.id === ly.sel)) { ly.sel = ly.draft.length ? ly.draft[0].id : ''; ly.wsel = ''; }
+    lyHistReset();
     renderLayouts();
   }
   function lySave() {
+    if (!ly.pending) { ly.pending = true; ly.undo.push(ly.base); if (ly.undo.length > 50) ly.undo.shift(); ly.redo = []; }
     setText($('ly-state'), 'Saving…');
     clearTimeout(ly.timer);
     ly.timer = setTimeout(async () => {
@@ -1077,7 +1208,8 @@
         state.config = await api('config', { pages: ly.draft });
         // the server may have tidied the pages (kept inside the grid, moved overlaps); follow it unless a drag is going on
         if (!ly.drag) { ly.draft = clone(state.config.pages); renderLayouts(true); }
-        setText($('ly-state'), 'Saved'); renderDisplay();
+        ly.pending = false; ly.base = clone(state.config.pages);
+        setText($('ly-state'), 'Saved'); renderDisplay(); lyHistButtons();
       } catch (e) { setText($('ly-state'), 'Couldn\'t save: ' + e.message); }
     }, 350);
   }
@@ -1090,9 +1222,10 @@
     if (!p) return;
     if (document.activeElement !== $('ly-name')) $('ly-name').value = p.name;
     $('ly-onphone').checked = onPhone.includes('page:' + p.id);
+    $('ly-bg').value = p.bg || ''; $('ly-accent').value = p.accent || '#5b8cff'; $('ly-accent-clear').hidden = !p.accent;
     const fr = $('ly-frame'), want = '/phone/?preview=' + p.id;
     if (fr.getAttribute('data-src') !== want) { fr.setAttribute('data-src', want); fr.src = want; }
-    lyFit(); renderLyOverlay(); renderLyPalette(); renderLyOpts();
+    lyFit(); renderLyOverlay(); renderLyPalette(); renderLyOpts(); lyHistButtons();
   }
   function lyFit() {
     const st = $('ly-stage'), w = st.clientWidth || 600;
@@ -1130,17 +1263,46 @@
     const w = lyWidget(), box = $('ly-opts');
     if (!w) { box.innerHTML = '<h3>Widget</h3><p class="small muted">Select a widget on the page to change its size and options, or add one from the left.</p>'; return; }
     const t = lyType(w.type), min = t ? { w: t.minW || 1, h: t.minH || 1 } : { w: 1, h: 1 };
-    box.innerHTML = `<div class="card-head"><h3>${esc(t ? t.name : 'Missing widget')}</h3><button class="btn sm ghost" id="ly-rm">Remove</button></div>
+    box.innerHTML = `<div class="card-head"><h3>${esc(t ? t.name : 'Missing widget')}</h3><span class="row"><button class="btn sm ghost" id="ly-dup" title="Duplicate (Ctrl+D)">Duplicate</button><button class="btn sm ghost" id="ly-rm">Remove</button></span></div>
       <p class="small muted">${esc(t ? t.desc || '' : 'This widget comes from an addon that is turned off or removed. It shows nothing on the phone until the addon is back.')}</p>
       <div class="ly-opts-grid"><div class="ly-size"><label>Width<input type="number" id="ly-w" min="${min.w}" max="${LY.cols}" value="${w.w}"></label><label>Height<input type="number" id="ly-h" min="${min.h}" max="${LY.rows}" value="${w.h}"></label></div>
-      ${((t && t.opts) || []).map((f) => lyField(f, w.opts && w.opts[f.key] !== undefined ? w.opts[f.key] : f.default)).join('')}</div>`;
+      ${((t && t.opts) || []).map((f) => lyField(f, w.opts && w.opts[f.key] !== undefined ? w.opts[f.key] : f.default)).join('')}
+      ${w.type.startsWith('addon:') ? '' : lyTapField(w)}</div>`;
+  }
+  // "When tapped": open a screen, press a shortcut button, or control the music
+  function lyTapField(w) {
+    const c = state.config || {}, cur = w.tap || '';
+    const opt = (v, label) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
+    return `<label class="field">When tapped<select id="ly-tap"><option value="">Nothing</option>
+      <optgroup label="Open a screen">${(c.screens || []).map((s) => opt('screen:' + s, screenName(s))).join('')}</optgroup>
+      <optgroup label="Press a shortcut">${(c.shortcuts || []).map((s) => opt('shortcut:' + s.id, s.label)).join('')}</optgroup>
+      <optgroup label="Music">${opt('media:toggle', 'Play or pause')}${opt('media:next', 'Next song')}${opt('media:prev', 'Previous song')}</optgroup></select></label>`;
   }
   function lySelect(id) { ly.wsel = id || ''; renderLyOverlay(); renderLyOpts(); }
-  function lyApply(w, next) {
+  // Where a widget may go. If the asked spot overlaps another widget it snaps to the nearest free one: a move
+  // slides to the closest free cell (up to 2 cells away), a resize shrinks to the largest size that fits.
+  function lyApply(w, next, resize) {
     const p = lyPage(), t = lyType(w.type), minW = (t && t.minW) || 1, minH = (t && t.minH) || 1;
     const n = { x: next.x, y: next.y, w: Math.max(minW, Math.min(LY.cols, next.w)), h: Math.max(minH, Math.min(LY.rows, next.h)) };
     n.x = Math.max(0, Math.min(LY.cols - n.w, n.x)); n.y = Math.max(0, Math.min(LY.rows - n.h, n.y));
-    return { n, ok: !p.widgets.some((o) => o.id !== w.id && lyOverlap(n, o)) };
+    const free = (r) => !p.widgets.some((o) => o.id !== w.id && lyOverlap(r, o));
+    if (free(n)) return { n, ok: true };
+    if (resize) {
+      let best = null;
+      for (let ww = n.w; ww >= minW; ww--) for (let hh = n.h; hh >= minH; hh--) {
+        const r = { x: n.x, y: n.y, w: ww, h: hh };
+        if (free(r) && (!best || ww * hh > best.w * best.h)) best = r;
+      }
+      return best ? { n: best, ok: true } : { n, ok: false };
+    }
+    let best = null, bd = 1e9;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const r = { x: n.x + dx, y: n.y + dy, w: n.w, h: n.h };
+      if (r.x < 0 || r.y < 0 || r.x + r.w > LY.cols || r.y + r.h > LY.rows || !free(r)) continue;
+      const d = Math.abs(dx) + Math.abs(dy);
+      if (d < bd) { bd = d; best = r; }
+    }
+    return best ? { n: best, ok: true } : { n, ok: false };
   }
   function lyCommit(w, n) { Object.assign(w, n); renderLyOverlay(); renderLyOpts(); lySave(); }
 
@@ -1158,7 +1320,7 @@
     const { cw, ch } = lyCell();
     const dx = Math.round(((e.clientX - d.sx) / ly.scale) / (cw + LY.gap)), dy = Math.round(((e.clientY - d.sy) / ly.scale) / (ch + LY.gap));
     const w = lyPage().widgets.find((x) => x.id === d.id);
-    const r = lyApply(w, d.resize ? { x: d.orig.x, y: d.orig.y, w: d.orig.w + dx, h: d.orig.h + dy } : { x: d.orig.x + dx, y: d.orig.y + dy, w: d.orig.w, h: d.orig.h });
+    const r = lyApply(w, d.resize ? { x: d.orig.x, y: d.orig.y, w: d.orig.w + dx, h: d.orig.h + dy } : { x: d.orig.x + dx, y: d.orig.y + dy, w: d.orig.w, h: d.orig.h }, d.resize);
     d.next = r.n; d.ok = r.ok; lyPlace(d.box, r.n); d.box.classList.toggle('bad', !r.ok);
   });
   function lyEnd(e) {
@@ -1178,7 +1340,7 @@
     const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
     if (!d) return;
     e.preventDefault();
-    const r = lyApply(w, e.shiftKey ? { x: w.x, y: w.y, w: w.w + d[0], h: w.h + d[1] } : { x: w.x + d[0], y: w.y + d[1], w: w.w, h: w.h });
+    const r = lyApply(w, e.shiftKey ? { x: w.x, y: w.y, w: w.w + d[0], h: w.h + d[1] } : { x: w.x + d[0], y: w.y + d[1], w: w.w, h: w.h }, e.shiftKey);
     if (r.ok) { lyCommit(w, r.n); const nb = $('ly-over').querySelector(`[data-id="${w.id}"]`); if (nb) nb.focus(); } else toast('That would overlap another widget');
   });
   function lyRemove() {
@@ -1186,14 +1348,15 @@
     p.widgets = p.widgets.filter((x) => x.id !== ly.wsel); ly.wsel = '';
     renderLyOverlay(); renderLyOpts(); renderLayouts(true); lySave();
   }
-  $('ly-opts').addEventListener('click', (e) => { if (e.target.closest('#ly-rm')) lyRemove(); });
+  $('ly-opts').addEventListener('click', (e) => { if (e.target.closest('#ly-rm')) lyRemove(); else if (e.target.closest('#ly-dup')) lyDuplicate(); });
   $('ly-opts').addEventListener('change', (e) => {
     const w = lyWidget(); if (!w) return;
     if (e.target.id === 'ly-w' || e.target.id === 'ly-h') {
-      const r = lyApply(w, { x: w.x, y: w.y, w: +$('ly-w').value, h: +$('ly-h').value });
+      const r = lyApply(w, { x: w.x, y: w.y, w: +$('ly-w').value, h: +$('ly-h').value }, true);
       if (r.ok) lyCommit(w, r.n); else { toast('That would overlap another widget'); renderLyOpts(); }
       return;
     }
+    if (e.target.id === 'ly-tap') { if (e.target.value) w.tap = e.target.value; else delete w.tap; lySave(); return; }
     const key = e.target.dataset.opt; if (!key) return;
     w.opts = w.opts || {};
     w.opts[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' ? Number(e.target.value) : e.target.value;
@@ -1216,6 +1379,9 @@
     renderLayouts(true); lySave();
   });
   $('ly-list').addEventListener('click', (e) => { const b = e.target.closest('[data-pg]'); if (b) { ly.sel = b.dataset.pg; ly.wsel = ''; renderLayouts(); } });
+  $('ly-bg').addEventListener('change', (e) => { const p = lyPage(); if (!p) return; if (e.target.value) p.bg = e.target.value; else delete p.bg; lySave(); });
+  $('ly-accent').addEventListener('input', (e) => { const p = lyPage(); if (!p) return; p.accent = e.target.value; $('ly-accent-clear').hidden = false; lySave(); });
+  $('ly-accent-clear').addEventListener('click', () => { const p = lyPage(); if (!p) return; delete p.accent; $('ly-accent-clear').hidden = true; lySave(); });
   $('ly-name').addEventListener('input', (e) => { const p = lyPage(); if (!p) return; p.name = e.target.value.slice(0, 24); renderLayouts(true); lySave(); });
   $('ly-onphone').addEventListener('change', async (e) => {
     const p = lyPage(); if (!p) return;
@@ -1231,7 +1397,7 @@
       onOk: async () => {
         ly.draft = ly.draft.filter((x) => x.id !== p.id);
         state.config = await api('config', { pages: ly.draft });
-        ly.draft = clone(state.config.pages); ly.sel = ly.draft.length ? ly.draft[0].id : ''; ly.wsel = '';
+        ly.draft = clone(state.config.pages); ly.sel = ly.draft.length ? ly.draft[0].id : ''; ly.wsel = ''; lyHistReset();
         renderLayouts(); renderDisplay(); toast('Page deleted');
       },
     });
@@ -1248,7 +1414,7 @@
       ok: 'Customize', cancel: 'Cancel',
       onOk: async () => {
         const r = await api('pages/from-screen', { screen });
-        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = '';
+        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = ''; lyHistReset();
         renderDisplay(); go('layouts'); toast(name + ' is now a page you can edit');
       },
     });
@@ -1264,7 +1430,7 @@
       onOk: async () => {
         const tpl = document.querySelector('input[name="ly-tpl"]:checked').value;
         const r = await api('pages/new', { template: tpl, name: $('ly-newname').value.trim() });
-        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = '';
+        state.config = r.config; ly.draft = clone(r.config.pages); ly.sel = r.page.id; ly.wsel = ''; lyHistReset();
         renderLayouts(); renderDisplay(); toast('Page created. It is on the phone now.');
       },
     });

@@ -30,6 +30,7 @@ const DEFAULTS = {
   theme: 'dark',
   accent: 'auto',
   dimAfter: 0,
+  schedule: [],                // [{ from: '22:00', to: '07:00', screen: 'clock' }]: the phone shows that screen during those hours
   nowStyle: 'immersive',
   lyricsMode: 'scroll',
   lyricsFont: 'serif',
@@ -45,6 +46,7 @@ const DEFAULTS = {
   nightRed: true,              // red clock at night (easier on the eyes)
   nightClock: true,            // switch to the clock screen at night
   burnIn: true,                // shift the picture a few pixels now and then
+  autoDownload: true,          // download an update as soon as one is found (off: ask first)
   seenVersion: '',             // notes of this version were shown (What's new)
   screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'],
   shortcuts: [
@@ -99,6 +101,8 @@ function sanitize(c) {
   out.theme = ['dark', 'black', 'light'].includes(c.theme) ? c.theme : 'dark';
   out.accent = typeof c.accent === 'string' && /^(auto|#[0-9a-f]{6})$/i.test(c.accent) ? c.accent : 'auto';
   out.dimAfter = Math.max(0, Math.min(3600, +c.dimAfter || 0));
+  out.schedule = (Array.isArray(c.schedule) ? c.schedule : []).slice(0, 6).filter((r) => r && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.from) && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.to) && /^[a-z]+(:[\w.-]{1,60})?$/.test(r.screen || '') && r.from !== r.to)
+    .map((r) => ({ from: r.from, to: r.to, screen: r.screen }));
   out.nowStyle = c.nowStyle === 'classic' ? 'classic' : 'immersive';
   out.lyricsMode = ['scroll', 'kinetic', 'kinetic-dark'].includes(c.lyricsMode) ? c.lyricsMode : 'scroll';
   out.lyricsOffset = Math.max(-2000, Math.min(2000, Math.round(+c.lyricsOffset || 0)));
@@ -138,6 +142,7 @@ function sanitize(c) {
   out.spotifyClientId = /^[a-f0-9]{32}$/i.test(c.spotifyClientId || '') ? c.spotifyClientId : '';
   out.updateRepo = /^[\w.-]+\/[\w.-]+$/.test(c.updateRepo || '') ? c.updateRepo : DEFAULTS.updateRepo;
   out.autoUpdate = c.autoUpdate !== false;
+  out.autoDownload = c.autoDownload !== false;
   out.onboarded = c.onboarded === true;
   out.autoUpdateAddons = c.autoUpdateAddons !== false;
   out.addonRegistry = /^https:\/\/[^\s]{1,300}$/.test(c.addonRegistry || '') ? c.addonRegistry : '';

@@ -116,5 +116,25 @@ async function run(name, fn) {
     assert.throws(() => updater.install(), /No update is ready/);
   });
 
+  await run('with automatic download off, a new version waits as "available" until Download', async () => {
+    fs.rmSync(path.join(process.env.PHONEDESK_DATA, 'updates'), { recursive: true, force: true });
+    release = rel('9.9.9', [exe({ digest: 'sha256:' + sha(SETUP) })]);
+    downloads = [];
+    const r = await updater.check({ updateRepo: 'icdmkg2/phonedesk', autoDownload: false }, '1.8.1');
+    assert.strictEqual(r.state, 'available');
+    assert.strictEqual(r.version, '9.9.9');
+    assert.strictEqual(r.notes, 'notes');
+    assert.deepStrictEqual(downloads, []);          // nothing was fetched yet
+    const d = await updater.download();
+    assert.strictEqual(d.state, 'ready');
+    assert.strictEqual(downloads.length, 1);
+  });
+
+  await run('Download refuses when nothing is waiting', async () => {
+    release = rel('1.0.0', []);
+    await updater.check(cfg, '1.8.1');
+    await assert.rejects(() => updater.download(), /No update is waiting/);
+  });
+
   fs.rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
 })();

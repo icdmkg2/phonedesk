@@ -40,15 +40,18 @@
   <nav class="side" aria-label="Sections">
     <div class="brand"><img src="/favicon.svg" alt="">PhoneDesk</div>
     <button class="nav on" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Overview</button>
-    <button class="nav" data-view="shortcuts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3 5.5 13.5h6l-1 7.5 8-10.5h-6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Shortcuts</button>
+    <div class="nav-group" role="presentation">Customize</div>
     <button class="nav" data-view="display"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6.5" width="19" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Phone display</button>
     <button class="nav" data-view="layouts"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="10" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="16" y="3.5" width="4.5" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="14" width="4.5" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="10.5" y="14" width="10" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Layouts</button>
+    <button class="nav" data-view="shortcuts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3 5.5 13.5h6l-1 7.5 8-10.5h-6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Shortcuts</button>
     <button class="nav" data-view="addons"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8.5v7M8.5 12h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Addons<span class="count" id="nav-addons" hidden>1</span></button>
+    <div class="nav-group" role="presentation">System</div>
     <button class="nav" data-view="connection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a5.5 5.5 0 0 1 8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor"/></svg>Connection<span class="count" id="nav-warn" hidden>!</span></button>
+    <button class="nav" data-view="updates"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M7.5 10 12 14.5 16.5 10M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Updates<span class="count" id="nav-updates" hidden>New</span></button>
     <button class="nav" data-view="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Activity</button>
-
     <div class="side-foot">
       <div class="status"><span class="dot" id="st-dot"></span><span id="st-text">Connecting…</span><button class="ver" id="st-ver" title="What's new in this version"></button></div>
+      <button class="up-pill" id="up-pill" data-goto="updates" hidden><span class="up-dot"></span><span id="up-pill-text">Update available</span></button>
       <label class="toggle-row" id="autostart-row" hidden>Start with Windows
         <span class="switch"><input type="checkbox" id="autostart"><span></span></span>
       </label>
@@ -302,6 +305,11 @@
             <div class="sep"></div>
             <label class="toggle-row"><span>Find missing album art online<br><span class="hint">When an app (like YouTube) gives no picture, look the song up in the iTunes catalog. Only the song and artist name are sent.</span></span><span class="switch"><input type="checkbox" id="ds-art"><span></span></span></label>
           </section>
+          <section class="card" aria-label="Schedule">
+            <div><h3>Schedule</h3><p class="small muted" style="margin-top:4px">Show a screen at certain hours, such as the clock overnight. You can still swipe away; the phone goes back when the time ends.</p></div>
+            <div id="ds-sched" class="sched"></div>
+            <div class="row"><button class="btn sm" id="ds-sched-add">Add a time</button></div>
+          </section>
           <section class="card" aria-label="Screens">
             <div><h3>Screens</h3><p class="small muted" style="margin-top:4px">Swipe on the phone to move between them. Drag to reorder.</p></div>
             <ul class="screens" id="ds-screens"></ul>
@@ -328,6 +336,13 @@
             <div class="ly-top">
               <label class="ly-name">Name<input type="text" id="ly-name" maxlength="24" autocomplete="off"></label>
               <label class="ly-show"><span class="switch"><input type="checkbox" id="ly-onphone"><span></span></span>Show on the phone</label>
+              <label class="ly-bg">Background<select id="ly-bg"><option value="">Normal</option><option value="black">Black</option><option value="aurora">Aurora</option><option value="dusk">Dusk</option><option value="forest">Forest</option><option value="slate">Slate</option></select></label>
+              <label class="ly-bg">Accent<span class="row" style="gap:6px"><input type="color" id="ly-accent" value="#5b8cff" aria-label="Accent colour"><button class="btn sm ghost" id="ly-accent-clear" hidden>Reset</button></span></label>
+              <div class="ly-tools" role="group" aria-label="Edit">
+                <button class="btn sm ghost" id="ly-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+                <button class="btn sm ghost" id="ly-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+                <button class="btn sm ghost" id="ly-reset" title="Go back to how this page was when you opened it" disabled>Reset</button>
+              </div>
               <button class="btn sm ghost" id="ly-del">Delete page</button>
             </div>
             <div class="ly-stage" id="ly-stage"><div class="ly-canvas" id="ly-canvas"><iframe id="ly-frame" title="Live preview of this page" tabindex="-1"></iframe><div class="ly-over" id="ly-over"></div></div></div>
@@ -434,14 +449,6 @@
           <div class="small muted" id="sl-credit"></div>
         </section>
 
-        <section class="card" aria-label="Updates">
-          <div class="card-head"><h3>Updates</h3><span class="badge" id="up-badge">–</span></div>
-          <p class="small muted" id="up-text">Checking…</p>
-          <p class="small up-links"><a id="up-notes" href="#" target="_blank" rel="noopener">What's new</a><a id="up-all" href="#" target="_blank" rel="noopener">All releases</a></p>
-          <div class="row"><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div>
-          <label class="toggle-row">Check automatically<span class="switch"><input type="checkbox" id="up-auto"><span></span></span></label>
-          <label class="field">GitHub repository<input type="text" id="up-repo" placeholder="icdmkg2/phonedesk" maxlength="100" class="mono"><span class="hint">Official releases. Leave it empty to use them; turn off <i>Check automatically</i> to stop updates.</span></label>
-        </section>
 
         <section class="card" aria-label="Advanced">
           <h3>Advanced</h3>
@@ -452,6 +459,26 @@
           <p class="small muted">Phones open <span class="mono" id="cn-name-ex">phonedesk.local</span>. Name and port apply after a restart.</p>
           <div class="row"><button class="btn" id="cn-bridge">Restart media bridge</button><span class="small muted" id="cn-bridge-info"></span></div>
           <div class="row"><button class="btn ghost" id="cn-onboard">Run setup again</button></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- =============================== UPDATES =============================== -->
+    <section class="view" id="v-updates" aria-label="Updates">
+      <div class="head"><div><h1>Updates</h1><p>Keep PhoneDesk current. New versions come from GitHub Releases.</p></div></div>
+      <div class="grid">
+    <section class="card" aria-label="Updates">
+      <div class="card-head"><h3>Updates</h3><span class="badge" id="up-badge">–</span></div>
+      <p class="small muted" id="up-text">Checking…</p>
+      <p class="small up-links"><a id="up-notes" href="#" target="_blank" rel="noopener">What's new</a><a id="up-all" href="#" target="_blank" rel="noopener">All releases</a></p>
+      <div class="row"><button class="btn primary" id="up-download" hidden>Download update</button><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div>
+      <label class="toggle-row">Check automatically<span class="switch"><input type="checkbox" id="up-auto"><span></span></span></label>
+        <label class="toggle-row">Download updates automatically<span class="switch"><input type="checkbox" id="up-autodl"><span></span></span></label>
+      <label class="field">GitHub repository<input type="text" id="up-repo" placeholder="icdmkg2/phonedesk" maxlength="100" class="mono"><span class="hint">Official releases. Leave it empty to use them; turn off <i>Check automatically</i> to stop updates.</span></label>
+    </section>
+        <section class="card" id="up-notes-card" aria-label="What is in this update" hidden>
+          <div class="card-head"><h3 id="up-notes-title">What's new</h3></div>
+          <div class="up-notes" id="up-notes-body"></div>
         </section>
       </div>
     </section>

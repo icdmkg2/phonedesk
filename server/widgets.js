@@ -11,6 +11,10 @@ const crypto = require('crypto');
 
 const GRID = { cols: 12, rows: 6 };
 const LIMITS = { pages: 12, widgets: 24 };
+/** What a tap on a widget can do: open a screen, press a shortcut button, or control the music. */
+const TAP = /^(screen:[a-z0-9:_-]{1,60}|shortcut:[\w-]{1,40}|media:(toggle|next|prev))$/;
+/** Page backgrounds the phone can draw (empty: the normal one). */
+const BACKGROUNDS = ['', 'black', 'aurora', 'dusk', 'forest', 'slate'];
 
 const T = (key, label, type, o) => Object.assign({ key, label, type }, o);
 /** Built-in widgets. opts use the same field types as addon settings: text, number, boolean, select. */
@@ -131,6 +135,7 @@ function sanitizePages(list) {
       const minW = (desc && desc.minW) || 1, minH = (desc && desc.minH) || 1;
       const cw = int(w.w, minW, GRID.cols, (desc && desc.defW) || 3), ch = int(w.h, minH, GRID.rows, (desc && desc.defH) || 2);
       const item = { id: /^w[a-z0-9]{4,10}$/.test(w.id || '') && !ids.has(w.id) ? w.id : rid('w'), type: w.type, x: int(w.x, 0, GRID.cols - cw, 0), y: int(w.y, 0, GRID.rows - ch, 0), w: cw, h: ch, opts: desc ? cleanOpts(desc, w.opts) : rawOpts(w.opts) };
+      if (typeof w.tap === 'string' && TAP.test(w.tap) && !ADDON_TYPE.test(String(w.type))) item.tap = w.tap; // addon widgets are frames: they handle their own taps
       if (widgets.some((o) => overlaps(item, o))) {
         const spot = findFree(widgets, item.w, item.h);
         if (!spot) continue;
@@ -139,7 +144,10 @@ function sanitizePages(list) {
       ids.add(item.id);
       widgets.push(item);
     }
-    out.push({ id, name: String(p.name || '').trim().slice(0, 24) || 'Page', widgets });
+    const page = { id, name: String(p.name || '').trim().slice(0, 24) || 'Page', widgets };
+    if (BACKGROUNDS.includes(p.bg) && p.bg) page.bg = p.bg;
+    if (/^#[0-9a-f]{6}$/i.test(p.accent || '')) page.accent = p.accent.toLowerCase();
+    out.push(page);
   }
   return out;
 }
@@ -180,7 +188,7 @@ function fromBuiltin(screen, cfg) {
 /** What the dashboard's editor needs: the built-in types and the templates. */
 function catalog() {
   return {
-    grid: GRID, limits: LIMITS, builtin: Object.keys(BUILTIN_NAMES),
+    grid: GRID, limits: LIMITS, backgrounds: BACKGROUNDS.filter(Boolean), builtin: Object.keys(BUILTIN_NAMES),
     types: Object.entries(WIDGETS).map(([type, d]) => Object.assign({ type }, d)),
     templates: Object.entries(TEMPLATES).map(([key, t]) => ({ key, name: t.name, desc: t.desc, count: t.widgets.length })),
   };
