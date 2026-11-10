@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - name: Install Playwright (not saved in package.json: the app itself does not need it)
+      - name: Install Playwright (kept out of package.json; the app does not need it)
         run: |
           npm install --no-save playwright@1.49.1
           npx playwright install --with-deps chromium
