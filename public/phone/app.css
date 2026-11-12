@@ -932,12 +932,12 @@ html.preview .screen.page { padding: 8px; }
 .wg-lyrics .lw-l { font-size: .62em; font-weight: 600; line-height: 1.25; color: var(--fg3); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; transition: opacity .25s; }
 .wg-lyrics .lw-l:empty { display: none; }
 .wg-lyrics .lw-c { font-size: 1em; font-weight: 800; color: var(--fg); line-height: 1.2; -webkit-line-clamp: 3; }
-.wg-lyrics .lw-c.pop { animation: lwpop .35s ease-out; }
+.wg-lyrics .lw-c.pop { animation: lwpop .16s ease-out; }
 .wg-lyrics .lw-p2, .wg-lyrics .lw-n2 { font-size: .5em; opacity: .55; }
 .wg-lyrics .lw-p1, .wg-lyrics .lw-n1 { opacity: .8; }
 .wg-lyrics[data-rows='1'] .lw-p1, .wg-lyrics[data-rows='1'] .lw-p2, .wg-lyrics[data-rows='1'] .lw-n1, .wg-lyrics[data-rows='1'] .lw-n2,
 .wg-lyrics[data-rows='3'] .lw-p2, .wg-lyrics[data-rows='3'] .lw-n2 { display: none; }
-@keyframes lwpop { from { opacity: .2; transform: translateY(.35em); } to { opacity: 1; transform: none; } }
+@keyframes lwpop { from { opacity: .65; transform: translateY(.15em); } to { opacity: 1; transform: none; } }
 
 /* Forecast: below ~50px tall there is no room for the name and the low, so show icon and high only */
 .wg-forecast.compact { gap: 2px; }

@@ -184,6 +184,61 @@ async function t(name, fn) {
       await ctx.close();
       await api('config', { pages: before.pages, screens: before.screens });
     });
+
+    await t('the Lyrics widget changes line on time (within a frame or two), and does not redraw in between', async () => {
+      const w = require('../server/widgets');
+      const page = w.sanitizePages([{ name: 'Sync', widgets: [{ type: 'lyrics', x: 0, y: 0, w: 12, h: 6 }] }])[0];
+      const before = await api('config');
+      await api('config', { pages: [...before.pages, page], screens: [...before.screens, 'page:' + page.id] });
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript((id) => {
+        if (window !== window.top) return;
+        localStorage.setItem('pd.screen', JSON.stringify('page:' + id));
+        // a song whose lines change every 0.9 s; position 10 s at "now"; stats arrive every 300 ms like a busy PC
+        const lines = Array.from({ length: 40 }, (_, i) => ({ t: 10 + i * 0.9, text: 'line ' + i }));
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('open', () => {
+              const d = (m) => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(m) }));
+              setTimeout(() => {
+                window.__t0 = Date.now(); window.__pos0 = 9;
+                d({ t: 'media', d: { active: true, title: 'Sync test', artist: 'X', app: 'Spotify', status: 'Playing', position: 9, duration: 300, updated: Date.now() } });
+                d({ t: 'lyrics', d: { synced: true, lines } });
+                // busy stats for 4 s (the line must not be redrawn by them), then quiet, so the timing below is the widget's own
+                const iv = setInterval(() => d({ t: 'stats', d: { cpu: 10, cores: 4, coresLoad: [1, 2, 3, 4], memUsed: 1, memTotal: 2, uptime: 1, host: 'PC' } }), 300);
+                setTimeout(() => clearInterval(iv), 4000);
+              }, 300);
+            });
+          }
+        };
+        window.__changes = [];
+        new MutationObserver(() => {
+          const c = document.querySelector('.wg-lyrics .lw-c');
+          if (c) window.__changes.push({ at: Date.now(), text: c.textContent, pop: c.classList.contains('pop') });
+        }).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+      }, page.id);
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/phone/'); await sleep(11000);
+      const r = await pg.evaluate(() => ({ t0: window.__t0, pos0: window.__pos0, ch: window.__changes }));
+      // when each line should appear: its time minus the 0.4 s lead PhoneDesk uses for lyrics
+      const late = [], seen = new Map();
+      for (const c of r.ch) { const m = /^line (\d+)$/.exec(c.text); if (m && !seen.has(m[1])) seen.set(m[1], c.at); }
+      for (const [k, at] of seen) {
+        const due = r.t0 + ((10 + k * 0.9) - 0.4 - r.pos0) * 1000;
+        if (due > r.t0 + 4600) late.push(at - due); // only once the stats have stopped, so nothing else wakes the page
+      }
+      assert.ok(late.length >= 5, 'saw too few line changes: ' + late.length);
+      const worst = Math.max(...late.map(Math.abs));
+      if (process.env.PD_DEBUG) console.log('     line timing (ms late):', late.map(Math.round).join(' '));
+      assert.ok(worst < 120, 'a line changed ' + Math.round(worst) + ' ms off its time: ' + late.map(Math.round));
+      // the current line is not redrawn (re-animated) while it stays the same
+      const pops = r.ch.filter((c) => c.pop).length;
+      assert.ok(pops <= seen.size * 3 + 6, 'the line was redrawn ' + pops + ' times for ' + seen.size + ' lines');
+      await ctx.close();
+      await api('config', { pages: before.pages, screens: before.screens });
+    });
   } finally {
     if (browser) await browser.close();
     server.kill();

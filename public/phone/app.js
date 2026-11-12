@@ -1105,11 +1105,25 @@
       setText(L.p1, at(idx - 1)); setText(L.p2, at(idx - 2)); setText(L.n1, at(idx + 1)); setText(L.n2, at(idx + 2));
       if (fresh) { L.c.classList.remove('pop'); void L.c.offsetWidth; L.c.classList.add('pop'); }
     }
-    var timer = setInterval(function () { if (document.visibilityState === 'visible' && el.offsetParent !== null) upd(); }, 250);
+    // Wake up exactly when the next line starts (not on a fixed tick, which made lines up to a quarter second late),
+    // and at least every half second so a seek or pause is picked up.
+    var timer = 0;
+    function due() {
+      var d = lyr, m = state.media;
+      if (!d || !d.synced || !d.lines || !m.active || !isPlaying()) return 500;
+      var pos = currentPos() + lyLead(), next = d.lines[lastIdx + 1];
+      return next ? Math.max(15, Math.min(500, (next.t - pos) * 1000 + 5)) : 500;
+    }
+    function loop() {
+      timer = 0;
+      if (document.visibilityState === 'visible' && el.offsetParent !== null) upd();
+      timer = setTimeout(loop, due());
+    }
+    loop();
     return {
       el: el,
-      update: function () { lastIdx = -3; upd(); },
-      destroy: function () { clearInterval(timer); },
+      update: function () { clearTimeout(timer); loop(); }, // a new song, a seek or a pause: re-time the next wake-up; nothing is redrawn if the line is the same
+      destroy: function () { clearTimeout(timer); },
       resize: function (w, h) {
         var iw = w - 24, ih = h - 20;
         rows = !ctx ? 1 : ih >= 230 ? 5 : ih >= 120 ? 3 : 1; // how many lines fit

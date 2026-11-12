@@ -7,6 +7,15 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.11.1] — 2026-11-12
+
+A fix for the Lyrics widget's timing.
+
+### Fixed
+
+- The Lyrics widget changes line on time. It used to look for the next line only four times a second, so a line could come in up to a quarter of a second late, and its fade-in made it feel later still. It now wakes up exactly when the next line starts, within a few milliseconds.
+- The Lyrics widget no longer redraws (and flashes) the current line every time the PC sends its stats or the volume changes.
+
 ## [1.11.0] — 2026-11-10
 
 Better widgets: they scale to any size, PC stats has graphs, Now playing is redone and there is a Lyrics widget.
