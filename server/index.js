@@ -43,6 +43,8 @@ const state = {
   mixer: [],
   gpu: null,
   lyrics: null,
+  bt: [],      // Bluetooth devices that report a battery: [{ name, level }]
+  recent: [],  // songs played lately, newest first: [{ title, artist, app, at }]
   mediaRaw: '', // the playing app's Windows id (e.g. Spotify.exe)
 };
 
@@ -57,6 +59,11 @@ bridge.on('message', (m) => {
       state.art = null;
       state.lyrics = null;
       broadcast({ t: 'lyrics', d: null });
+      if (m.active && m.title) {
+        state.recent = [{ title: String(m.title).slice(0, 120), artist: String(m.artist || '').slice(0, 120), app: String(m.app || '').slice(0, 80), at: Date.now() }]
+          .concat(state.recent.filter((r) => !(r.title === m.title && r.artist === (m.artist || '')))).slice(0, 20);
+        broadcast({ t: 'recent', d: state.recent });
+      }
       if (m.active) {
         const wanted = key;
         lyrics.find(m, config.get()).then((l) => {
@@ -114,6 +121,12 @@ bridge.on('message', (m) => {
     state.gpu = { load: m.load, temp: m.temp, hotspot: m.hotspot, fan: m.fan, power: m.power, vram: m.vram };
   } else if (m.t === 'net') {
     stats.setNet(+m.rx, +m.tx);
+  } else if (m.t === 'sys') {
+    stats.setExtras({ cpuTemp: m.cpuTemp, procs: m.procs, procsMem: m.procsMem });
+  } else if (m.t === 'bt') {
+    const items = (Array.isArray(m.items) ? m.items : []).filter((x) => x && x.name && +x.level >= 0 && +x.level <= 100)
+      .slice(0, 12).map((x) => ({ name: String(x.name).slice(0, 60), level: Math.round(+x.level) }));
+    if (JSON.stringify(items) !== JSON.stringify(state.bt)) { state.bt = items; broadcast({ t: 'bt', d: items }); }
   } else if (m.t === 'log') {
     log.warn('[bridge] ' + m.msg);
   } else if (m.t === 'ready') {
@@ -146,6 +159,7 @@ function onNotification(n) {
       body: c.notifyPrivate ? '' : n.body,
     };
     broadcast({ t: 'notify', d: msg }, 'phone');
+    addons.emit('notification', { app: msg.app, title: msg.title, body: msg.body });
   };
   if (appIcons.has(n.app)) return deliver();
   // Ask the bridge for this app's icon and name, then send (with or without it) shortly after.
@@ -387,6 +401,7 @@ async function handleApi(req, res, url) {
       broadcast({ t: 'config', d: publicConfig() });
       return send(res, 200, { page, config: next });
     }
+    if (p === '/api/photos' && req.method === 'GET') { photoCache.at = 0; const l = photoList(); return send(res, 200, { count: l.length, dir: config.get().photosDir || '' }); }
     if (p === '/api/widgets' && req.method === 'GET') return send(res, 200, Object.assign(widgets.catalog(), { addonWidgets: addons.widgetList() }));
     if (p === '/api/addons' && req.method === 'GET') {
       const reg = await addons.loadRegistry();
@@ -539,6 +554,7 @@ function app(req, res) {
     // The PC itself goes to the dashboard; everyone else gets the phone UI.
     return serveStatic(req, res, isLocal(req) && !url.searchParams.has('phone') && !isAdbPhone(req) ? 'dashboard/index.html' : 'phone/index.html');
   }
+  { const ph = /^\/photos\/(\d{1,4})$/.exec(p); if (ph) return servePhoto(req, res, +ph[1]); }
   if (p === '/phone' || p === '/phone/') return serveStatic(req, res, 'phone/index.html');
   if (p === '/dashboard' || p === '/dashboard/') return serveStatic(req, res, 'dashboard/index.html');
   return serveStatic(req, res, p.slice(1));
@@ -561,6 +577,35 @@ server.on('upgrade', onUpgrade);
 server80.on('upgrade', onUpgrade);
 const clients = new Set();
 
+// ---------------------------------------------------------------- photo frame
+// Pictures from one folder on this PC (chosen in the PC window), for the Photo frame widget. Only image files from
+// that folder (not its subfolders) are served, by number, so nothing else on the PC can be reached.
+const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
+let photoCache = { dir: '', at: 0, list: [] };
+function photoList() {
+  const dir = config.get().photosDir || '';
+  if (!dir) return [];
+  if (photoCache.dir === dir && Date.now() - photoCache.at < 60000) return photoCache.list;
+  let list = [];
+  try {
+    list = fs.readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isFile() && PHOTO_TYPES[path.extname(e.name).toLowerCase()])
+      .map((e) => e.name).sort().slice(0, 1000);
+  } catch (e) { log.warn('photo folder: ' + e.message); }
+  photoCache = { dir, at: Date.now(), list };
+  return list;
+}
+function servePhoto(req, res, n) {
+  const list = photoList(), name = list[n];
+  if (!name) return send(res, 404, 'not found', 'text/plain');
+  const file = path.join(config.get().photosDir, name);
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile() || st.size > 40 * 1024 * 1024) return send(res, 404, 'not found', 'text/plain');
+    res.writeHead(200, { 'Content-Type': PHOTO_TYPES[path.extname(name).toLowerCase()], 'Content-Length': st.size, 'Cache-Control': 'private, max-age=3600' });
+    fs.createReadStream(file).pipe(res);
+  });
+}
+
 function publicConfig() {
   const c = config.get();
   const addonScreens = addons.screenIds();
@@ -576,6 +621,9 @@ function publicConfig() {
     pages: c.pages,
     dimAfter: c.dimAfter,
     schedule: c.schedule,
+    notes: c.notes,
+    photos: photoList().length,
+    doubleTapPlay: c.doubleTapPlay,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
     lyricsFont: c.lyricsFont,
@@ -643,6 +691,8 @@ wss.on('connection', (ws, req) => {
   sendTo(ws, { t: 'weather', d: weather.latest() });
   sendTo(ws, { t: 'calendar', d: calendar.latest() });
   sendTo(ws, { t: 'spotify', d: spotify.latest() });
+  sendTo(ws, { t: 'bt', d: state.bt });
+  sendTo(ws, { t: 'recent', d: state.recent });
   if (role === 'dashboard') sendTo(ws, { t: 'update', d: updater.status() });
 
   ws.on('pong', () => {
@@ -689,6 +739,23 @@ function handleClientMessage(client, m) {
       if (typeof m.id === 'string' && JSON.stringify(m.d === undefined ? null : m.d).length < 64 * 1024) addons.fromPhone(m.id, m.d, typeof m.w === 'string' ? m.w.slice(0, 30) : '');
       return;
     case 'screen': client.info.screen = String(m.v || '').slice(0, 20); return;
+    case 'note': { // a to-do ticked on the phone
+      const c = config.get(), id = String(m.id || '');
+      if (!c.notes.some((n) => n.id === id)) return;
+      config.update({ notes: c.notes.map((n) => (n.id === id ? Object.assign({}, n, { done: !!m.done }) : n)) });
+      broadcast({ t: 'config', d: publicConfig() });
+      return;
+    }
+    case 'pageEdit': { // widgets moved or resized on the phone: only their places and sizes change
+      const c = config.get(), page = c.pages.find((p) => p.id === m.id);
+      if (!page || !Array.isArray(m.widgets)) return;
+      const pos = new Map(m.widgets.filter((w) => w && typeof w.id === 'string').map((w) => [w.id, w]));
+      const widgetsNext = page.widgets.map((w) => { const q = pos.get(w.id); return q ? Object.assign({}, w, { x: +q.x, y: +q.y, w: +q.w, h: +q.h }) : w; });
+      config.update({ pages: c.pages.map((p) => (p.id === page.id ? Object.assign({}, p, { widgets: widgetsNext }) : p)) });
+      broadcast({ t: 'config', d: publicConfig() });
+      log.event('info', `Page “${page.name}” rearranged on the phone`);
+      return;
+    }
     case 'diag': log.info('phone info: ' + JSON.stringify(m.d || {}).slice(0, 300)); return;
     case 'battery':
       if (Number.isFinite(+m.level)) { client.ownBattery = true; client.info.battery = { level: Math.round(+m.level * 100), charging: !!m.charging }; }
@@ -726,8 +793,8 @@ stats.start((s) => broadcast({ t: 'stats', d: Object.assign({}, s, { gpu: state.
 
 // Extras that run on their own schedule.
 function spotifyRedirect() { return `http://127.0.0.1:${config.get().port}/spotify/callback`; }
-weather.start(() => config.get(), (w) => broadcast({ t: 'weather', d: w }));
-calendar.start(() => config.get(), (c) => broadcast({ t: 'calendar', d: c }));
+weather.start(() => config.get(), (w) => { broadcast({ t: 'weather', d: w }); addons.emit('weather', w); });
+calendar.start(() => config.get(), (c) => { broadcast({ t: 'calendar', d: c }); addons.emit('calendar', c); });
 spotify.start(() => config.get(), () => /spotify/i.test(state.mediaRaw), (s) => broadcast({ t: 'spotify', d: s }));
 notify.start(() => config.get().notifications && clients.size > 0, onNotification);
 updater.start(() => config.get(), VERSION, (s) => broadcast({ t: 'update', d: s }, 'dashboard'));
@@ -740,6 +807,8 @@ addons.init({
   media: () => state.media,
   volume: () => state.volume,
   stats: () => Object.assign({}, stats.latest(), { gpu: state.gpu }),
+  weather: () => weather.latest(),
+  calendar: () => calendar.latest(),
   sendKeys: (k) => bridge.send('keys ' + k),
   mediaCommand: (c) => bridge.send(c),
   setVolume: (v) => bridge.send('volume ' + v.toFixed(3)),

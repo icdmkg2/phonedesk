@@ -440,7 +440,7 @@ select { background: var(--panel2, #1b1e25); border: 1px solid var(--line); bord
 .ly-main[hidden], .ly-none[hidden] { display: none; }
 .ly-none { grid-column: 2; }
 .ly-list { display: flex; flex-direction: column; gap: 4px; }
-.ly-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 10px; border: 1px solid transparent; }
+.ly-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 10px; border: 1px solid transparent; background: none; color: inherit; font: inherit; cursor: pointer; }
 .ly-item:hover { background: var(--panel2, #1b1e25); }
 .ly-item[aria-current="true"] { background: var(--panel2, #1b1e25); border-color: var(--line2); }
 .ly-item b { font-size: 14px; font-weight: 600; }
@@ -507,3 +507,6 @@ select { background: var(--panel2, #1b1e25); border: 1px solid var(--line); bord
 /* The widget's name only shows when you point at it or select it, so it never covers what the preview is showing */
 .lay-w .lay-tag { opacity: 0; transition: opacity .12s; }
 .lay-w:hover .lay-tag, .lay-w.on .lay-tag, .lay-w:focus-visible .lay-tag { opacity: 1; }
+
+.note-row { display: flex; align-items: center; gap: 8px; }
+.note-row input[type=text] { flex: 1; min-width: 0; }

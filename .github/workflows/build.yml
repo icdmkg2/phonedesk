@@ -42,6 +42,17 @@ jobs:
           node test/widgets.test.js
           node registry/check.js --offline
 
+      - name: The Windows media bridge parses
+        shell: pwsh
+        run: |
+          $t = $null; $e = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path server/bridge-win.ps1), [ref]$t, [ref]$e)
+          $e | ForEach-Object { Write-Host "line $($_.Extent.StartLineNumber): $($_.Message)" }
+          if ($e.Count) { throw "bridge-win.ps1 has $($e.Count) syntax error(s)" }
+          # Windows PowerShell 5.1 runs it in the app, so check with that parser too
+          powershell -NoProfile -Command "`$t=`$null;`$e=`$null;[void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path server/bridge-win.ps1),[ref]`$t,[ref]`$e); if (`$e.Count) { `$e | % { 'line ' + `$_.Extent.StartLineNumber + ': ' + `$_.Message }; exit 1 }"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell 5.1 could not parse bridge-win.ps1' }
+
       - name: Changelog has the current version
         shell: bash
         run: node build/release.js notes "$(node -p "require('./package.json').version")" > /dev/null

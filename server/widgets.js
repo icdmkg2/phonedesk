@@ -15,6 +15,10 @@ const LIMITS = { pages: 12, widgets: 24 };
 const TAP = /^(screen:[a-z0-9:_-]{1,60}|shortcut:[\w-]{1,40}|media:(toggle|next|prev))$/;
 /** Page backgrounds the phone can draw (empty: the normal one). */
 const BACKGROUNDS = ['', 'black', 'aurora', 'dusk', 'forest', 'slate'];
+/** How a widget is drawn: '' a card (the default), 'clear' no card at all, 'outline' only a border. */
+const LOOKS = ['', 'clear', 'outline'];
+/** How round a page's corners are ('' the theme's). */
+const RADII = ['', 'none', 'small', 'large'];
 
 const T = (key, label, type, o) => Object.assign({ key, label, type }, o);
 /** Built-in widgets. opts use the same field types as addon settings: text, number, boolean, select. */
@@ -28,20 +32,44 @@ const WIDGETS = {
   agenda: { name: 'Calendar agenda', desc: 'Your next events', defW: 4, defH: 4, minW: 3, minH: 2, opts: [T('count', 'Events to show', 'number', { default: 4, min: 1, max: 8 })] },
   nowplaying: {
     name: 'Now playing', desc: 'What is playing: cover, source, title, progress and controls', defW: 5, defH: 3, minW: 2, minH: 1,
-    opts: [T('cover', 'Show the cover', 'boolean', { default: true }), T('source', 'Show the app it plays in', 'boolean', { default: true }), T('progress', 'Show the progress bar', 'boolean', { default: true }), T('controls', 'Show the controls', 'boolean', { default: true })],
+    opts: [T('cover', 'Show the cover', 'boolean', { default: true }), T('source', 'Show the app it plays in', 'boolean', { default: true }), T('progress', 'Show the progress bar', 'boolean', { default: true }), T('controls', 'Show the controls', 'boolean', { default: true }), T('upnext', 'Show what plays next (Spotify)', 'boolean', { default: true })],
   },
   lyrics: {
     name: 'Lyrics', desc: 'The line being sung, with the lines around it', defW: 6, defH: 3, minW: 3, minH: 1,
-    opts: [T('context', 'Show the lines before and after', 'boolean', { default: true }), T('align', 'Align', 'select', { options: ['left', 'center'], default: 'center' })],
+    opts: [T('context', 'Show the lines before and after', 'boolean', { default: true }), T('words', 'Light up the words as they are sung', 'boolean', { default: true }), T('align', 'Align', 'select', { options: ['left', 'center'], default: 'center' })],
   },
   stats: {
-    name: 'PC stats', desc: 'CPU, memory, GPU and network with graphs, all together or one at a time', defW: 6, defH: 3, minW: 2, minH: 1,
-    opts: [T('metric', 'Show', 'select', { options: ['all', 'cpu', 'memory', 'gpu', 'network'], default: 'all' }), T('graph', 'Show graphs', 'boolean', { default: true })],
+    name: 'PC stats', desc: 'CPU, memory, GPU, network, disks and the busiest apps, with graphs', defW: 6, defH: 3, minW: 2, minH: 1,
+    opts: [T('metric', 'Show', 'select', { options: ['all', 'cpu', 'memory', 'gpu', 'network', 'disks', 'apps'], default: 'all' }), T('graph', 'Show graphs', 'boolean', { default: true })],
   },
   volume: { name: 'Volume', desc: 'The PC\'s volume, with a slider', defW: 4, defH: 1, minW: 3, minH: 1, opts: [] },
   shortcuts: {
     name: 'Shortcut buttons', desc: 'Your shortcut buttons, or one group of them', defW: 6, defH: 3, minW: 2, minH: 1,
     opts: [T('group', 'Group (empty: all buttons)', 'text', { default: '', placeholder: 'Audio' })],
+  },
+  worldclock: {
+    name: 'World clock', desc: 'The time in up to four places', defW: 6, defH: 2, minW: 2, minH: 1,
+    opts: [T('zones', 'Places (Name=Time/Zone; …)', 'text', { default: 'London=Europe/London; New York=America/New_York; Tokyo=Asia/Tokyo', placeholder: 'London=Europe/London; Tokyo=Asia/Tokyo' }), T('hour12', '12-hour clock', 'boolean', { default: false })],
+  },
+  timer: {
+    name: 'Timer', desc: 'A countdown or a stopwatch you start with a tap', defW: 4, defH: 2, minW: 2, minH: 1,
+    opts: [T('mode', 'Kind', 'select', { options: ['timer', 'stopwatch'], default: 'timer' }), T('minutes', 'Minutes (timer)', 'number', { default: 5, min: 1, max: 600 })],
+  },
+  notes: {
+    name: 'Notes', desc: 'Your notes and to-dos (written in the PC window); tap one to tick it off', defW: 4, defH: 4, minW: 2, minH: 1,
+    opts: [T('title', 'Title', 'text', { default: 'To do' }), T('hideDone', 'Hide what is done', 'boolean', { default: false })],
+  },
+  photos: {
+    name: 'Photo frame', desc: 'Pictures from a folder on your PC, one after another', defW: 6, defH: 4, minW: 2, minH: 2,
+    opts: [T('interval', 'Seconds per picture', 'number', { default: 30, min: 5, max: 3600 }), T('fit', 'Fit', 'select', { options: ['fill', 'whole picture'], default: 'fill' }), T('shuffle', 'Shuffle', 'boolean', { default: true })],
+  },
+  recent: {
+    name: 'Recently played', desc: 'The songs played lately on the PC', defW: 4, defH: 3, minW: 2, minH: 1,
+    opts: [T('count', 'Songs to show', 'number', { default: 5, min: 1, max: 20 })],
+  },
+  devices: {
+    name: 'Device batteries', desc: 'Battery of Bluetooth headphones, mice and keyboards connected to the PC', defW: 4, defH: 2, minW: 2, minH: 1,
+    opts: [],
   },
   text: {
     name: 'Text', desc: 'A line or two of your own text', defW: 4, defH: 2, minW: 1, minH: 1,
@@ -148,6 +176,8 @@ function sanitizePages(list) {
       const cw = int(w.w, minW, GRID.cols, (desc && desc.defW) || 3), ch = int(w.h, minH, GRID.rows, (desc && desc.defH) || 2);
       const item = { id: /^w[a-z0-9]{4,10}$/.test(w.id || '') && !ids.has(w.id) ? w.id : rid('w'), type: w.type, x: int(w.x, 0, GRID.cols - cw, 0), y: int(w.y, 0, GRID.rows - ch, 0), w: cw, h: ch, opts: desc ? cleanOpts(desc, w.opts) : rawOpts(w.opts) };
       if (typeof w.tap === 'string' && TAP.test(w.tap) && !ADDON_TYPE.test(String(w.type))) item.tap = w.tap; // addon widgets are frames: they handle their own taps
+      if (typeof w.hold === 'string' && TAP.test(w.hold) && !ADDON_TYPE.test(String(w.type))) item.hold = w.hold; // a long press
+      if (LOOKS.includes(w.look) && w.look) item.look = w.look;
       if (widgets.some((o) => overlaps(item, o))) {
         const spot = findFree(widgets, item.w, item.h);
         if (!spot) continue;
@@ -159,6 +189,7 @@ function sanitizePages(list) {
     const page = { id, name: String(p.name || '').trim().slice(0, 24) || 'Page', widgets };
     if (BACKGROUNDS.includes(p.bg) && p.bg) page.bg = p.bg;
     if (/^#[0-9a-f]{6}$/i.test(p.accent || '')) page.accent = p.accent.toLowerCase();
+    if (RADII.includes(p.radius) && p.radius) page.radius = p.radius;
     out.push(page);
   }
   return out;
@@ -200,7 +231,7 @@ function fromBuiltin(screen, cfg) {
 /** What the dashboard's editor needs: the built-in types and the templates. */
 function catalog() {
   return {
-    grid: GRID, limits: LIMITS, backgrounds: BACKGROUNDS.filter(Boolean), builtin: Object.keys(BUILTIN_NAMES),
+    grid: GRID, limits: LIMITS, backgrounds: BACKGROUNDS.filter(Boolean), looks: LOOKS.filter(Boolean), radii: RADII.filter(Boolean), builtin: Object.keys(BUILTIN_NAMES),
     types: Object.entries(WIDGETS).map(([type, d]) => Object.assign({ type }, d)),
     templates: Object.entries(TEMPLATES).map(([key, t]) => ({ key, name: t.name, desc: t.desc, count: t.widgets.length })),
   };

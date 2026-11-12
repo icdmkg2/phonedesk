@@ -340,6 +340,13 @@ const rejectsMsg = async (p, re) => { try { await p; } catch (e) { assert.match(
     fs.rmSync(dir3, { recursive: true, force: true });
   });
 
+  await run('weather, calendar and notifications are permissions, checked like the others', async () => {
+    for (const p of ['weather', 'calendar', 'notifications']) assert.ok(addons.permissionInfo(p), p + ' is a known permission');
+    await assert.rejects(() => addons.rpc('x', [], 'weather.get', []), /"weather" permission/);
+    await assert.rejects(() => addons.rpc('x', ['weather'], 'calendar.get', []), /"calendar" permission/);
+    assert.doesNotThrow(() => addons.validateManifest(Object.assign(manifest({ id: 'wx' }), { permissions: ['weather', 'calendar', 'notifications'] }), [{ name: 'screen/index.html', data: Buffer.from('<p>') }]));
+  });
+
   addons.stopAll();
   await sleep(1300);
   fs.rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });

@@ -44,6 +44,8 @@
     media: { active: false },
     volume: { level: 0, muted: false },
     stats: null,
+    bt: [],
+    recent: [],
     config: { shortcuts: [], screens: ['media', 'clock', 'stats', 'shortcuts'], clock24: true, theme: 'dark', accent: 'auto', dimAfter: 0, nowStyle: 'immersive', lyricsMode: 'scroll', lyricsFont: 'serif', lyricsLines: 'off' },
     clockOffset: 0, // PC time - phone time (ms)
     screen: PREVIEW ? 'page:' + PREVIEW : store.get('screen', 'media'),
@@ -184,10 +186,12 @@
       case 'battery': serverBattery = m.d; renderBattery(); break;
       case 'mixer': state.mixer = m.d || []; if (state.screen === 'mixer') renderMixer(); break;
       case 'lyrics': setLyrics(m.d); break;
-      case 'weather': setWeather(m.d); break;
-      case 'calendar': setCalendar(m.d); break;
+      case 'weather': setWeather(m.d); rawWeather = m.d; relayAddons('weather', m.d); break;
+      case 'calendar': setCalendar(m.d); rawCalendar = m.d; relayAddons('calendar', m.d); break;
       case 'spotify': state.spotify = m.d; renderSpotify(); break;
-      case 'notify': queueNotification(m.d); break;
+      case 'notify': queueNotification(m.d); relayAddons('notification', m.d && { app: m.d.app, title: m.d.title, body: m.d.body }, 'notifications'); break;
+      case 'bt': state.bt = Array.isArray(m.d) ? m.d : []; renderPage(); break;
+      case 'recent': state.recent = Array.isArray(m.d) ? m.d : []; renderPage(); break;
       case 'addon': toAddon(m.id, 'message', m.d); widgetsOf(m.id).forEach(function (k) { toWidget(k, 'message', m.d); }); break;
     }
   }
@@ -953,11 +957,12 @@
     el.innerHTML = (showCover ? '<div class="w-cover empty"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg><img alt=""></div>' : '') +
       '<div class="w-np">' + (showSrc ? '<div class="w-src"><span class="w-srcic"></span><span class="w-srcn"></span></div>' : '') +
       '<div class="w-lines"></div>' +
-      (showProg ? '<div class="w-prog"><i></i></div>' : '') +
+      (showProg ? '<div class="w-prog"><i></i></div>' : '') + (o.upnext !== false ? '<div class="w-next" hidden><span>Next</span><b></b></div>' : '') +
       (showCtl ? '<div class="w-ctl"><button type="button" data-a="prev" aria-label="Previous"><svg class="ic"><use href="#i-prev"/></svg></button><button type="button" data-a="toggle" class="play" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button type="button" data-a="next" aria-label="Next"><svg class="ic"><use href="#i-next"/></svg></button></div>' : '') + '</div>';
     var lines = el.querySelector('.w-lines'), titleBox = mqNew('w-title'), artistBox = mqNew('w-artist');
     lines.appendChild(titleBox); lines.appendChild(artistBox);
     var img = el.querySelector('img'), srcIc = el.querySelector('.w-srcic'), srcN = el.querySelector('.w-srcn'), bar = el.querySelector('.w-prog i'), play = el.querySelector('.play use');
+    var nextBox = el.querySelector('.w-next'), nextB = nextBox && nextBox.querySelector('b');
     var lastArtUrl = '', lastIcon = null;
     el.addEventListener('click', function (e) { var b = e.target.closest('button[data-a]'); if (b) { buzz(); send({ t: 'cmd', a: b.getAttribute('data-a') }); } });
     return {
@@ -977,6 +982,10 @@
         }
         if (img) { var u = m.active && m.art ? pcUrl(m.art) : ''; if (u !== lastArtUrl) { lastArtUrl = u; if (u) img.src = u; else img.removeAttribute('src'); } img.parentNode.classList.toggle('empty', !u); }
         if (play) setHref(play, isPlaying() ? '#i-pause' : '#i-play');
+        if (nextBox) { // Spotify knows what plays next (when PhoneDesk is connected to it)
+          var sp = state.spotify, nx = m.active && sp && sp.next && /spotify/i.test(m.app || '') ? sp.next : null;
+          nextBox.hidden = !nx; if (nx) setText(nextB, nx.title + (nx.artist ? ' · ' + nx.artist : ''));
+        }
         if (bar) { var d = m.active ? m.duration : 0; bar.style.transform = 'scaleX(' + (d > 0 ? Math.min(1, currentPos() / d) : 0).toFixed(4) + ')'; }
         el.classList.toggle('idle', !m.active);
       },
@@ -996,7 +1005,7 @@
   }
 
   // PC stats: CPU, memory, GPU and network, each with a graph. "All" lays the tiles out to fit the box.
-  var STAT_COLORS = { cpu: null, memory: '#a78bfa', gpu: '#34d399', network: '#f59e0b' };
+  var STAT_COLORS = { cpu: null, memory: '#a78bfa', gpu: '#34d399', network: '#f59e0b', disks: '#60a5fa', apps: '#f472b6' };
   function wGraphPath(vals, max) {
     var n = vals.length; if (n < 2) return ['', ''];
     var line = '';
@@ -1013,18 +1022,24 @@
     return out;
   }
   function wStats(wd) {
-    var o = wd.opts || {}, mode = ['cpu', 'memory', 'gpu', 'network'].indexOf(o.metric) >= 0 ? o.metric : 'all', graphOn = o.graph !== false;
+    var o = wd.opts || {}, mode = ['cpu', 'memory', 'gpu', 'network', 'disks', 'apps'].indexOf(o.metric) >= 0 ? o.metric : 'all', graphOn = o.graph !== false;
     var el = wEl('stats'), kinds = mode === 'all' ? ['cpu', 'memory', 'gpu', 'network'] : [mode], tiles = [];
     el.setAttribute('data-mode', mode === 'all' ? 'all' : 'one');
     kinds.forEach(function (k) {
       var t = document.createElement('div'); t.className = 'st-t st-' + k;
       if (STAT_COLORS[k]) t.style.setProperty('--tc', STAT_COLORS[k]);
-      t.innerHTML = '<div class="st-h"><span class="st-lab"></span><span class="st-note"></span></div><b class="st-val"></b>' + (k === 'cpu' && mode === 'cpu' ? '<div class="sw-cores"></div>' : '') + '<div class="st-sub"></div>' +
-        (graphOn ? '<svg class="st-g" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path class="st-a"/><path class="st-l"/></svg>' : '');
+      var listy = k === 'disks' || k === 'apps';
+      t.innerHTML = '<div class="st-h"><span class="st-lab"></span><span class="st-note"></span></div>' + (listy ? '<div class="sw-list"></div>' : '<b class="st-val"></b>' + (k === 'cpu' && mode === 'cpu' ? '<div class="sw-cores"></div>' : '') + '<div class="st-sub"></div>' +
+        (graphOn ? '<svg class="st-g" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path class="st-a"/><path class="st-l"/></svg>' : ''));
       el.appendChild(t);
-      tiles.push({ k: k, el: t, lab: t.querySelector('.st-lab'), note: t.querySelector('.st-note'), val: t.querySelector('.st-val'), sub: t.querySelector('.st-sub'), a: t.querySelector('.st-a'), l: t.querySelector('.st-l'), cores: t.querySelector('.sw-cores'), coreN: -1 });
+      tiles.push({ k: k, list: t.querySelector('.sw-list'), el: t, lab: t.querySelector('.st-lab'), note: t.querySelector('.st-note'), val: t.querySelector('.st-val'), sub: t.querySelector('.st-sub'), a: t.querySelector('.st-a'), l: t.querySelector('.st-l'), cores: t.querySelector('.sw-cores'), coreN: -1 });
     });
     var shown = tiles.length;
+    function fillList(t, name, note, rows) { // rows: [{ name, pct, text }]
+      setText(t.lab, name); setText(t.note, note);
+      var html = rows.length ? rows.map(function (r) { return '<div class="sw-row"><span class="sw-n">' + escHtml(r.name) + '</span><span class="sw-v">' + escHtml(r.text) + '</span><i style="transform:scaleX(' + Math.max(0, Math.min(1, r.pct / 100)).toFixed(3) + ')"></i></div>'; }).join('') : '<div class="sw-empty">' + escHtml(note ? '' : 'Nothing to show yet') + '</div>';
+      if (t.list._h !== html) { t.list._h = html; t.list.innerHTML = html; }
+    }
     function fill(t, name, val, note, sub, vals, max) {
       setText(t.lab, name); if (t.val.innerHTML !== val) t.val.innerHTML = val; setText(t.note, note); setText(t.sub, sub);
       if (t.l && vals) { var d = wGraphPath(vals, max); t.l.setAttribute('d', d[0]); t.a.setAttribute('d', d[1]); }
@@ -1038,7 +1053,7 @@
           var k = t.k, g = s.gpu, vis = true;
           if (k === 'cpu') {
             var cl = s.coresLoad || [], peak = cl.length ? Math.max.apply(null, cl) : -1;
-            fill(t, 'CPU', s.cpu + '<small>%</small>', s.cores + ' threads', peak >= 0 ? 'busiest thread ' + peak + '%' : '', wStatSeries('cpu'), 100);
+            fill(t, 'CPU', s.cpu + '<small>%</small>', (s.cpuTemp > 0 ? s.cpuTemp + '°C · ' : '') + s.cores + ' threads', peak >= 0 ? 'busiest thread ' + peak + '%' : '', wStatSeries('cpu'), 100);
             if (t.cores) {
               if (t.coreN !== cl.length) { t.coreN = cl.length; t.cores.innerHTML = cl.map(function () { return '<i></i>'; }).join(''); }
               for (var c = 0; c < cl.length; c++) t.cores.children[c].style.height = Math.max(4, cl[c]) + '%';
@@ -1050,6 +1065,12 @@
             vis = !!g && g.load >= 0;
             if (vis) { var bits = []; if (g.hotspot > 0) bits.push('hotspot ' + g.hotspot + '°C'); if (g.power > 0) bits.push(g.power + ' W'); if (g.vram > 0) bits.push((g.vram / 1024).toFixed(1) + ' GB VRAM'); fill(t, 'GPU', g.load + '<small>%</small>', g.temp > 0 ? g.temp + '°C' : '', bits.join(' · '), wStatSeries('gpu'), 100); }
             else if (mode === 'gpu') { vis = true; fill(t, 'GPU', '–', '', 'No GPU data', [], 100); }
+          } else if (k === 'disks') {
+            var ds = s.disks || [];
+            fillList(t, 'Disks', ds.length ? '' : 'No disk data', ds.map(function (x) { var pct = x.total ? x.used / x.total * 100 : 0; return { name: x.name, pct: pct, text: Math.round((x.total - x.used) / 1073741824) + ' GB free' }; }));
+          } else if (k === 'apps') {
+            var ps = (o.sort === 'memory' ? s.procsMem : s.procs) || [];
+            fillList(t, 'Busiest apps', ps.length ? '' : 'Shown when PhoneDesk runs on Windows', ps.slice(0, 6).map(function (x) { return { name: x.name, pct: x.cpu, text: x.cpu + '% · ' + (x.mem >= 1073741824 ? (x.mem / 1073741824).toFixed(1) + ' GB' : Math.round(x.mem / 1048576) + ' MB') }; }));
           } else {
             vis = !!s.net;
             if (vis) {
@@ -1076,14 +1097,18 @@
         var f = Math.max(8, Math.min(mode === 'all' ? 22 : 30, 14 * Math.min(tw / 165, th / 100)));
         el.style.setProperty('--wf', f.toFixed(1) + 'px');
         el.classList.toggle('tight', th < 70); // too short for a note and a graph: value and graph only
-        tiles.forEach(function (t) { if (t.cores) t.cores.hidden = th < 130; });
+        tiles.forEach(function (t) {
+          if (t.cores) t.cores.hidden = th < 130;
+          // a list (disks, busiest apps) sizes its text by how many rows it has to fit, not by the tile alone
+          if (t.list) { var nr = t.k === 'disks' ? Math.max(1, ((state.stats || {}).disks || []).length) : 5; t.el.style.fontSize = Math.max(8, Math.min(f, th / (nr * 1.6 + 2.6), tw / 13)).toFixed(1) + 'px'; }
+        });
       },
     };
   }
 
   // Lyrics: the line being sung, with the lines before and after it. Follows the song like the Lyrics screen does.
   function wLyrics(wd) {
-    var o = wd.opts || {}, el = wEl('lyrics'), ctx = o.context !== false;
+    var o = wd.opts || {}, el = wEl('lyrics'), ctx = o.context !== false, wordsOn = o.words !== false, cw = null; // cw: the sung line's words { spans, wf, line }
     el.setAttribute('data-align', o.align === 'left' ? 'left' : 'center');
     el.innerHTML = '<div class="lw-msg" hidden></div><div class="lw-lines"><div class="lw-l lw-p2"></div><div class="lw-l lw-p1"></div><div class="lw-l lw-c"></div><div class="lw-l lw-n1"></div><div class="lw-l lw-n2"></div></div>';
     var msg = el.querySelector('.lw-msg'), box = el.querySelector('.lw-lines'), L = {
@@ -1101,15 +1126,54 @@
       if (idx === lastIdx && key === lastKey) return;
       var fresh = idx !== lastIdx; lastIdx = idx; lastKey = key;
       function at(i) { return i >= 0 && i < lines.length ? lines[i].text || '' : ''; }
-      setText(L.c, idx >= 0 ? (at(idx) || '♪') : (d.synced ? '♪' : at(0)));
+      var curText = idx >= 0 ? (at(idx) || '♪') : (d.synced ? '♪' : at(0));
+      cw = null;
+      if (wordsOn && d.synced && idx >= 0 && at(idx)) { // one span per word, lit as the line is sung (like the Lyrics screen)
+        var ln = lines[idx], words = ln.text.split(/\s+/), total = 0, acc = 0, wf = [], spans = [];
+        L.c.textContent = '';
+        words.forEach(function (wv) { total += wv.length + 1; });
+        words.forEach(function (wv, k) {
+          var sp = document.createElement('span'); sp.className = 'lw-w'; sp.textContent = wv; L.c.appendChild(sp);
+          if (k < words.length - 1) L.c.appendChild(document.createTextNode(' '));
+          spans.push(sp); wf.push(acc / total); acc += wv.length + 1;
+        });
+        if (ln.words && ln.words.length === words.length && ln.dur > 0) wf = ln.words.map(function (x) { return Math.max(0, Math.min(0.98, (x.t - ln.t) / ln.dur)); });
+        var gap = (lines[idx + 1] ? lines[idx + 1].t : ln.t + 6) - ln.t;
+        cw = { spans: spans, wf: wf, start: ln.t, sung: ln.dur > 0 ? ln.dur : lySung(ln.text.length, gap), lit: -1 };
+        el.classList.add('words');
+      } else { setText(L.c, curText); el.classList.remove('words'); }
       setText(L.p1, at(idx - 1)); setText(L.p2, at(idx - 2)); setText(L.n1, at(idx + 1)); setText(L.n2, at(idx + 2));
       if (fresh) { L.c.classList.remove('pop'); void L.c.offsetWidth; L.c.classList.add('pop'); }
+      lightWords();
     }
-    var timer = setInterval(function () { if (document.visibilityState === 'visible' && el.offsetParent !== null) upd(); }, 250);
+    function lightWords() {
+      if (!cw) return;
+      var p = Math.max(0, Math.min(1, (currentPos() + lyLead() - cw.start) / cw.sung)), n = -1;
+      for (var q = 0; q < cw.wf.length; q++) { if (p >= cw.wf[q]) n = q; else break; }
+      if (n === cw.lit) return;
+      for (var r = 0; r < cw.spans.length; r++) cw.spans[r].classList.toggle('lit', r <= n);
+      cw.lit = n;
+    }
+    // Wake up exactly when the next line starts (not on a fixed tick, which made lines up to a quarter second late),
+    // and at least every half second so a seek or pause is picked up.
+    var timer = 0;
+    function due() {
+      var d = lyr, m = state.media;
+      if (!d || !d.synced || !d.lines || !m.active || !isPlaying()) return 500;
+      var pos = currentPos() + lyLead(), next = d.lines[lastIdx + 1];
+      var ms = next ? Math.max(15, Math.min(500, (next.t - pos) * 1000 + 5)) : 500;
+      return cw && cw.lit < cw.spans.length - 1 ? Math.min(ms, 50) : ms; // while words are being lit, look more often
+    }
+    function loop() {
+      timer = 0;
+      if (document.visibilityState === 'visible' && el.offsetParent !== null) { upd(); lightWords(); }
+      timer = setTimeout(loop, due());
+    }
+    loop();
     return {
       el: el,
-      update: function () { lastIdx = -3; upd(); },
-      destroy: function () { clearInterval(timer); },
+      update: function () { clearTimeout(timer); loop(); }, // a new song, a seek or a pause: re-time the next wake-up; nothing is redrawn if the line is the same
+      destroy: function () { clearTimeout(timer); },
       resize: function (w, h) {
         var iw = w - 24, ih = h - 20;
         rows = !ctx ? 1 : ih >= 230 ? 5 : ih >= 120 ? 3 : 1; // how many lines fit
@@ -1155,6 +1219,142 @@
     return { el: el, update: function () {}, resize: function (w, h) { p.style.fontSize = Math.max(10, Math.min(h * size, w * size * .8)) + 'px'; } };
   }
 
+  // World clock: up to four places, "Name=Area/City; …"
+  function wWorld(wd) {
+    var o = wd.opts || {}, el = wEl('worldclock');
+    var zones = String(o.zones || '').split(/[;\n]/).map(function (p) { var kv = p.split('='); return { name: (kv[0] || '').trim(), zone: (kv[1] || kv[0] || '').trim() }; })
+      .filter(function (z) { return z.zone; }).slice(0, 4);
+    if (!zones.length) { wEmpty(el, 'Add places like London=Europe/London'); return { el: el, update: function () {} }; }
+    el.innerHTML = zones.map(function () { return '<div class="wc-z"><span class="wc-n"></span><b class="wc-t"></b><span class="wc-d"></span></div>'; }).join('');
+    var cells = el.querySelectorAll('.wc-z');
+    return {
+      el: el,
+      update: function () {
+        var now = new Date(Date.now() + state.clockOffset), here = now.getDate();
+        zones.forEach(function (z, i) {
+          var c = cells[i], t, d, other;
+          try {
+            t = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit', hour12: !!o.hour12, timeZone: z.zone }).format(now);
+            other = +new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: z.zone }).format(now);
+            d = other === here ? 'Today' : (new Intl.DateTimeFormat([], { weekday: 'short', timeZone: z.zone }).format(now));
+          } catch (e) { t = '?'; d = 'Unknown time zone'; }
+          setText(c.children[0], z.name || z.zone.split('/').pop().replace(/_/g, ' ')); setText(c.children[1], t); setText(c.children[2], d);
+        });
+      },
+      resize: function (w, h) {
+        var n = zones.length, iw = w - 24, ih = h - 20, cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * iw / Math.max(1, ih) / 1.6))));
+        el.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+        var rows = Math.ceil(n / cols);
+        el.style.setProperty('--wf', Math.max(9, Math.min(30, 14 * Math.min(iw / cols / 120, ih / rows / 70))).toFixed(1) + 'px');
+      },
+    };
+  }
+
+  // Timer or stopwatch, kept on this phone. Tap to start or pause, hold the Reset button to start over.
+  function wTimer(wd) {
+    var o = wd.opts || {}, stopwatch = o.mode === 'stopwatch', total = Math.max(1, Math.min(600, +o.minutes || 5)) * 60000;
+    var el = wEl('timer'), key = 'tmr.' + wd.id, st = store.get(key, null) || { run: false, at: 0, acc: 0 };
+    el.innerHTML = '<span class="tm-k">' + (stopwatch ? 'Stopwatch' : 'Timer') + '</span><b class="tm-t"></b><div class="tm-bar"><i></i></div><div class="tm-ctl"><button type="button" class="tm-go" aria-label="Start or pause"><svg class="ic"><use href="#i-play"/></svg></button><button type="button" class="tm-rs" aria-label="Reset">Reset</button></div>';
+    var tEl = el.querySelector('.tm-t'), bar = el.querySelector('.tm-bar i'), goIc = el.querySelector('.tm-go use'), rang = false;
+    function elapsed() { return st.acc + (st.run ? Date.now() - st.at : 0); }
+    function save() { store.set(key, st); }
+    function fmtMs(ms, tenths) { var s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + wPad2(m) : m) + ':' + wPad2(x) + (tenths ? '.' + Math.floor(ms % 1000 / 100) : ''); }
+    el.querySelector('.tm-go').addEventListener('click', function () { buzz(); if (st.run) { st.acc = elapsed(); st.run = false; } else { if (!stopwatch && elapsed() >= total) st.acc = 0; st.run = true; st.at = Date.now(); rang = false; } save(); draw(); });
+    el.querySelector('.tm-rs').addEventListener('click', function () { buzz(); st = { run: false, at: 0, acc: 0 }; rang = false; el.classList.remove('done'); save(); draw(); });
+    function draw() {
+      var e = elapsed(), left = Math.max(0, total - e), done = !stopwatch && e >= total;
+      setText(tEl, stopwatch ? fmtMs(e, e < 3600000) : fmtMs(Math.ceil(left / 1000) * 1000, false));
+      bar.style.transform = 'scaleX(' + (stopwatch ? (e % 60000) / 60000 : left / total).toFixed(4) + ')';
+      setHref(goIc, st.run && !done ? '#i-pause' : '#i-play');
+      if (done && st.run) { st.run = false; st.acc = total; save(); }
+      if (done && !rang) { rang = true; el.classList.add('done'); if (navigator.vibrate) try { navigator.vibrate([300, 150, 300, 150, 300]); } catch (x) {} toast((o.mode === 'stopwatch' ? 'Stopwatch' : 'Timer') + ' done'); }
+    }
+    var tick = setInterval(function () { if (st.run && el.offsetParent !== null) draw(); }, stopwatch ? 100 : 250);
+    return { el: el, update: draw, destroy: function () { clearInterval(tick); }, resize: function (w, h) { wScale(el, w, h, 200, 110, 9, 40); } };
+  }
+
+  // Notes and to-dos: written in the PC window, ticked off here.
+  function wNotes(wd) {
+    var o = wd.opts || {}, el = wEl('notes'), last = '';
+    el.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-note]'); if (!row) return;
+      buzz(); var done = !row.classList.contains('done'); row.classList.toggle('done', done);
+      send({ t: 'note', id: row.getAttribute('data-note'), done: done });
+    });
+    return {
+      el: el,
+      update: function () {
+        var list = (state.config.notes || []).filter(function (n) { return !(o.hideDone && n.done); });
+        var html = (o.title ? '<div class="nt-h">' + escHtml(o.title) + '</div>' : '') + (list.length ? list.map(function (n) {
+          return '<button type="button" class="nt-i' + (n.done ? ' done' : '') + '" data-note="' + escHtml(n.id) + '"><i></i><span>' + escHtml(n.text) + '</span></button>';
+        }).join('') : '<div class="w-empty">' + ((state.config.notes || []).length ? 'All done' : 'Write notes in PhoneDesk on your PC') + '</div>');
+        if (html !== last) { last = html; el.innerHTML = html; }
+      },
+      resize: function (w, h) { wScale(el, w, h, 220, 200, 10, 22); },
+    };
+  }
+
+  // Photo frame: the pictures in a folder on the PC, crossfading.
+  function wPhotos(wd) {
+    var o = wd.opts || {}, el = wEl('photos'), every = Math.max(5, Math.min(3600, +o.interval || 30)) * 1000, n = 0, order = [], pos = -1, timer = 0, a = null;
+    el.classList.toggle('contain', o.fit === 'whole picture');
+    el.innerHTML = '<img alt="" class="ph-a"><img alt="" class="ph-b">';
+    var imgs = el.querySelectorAll('img'), front = 0;
+    function shuffle(k) { var l = []; for (var i = 0; i < k; i++) l.push(i); if (o.shuffle !== false) for (var j = l.length - 1; j > 0; j--) { var r = Math.floor(Math.random() * (j + 1)), t = l[j]; l[j] = l[r]; l[r] = t; } return l; }
+    function next() {
+      clearTimeout(timer);
+      if (!n) return;
+      if (++pos >= order.length) { order = shuffle(n); pos = 0; }
+      var back = imgs[1 - front], url = pcUrl('/photos/' + order[pos]);
+      back.onload = function () { back.classList.add('on'); imgs[front].classList.remove('on'); front = 1 - front; };
+      back.onerror = function () {};
+      back.src = url;
+      timer = setTimeout(function () { if (el.offsetParent !== null && document.visibilityState === 'visible') next(); else timer = setTimeout(next, 5000); }, every);
+    }
+    return {
+      el: el,
+      update: function () {
+        var count = state.config.photos || 0;
+        if (count === n) return;
+        n = count; order = shuffle(n); pos = -1;
+        if (!n) { if (!a) { a = document.createElement('div'); a.className = 'w-empty'; el.appendChild(a); } a.textContent = 'Choose a photo folder in PhoneDesk on your PC'; imgs[0].classList.remove('on'); imgs[1].classList.remove('on'); return; }
+        if (a) { a.remove(); a = null; }
+        next();
+      },
+      destroy: function () { clearTimeout(timer); },
+    };
+  }
+
+  // Recently played on the PC.
+  function wRecent(wd) {
+    var o = wd.opts || {}, el = wEl('recent'), count = Math.max(1, Math.min(20, +o.count || 5)), last = '';
+    function ago(t) { var m = Math.round((Date.now() + state.clockOffset - t) / 60000); return m < 1 ? 'now' : m < 60 ? m + ' min' : Math.round(m / 60) + ' h'; }
+    return {
+      el: el,
+      update: function () {
+        var l = (state.recent || []).slice(0, count);
+        var html = '<div class="nt-h">Recently played</div>' + (l.length ? l.map(function (r, i) { return '<div class="rc-i' + (i === 0 && state.media.active && state.media.title === r.title ? ' on' : '') + '"><span class="rc-t">' + escHtml(r.title) + '</span><span class="rc-a">' + escHtml(r.artist || '') + '</span><span class="rc-w">' + ago(r.at) + '</span></div>'; }).join('') : '<div class="w-empty">Songs you play on the PC show here</div>');
+        if (html !== last) { last = html; el.innerHTML = html; }
+      },
+      resize: function (w, h) { wScale(el, w, h, 230, 190, 10, 22); },
+    };
+  }
+
+  // Batteries of Bluetooth devices connected to the PC.
+  function wDevices() {
+    var el = wEl('devices'), last = '';
+    return {
+      el: el,
+      update: function () {
+        var l = state.bt || [];
+        var html = l.length ? l.map(function (d) { return '<div class="dv-i' + (d.level <= 20 ? ' low' : '') + '"><span class="dv-n">' + escHtml(d.name) + '</span><b>' + d.level + '%</b><div class="dv-b"><i style="transform:scaleX(' + (d.level / 100).toFixed(2) + ')"></i></div></div>'; }).join('')
+          : '<div class="w-empty">No Bluetooth device reports its battery to Windows yet</div>';
+        if (html !== last) { last = html; el.innerHTML = html; }
+      },
+      resize: function (w, h) { wScale(el, w, h, 220, Math.max(60, 46 * Math.max(1, (state.bt || []).length)), 9, 22); },
+    };
+  }
+
   // A widget from an addon: a sandboxed frame with the same SDK as addon screens.
   function wAddon(wd, pageId) {
     var meta = addonWidgetMeta(wd.type), el = wEl('addon');
@@ -1184,6 +1384,12 @@
       case 'nowplaying': return wNow(wd);
       case 'stats': return wStats(wd);
       case 'lyrics': return wLyrics(wd);
+      case 'worldclock': return wWorld(wd);
+      case 'timer': return wTimer(wd);
+      case 'notes': return wNotes(wd);
+      case 'photos': return wPhotos(wd);
+      case 'recent': return wRecent(wd);
+      case 'devices': return wDevices(wd);
       case 'volume': return wVolume(wd);
       case 'shortcuts': return wShortcuts(wd, live);
       case 'text': return wText(wd);
@@ -1192,15 +1398,32 @@
   }
 
   // A tap on a widget (set in the layout editor): open a screen, press a shortcut button, or control the music.
-  function tapAction(el, tap) {
+  function runTap(tap) {
+    var kind = tap.split(':')[0], arg = tap.slice(kind.length + 1);
+    buzz();
+    if (kind === 'screen') { if (screens().indexOf(arg) >= 0) show(arg); }
+    else if (kind === 'shortcut') { if (!send({ t: 'shortcut', id: arg })) toast('Not connected'); }
+    else if (kind === 'media') send({ t: 'cmd', a: arg });
+  }
+  // A tap and/or a long press on a widget (set in the layout editor). The widget's own buttons come first.
+  function tapAction(el, tap, hold) {
     el.classList.add('tappable');
+    var timer = 0, held = false, sx = 0, sy = 0;
+    function own(e) { return e.target.closest('button, a, input, select, iframe, .slider, .track'); }
+    if (hold) {
+      el.addEventListener('pointerdown', function (e) {
+        if (own(e) || document.body.classList.contains('editing')) return;
+        held = false; sx = e.clientX; sy = e.clientY; clearTimeout(timer);
+        timer = setTimeout(function () { held = true; el.classList.add('held'); setTimeout(function () { el.classList.remove('held'); }, 200); runTap(hold); }, 550);
+      });
+      el.addEventListener('pointermove', function (e) { if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 12) clearTimeout(timer); });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) { el.addEventListener(n, function () { clearTimeout(timer); }); });
+      el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    }
     el.addEventListener('click', function (e) {
-      if (e.target.closest('button, a, input, select, iframe, .slider, .track')) return; // the widget's own controls come first
-      var kind = tap.split(':')[0], arg = tap.slice(kind.length + 1);
-      buzz();
-      if (kind === 'screen') { if (screens().indexOf(arg) >= 0) show(arg); }
-      else if (kind === 'shortcut') { if (!send({ t: 'shortcut', id: arg })) toast('Not connected'); }
-      else if (kind === 'media') send({ t: 'cmd', a: arg });
+      if (held) { held = false; return; } // that was a long press
+      if (!tap || own(e) || document.body.classList.contains('editing')) return;
+      runTap(tap);
     });
   }
   function pageKey(page) { return JSON.stringify(page) + '|' + JSON.stringify(state.config.addonWidgets || []) + '|' + JSON.stringify(state.config.shortcuts || []); }
@@ -1213,13 +1436,15 @@
     var sec = document.createElement('section'), grid = document.createElement('div'), live = [], insts = [];
     sec.className = 'screen page'; sec.id = 's-page-' + id;
     if (page.bg) sec.setAttribute('data-bg', page.bg);
-    if (page.accent) sec.style.setProperty('--accent', page.accent); sec.setAttribute('data-screen', name);
+    if (page.accent) sec.style.setProperty('--accent', page.accent);
+    if (page.radius) sec.setAttribute('data-radius', page.radius); sec.setAttribute('data-screen', name);
     grid.className = 'wgrid'; grid.setAttribute('aria-label', page.name);
     page.widgets.forEach(function (wd) {
       var inst = makeWidget(wd, live, id);
       if (!inst) return;
       inst.wd = wd;
-      if (wd.tap) tapAction(inst.el, wd.tap);
+      if (wd.tap || wd.hold) tapAction(inst.el, wd.tap, wd.hold);
+      if (wd.look) inst.el.classList.add('look-' + wd.look);
       inst.el.style.gridArea = (wd.y + 1) + ' / ' + (wd.x + 1) + ' / span ' + wd.h + ' / span ' + wd.w;
       grid.appendChild(inst.el); insts.push(inst);
     });
@@ -1259,6 +1484,97 @@
   window.addEventListener('resize', function () { setTimeout(function () { Object.keys(pagesBuilt).forEach(layoutPage); }, 50); });
   setInterval(function () { if (document.visibilityState === 'visible') renderPage(false); }, 1000);
 
+  // Double-tap anywhere (not on a button) to play or pause, when it is turned on in the PC window.
+  (function () {
+    var lastAt = 0, lx = 0, ly = 0;
+    $('screens').addEventListener('pointerup', function (e) {
+      if (!state.config.doubleTapPlay || document.body.classList.contains('editing') || e.target.closest('button, a, input, select, .slider, .track, .key, .tappable, iframe')) { lastAt = 0; return; }
+      var now = Date.now();
+      if (now - lastAt < 320 && Math.abs(e.clientX - lx) < 30 && Math.abs(e.clientY - ly) < 30) { lastAt = 0; buzz(); send({ t: 'cmd', a: 'toggle' }); toast(isPlaying() ? 'Pause' : 'Play'); return; }
+      lastAt = now; lx = e.clientX; ly = e.clientY;
+    });
+  })();
+
+  /* ---- Editing a page on the phone: hold an empty spot (or a widget for a second) to move and resize widgets ---- */
+  var ed = null; // { id, b, pos: { widgetId: {x,y,w,h} }, bar, drag }
+  function edCell(b) { var W = b.grid.clientWidth, H = b.grid.clientHeight, gap = 8; return { cw: (W - gap * 11) / 12, ch: (H - gap * 5) / 6, gap: gap }; }
+  function edOverlap(a, c) { return a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h; }
+  function edPlace(i, q) { i.el.style.gridArea = (q.y + 1) + ' / ' + (q.x + 1) + ' / span ' + q.h + ' / span ' + q.w; }
+  function startEdit(id) {
+    var b = pagesBuilt[id]; if (!b || ed || PREVIEW) return;
+    buzz();
+    ed = { id: id, b: b, pos: {}, drag: null };
+    b.insts.forEach(function (i) {
+      ed.pos[i.wd.id] = { x: i.wd.x, y: i.wd.y, w: i.wd.w, h: i.wd.h };
+      var h = document.createElement('i'); h.className = 'ed-h'; i.el.appendChild(h); i.el.setAttribute('data-wid', i.wd.id);
+    });
+    var bar = document.createElement('div'); bar.className = 'ed-bar';
+    bar.innerHTML = '<span>Drag to move · drag the corner to resize</span><button type="button" class="ed-x">Cancel</button><button type="button" class="ed-ok">Done</button>';
+    b.sec.appendChild(bar); ed.bar = bar;
+    bar.querySelector('.ed-x').addEventListener('click', function () { endEdit(false); });
+    bar.querySelector('.ed-ok').addEventListener('click', function () { endEdit(true); });
+    document.body.classList.add('editing');
+  }
+  function endEdit(save) {
+    if (!ed) return;
+    var e = ed; ed = null;
+    document.body.classList.remove('editing');
+    e.bar.remove();
+    e.b.insts.forEach(function (i) { var h = i.el.querySelector('.ed-h'); if (h) h.remove(); i.el.classList.remove('ed-bad', 'ed-drag'); });
+    if (save) {
+      var list = Object.keys(e.pos).map(function (k) { var q = e.pos[k]; return { id: k, x: q.x, y: q.y, w: q.w, h: q.h }; });
+      if (!send({ t: 'pageEdit', id: e.id, widgets: list })) toast('Not connected: changes not saved');
+      else toast('Saved');
+    }
+    e.b.insts.forEach(function (i) { edPlace(i, save ? e.pos[i.wd.id] : i.wd); });
+    layoutPage(e.id); renderPage(true);
+  }
+  (function () {
+    var hold = 0, hx = 0, hy = 0;
+    function cancelHold() { clearTimeout(hold); hold = 0; }
+    $('screens').addEventListener('pointerdown', function (e) {
+      if (ed) return edDown(e);
+      if (PREVIEW || state.screen.indexOf('page:') !== 0) return;
+      var onWidget = e.target.closest('.wg'), id = state.screen.slice(5);
+      if (onWidget && (onWidget.classList.contains('tappable') || e.target.closest('button, a, input, select, .slider, .track, .key, iframe'))) return;
+      hx = e.clientX; hy = e.clientY; cancelHold();
+      hold = setTimeout(function () { hold = 0; startEdit(id); }, onWidget ? 900 : 600);
+    });
+    $('screens').addEventListener('pointermove', function (e) {
+      if (hold && Math.abs(e.clientX - hx) + Math.abs(e.clientY - hy) > 14) cancelHold();
+      if (ed && ed.drag) edMove(e);
+    });
+    ['pointerup', 'pointercancel'].forEach(function (n) { $('screens').addEventListener(n, function (e) { cancelHold(); if (ed && ed.drag) edUp(e); }); });
+    function edDown(e) {
+      var el = e.target.closest('.wg[data-wid]'); if (!el || !ed) return;
+      var inst = ed.b.insts.filter(function (i) { return i.el === el; })[0]; if (!inst) return;
+      var p = pt(e), q = ed.pos[inst.wd.id];
+      ed.drag = { inst: inst, resize: !!e.target.closest('.ed-h'), sx: p.x, sy: p.y, orig: { x: q.x, y: q.y, w: q.w, h: q.h }, next: null };
+      el.classList.add('ed-drag');
+      try { el.setPointerCapture(e.pointerId); } catch (x) {}
+      e.preventDefault();
+    }
+    function edMove(e) {
+      var d = ed.drag, c = edCell(ed.b), p = pt(e), o = d.orig;
+      var dx = Math.round((p.x - d.sx) / (c.cw + c.gap)), dy = Math.round((p.y - d.sy) / (c.ch + c.gap));
+      var n = d.resize ? { x: o.x, y: o.y, w: Math.max(1, Math.min(12 - o.x, o.w + dx)), h: Math.max(1, Math.min(6 - o.y, o.h + dy)) }
+        : { x: Math.max(0, Math.min(12 - o.w, o.x + dx)), y: Math.max(0, Math.min(6 - o.h, o.y + dy)), w: o.w, h: o.h };
+      var bad = Object.keys(ed.pos).some(function (k) { return k !== d.inst.wd.id && edOverlap(n, ed.pos[k]); });
+      d.next = bad ? null : n;
+      d.inst.el.classList.toggle('ed-bad', bad);
+      edPlace(d.inst, n);
+    }
+    function edUp() {
+      var d = ed.drag; ed.drag = null;
+      d.inst.el.classList.remove('ed-drag', 'ed-bad');
+      if (d.next) ed.pos[d.inst.wd.id] = d.next; else if (d.next === null && d.inst.el.style.gridArea) { /* overlapped: go back */ }
+      edPlace(d.inst, ed.pos[d.inst.wd.id]);
+      var c = edCell(ed.b), q = ed.pos[d.inst.wd.id];
+      if (d.inst.resize) d.inst.resize(q.w * c.cw + (q.w - 1) * c.gap, q.h * c.ch + (q.h - 1) * c.gap);
+      buzz();
+    }
+  })();
+
   /* ============================================================ addon screens */
   // Each addon screen is a page in the swipe row: a sandboxed iframe (no network, no shared storage) that
   // talks to PhoneDesk only through messages (public/phone/addon-sdk.js). What it may receive depends on the
@@ -1296,11 +1612,13 @@
   }
   function addonCan(id, perm) { var m = addonMeta(id); return !!(m && m.permissions.indexOf(perm) >= 0); }
   // media, volume and stats go to the addon screens that asked for them (and are on screen).
-  function relayAddons(name, data) {
-    if (state.screen.indexOf('addon:') === 0) { var id = state.screen.slice(6); if (addonCan(id, name)) toAddon(id, name, data); }
+  var rawWeather = null, rawCalendar = null;
+  function relayAddons(name, data, perm) {
+    perm = perm || name;
+    if (state.screen.indexOf('addon:') === 0) { var id = state.screen.slice(6); if (addonCan(id, perm)) toAddon(id, name, data); }
     else if (state.screen.indexOf('page:') === 0) {
       var pid = state.screen.slice(5);
-      Object.keys(wFrames).forEach(function (k) { var f = wFrames[k]; if (f.page === pid && f.perms.indexOf(name) >= 0) toWidget(k, name, data); });
+      Object.keys(wFrames).forEach(function (k) { var f = wFrames[k]; if (f.page === pid && f.perms.indexOf(perm) >= 0) toWidget(k, name, data); });
     }
   }
   function pushWidgetState(key) {
@@ -1309,6 +1627,8 @@
     if (f.perms.indexOf('media') >= 0) toWidget(key, 'media', state.media);
     if (f.perms.indexOf('volume') >= 0) toWidget(key, 'volume', state.volume);
     if (f.perms.indexOf('stats') >= 0 && state.stats) toWidget(key, 'stats', state.stats);
+    if (f.perms.indexOf('weather') >= 0 && rawWeather) toWidget(key, 'weather', rawWeather);
+    if (f.perms.indexOf('calendar') >= 0 && rawCalendar) toWidget(key, 'calendar', rawCalendar);
   }
   function widgetMessage(key, m) {
     var f = wFrames[key];
@@ -1331,6 +1651,8 @@
     if (addonCan(id, 'media')) toAddon(id, 'media', state.media);
     if (addonCan(id, 'volume')) toAddon(id, 'volume', state.volume);
     if (addonCan(id, 'stats') && state.stats) toAddon(id, 'stats', state.stats);
+    if (addonCan(id, 'weather') && rawWeather) toAddon(id, 'weather', rawWeather);
+    if (addonCan(id, 'calendar') && rawCalendar) toAddon(id, 'calendar', rawCalendar);
   }
   function themeVars() {
     var cs = getComputedStyle(document.body), out = {};
@@ -1375,6 +1697,7 @@
     $('screens').setAttribute('data-dir', from < 0 || from === to ? 'none' : (to > from ? 'next' : 'prev'));
     if (name.indexOf('addon:') === 0) ensureAddonScreen(name);
     if (name.indexOf('page:') === 0) ensurePage(name);
+    if (ed && name !== state.screen) endEdit(false);
     var prevName = state.screen;
     state.screen = name;
     closeLyrics(true);
@@ -1427,7 +1750,7 @@
     // Pointer events are kept for a mouse or a pen.
     var lastTouch = 0;
     function down(e, x, y) {
-      if (e.target.closest('.slider, .track, .ly-pill, .ly-close, .ly-nudge')) { active = false; return; }
+      if (document.body.classList.contains('editing') || e.target.closest('.slider, .track, .ly-pill, .ly-close, .ly-nudge')) { active = false; return; }
       var p = pt({ clientX: x, clientY: y }); active = true; sx = p.x; sy = p.y; st = Date.now();
     }
     function up(x, y) {
@@ -1455,9 +1778,9 @@
 
   // Scheduled screens: during a time window the phone moves to the screen chosen for it, once, when the window starts.
   // The person can still swipe away; when the window ends the phone goes back to where it was (if it is still on that screen).
-  var schedKey = '', schedBack = '';
-  function schedNow() {
-    var rules = state.config.schedule || [], d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+  var schedKey = '', schedBack = '', schedDim = false;
+  function schedNow(mode) { // the first rule whose window is open: a screen rule, or (mode) a 'night' / 'dim' rule
+    var rules = (state.config.schedule || []).filter(function (r) { return mode ? r.screen === mode : r.screen !== 'night' && r.screen !== 'dim'; }), d = new Date(), m = d.getHours() * 60 + d.getMinutes();
     for (var i = 0; i < rules.length; i++) {
       var f = rules[i].from.split(':'), t = rules[i].to.split(':'), a = +f[0] * 60 + +f[1], b = +t[0] * 60 + +t[1];
       if (a < b ? (m >= a && m < b) : (m >= a || m < b)) return rules[i];
@@ -1466,6 +1789,10 @@
   }
   function schedTick() {
     if (PREVIEW || !state.configured) return;
+    // dim: the screen goes down to a low brightness for the window (night mode has its own rule kind, see wantNight)
+    var dim = !!schedNow('dim');
+    if (dim !== schedDim) { schedDim = dim; toggle(document.body, 'sched-dim', dim); if (!night.on) setAppBrightness(dim ? 0.12 : -1); }
+    applyNight(false);
     var r = schedNow(), key = r ? r.from + '-' + r.to + '-' + r.screen : '';
     if (key === schedKey) return;
     var was = schedKey; schedKey = key;
@@ -1522,6 +1849,7 @@
     return -1;
   }
   function wantNight() {
+    if (state.configured && schedNow('night')) return true; // a Schedule rule turns night mode on
     var mode = state.config.nightMode || 'off';
     if (mode === 'off') return false;
     if (mode === 'sensor') {

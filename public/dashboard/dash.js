@@ -521,7 +521,7 @@
     $('ds-sched-add').disabled = rules.length >= 6;
     box.innerHTML = rules.length ? rules.map((r, i) => `<div class="sched-row" data-i="${i}">
       <input type="time" data-f="from" value="${esc(r.from)}" aria-label="From"><span class="muted">to</span><input type="time" data-f="to" value="${esc(r.to)}" aria-label="To">
-      <select data-f="screen" aria-label="Screen">${[...new Set([...screens, r.screen])].map((s) => `<option value="${esc(s)}"${s === r.screen ? ' selected' : ''}>${esc(screenName(s))}</option>`).join('')}</select>
+      <select data-f="screen" aria-label="What to do"><optgroup label="Show a screen">${[...new Set([...screens, r.screen].filter((s) => s !== 'night' && s !== 'dim'))].map((s) => `<option value="${esc(s)}"${s === r.screen ? ' selected' : ''}>${esc(screenName(s))}</option>`).join('')}</optgroup><optgroup label="Or"><option value="night"${r.screen === 'night' ? ' selected' : ''}>Night mode (dark, red clock)</option><option value="dim"${r.screen === 'dim' ? ' selected' : ''}>Dim the screen</option></optgroup></select>
       <button class="btn sm ghost" data-rm="${i}" aria-label="Remove this time">Remove</button></div>`).join('') : '<p class="small muted">No times set.</p>';
   }
   $('ds-sched').addEventListener('change', (e) => {
@@ -540,10 +540,43 @@
     saveConfig({ schedule: rules }).then(renderSchedule);
   });
 
+  // Notes and to-dos for the Notes widget
+  function renderNotes() {
+    const c = state.config, box = $('ds-notes'); if (!c || !box) return;
+    if (box.contains(document.activeElement) && document.activeElement.type === 'text') return;
+    box.innerHTML = (c.notes || []).length ? c.notes.map((n, i) => `<div class="note-row" data-i="${i}"><input type="checkbox" ${n.done ? 'checked' : ''} aria-label="Done"><input type="text" value="${esc(n.text)}" maxlength="200" aria-label="Note"><button class="btn sm ghost" data-rm="${i}" aria-label="Remove this note">Remove</button></div>`).join('') : '<p class="small muted">No notes yet.</p>';
+    if (document.activeElement !== $('ds-photos')) $('ds-photos').value = c.photosDir || '';
+    $('ds-dbltap').checked = !!c.doubleTapPlay;
+  }
+  $('ds-notes').addEventListener('change', (e) => {
+    const row = e.target.closest('.note-row'); if (!row) return;
+    const notes = clone(state.config.notes || []), n = notes[+row.dataset.i]; if (!n) return;
+    if (e.target.type === 'checkbox') n.done = e.target.checked; else n.text = e.target.value;
+    saveConfig({ notes: notes.filter((x) => x.text.trim()) });
+  });
+  $('ds-notes').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rm]'); if (!b) return;
+    const notes = clone(state.config.notes || []); notes.splice(+b.dataset.rm, 1); saveConfig({ notes });
+  });
+  function addNote() {
+    const t = $('ds-note-new').value.trim(); if (!t) return;
+    if ((state.config.notes || []).length >= 50) return toast('50 notes is the most');
+    saveConfig({ notes: [...(state.config.notes || []), { text: t, done: false }] }).then(() => { $('ds-note-new').value = ''; $('ds-note-new').focus(); });
+  }
+  $('ds-note-add').addEventListener('click', addNote);
+  $('ds-note-new').addEventListener('keydown', (e) => { if (e.key === 'Enter') addNote(); });
+  $('ds-photos').addEventListener('change', async (e) => {
+    await saveConfig({ photosDir: e.target.value.trim() });
+    const r = await api('photos').catch(() => null);
+    setText($('ds-photos-n'), !r || !r.dir ? '' : r.count ? r.count + ' pictures found' : 'No pictures (JPG, PNG, WebP or GIF) in that folder');
+  });
+  $('ds-dbltap').addEventListener('change', (e) => saveConfig({ doubleTapPlay: e.target.checked }));
+
   function renderDisplay() {
     const c = state.config;
     if (!c) return;
     renderSchedule();
+    renderNotes();
     $$('#ds-nstyle .theme').forEach((b) => { const on = b.dataset.v === (c.nowStyle || 'immersive'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-lystyle .theme').forEach((b) => { const on = b.dataset.v === (c.lyricsMode || 'scroll'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     if (document.activeElement !== $('ds-lyoffset')) { $('ds-lyoffset').value = c.lyricsOffset || 0; setText($('ds-lyoffset-n'), ((c.lyricsOffset || 0) > 0 ? '+' : '') + (c.lyricsOffset || 0) + ' ms'); }
@@ -1222,7 +1255,7 @@
     if (!p) return;
     if (document.activeElement !== $('ly-name')) $('ly-name').value = p.name;
     $('ly-onphone').checked = onPhone.includes('page:' + p.id);
-    $('ly-bg').value = p.bg || ''; $('ly-accent').value = p.accent || '#5b8cff'; $('ly-accent-clear').hidden = !p.accent;
+    $('ly-bg').value = p.bg || ''; $('ly-radius').value = p.radius || ''; $('ly-accent').value = p.accent || '#5b8cff'; $('ly-accent-clear').hidden = !p.accent;
     const fr = $('ly-frame'), want = '/phone/?preview=' + p.id;
     if (fr.getAttribute('data-src') !== want) { fr.setAttribute('data-src', want); fr.src = want; }
     lyFit(); renderLyOverlay(); renderLyPalette(); renderLyOpts(); lyHistButtons();
@@ -1267,13 +1300,15 @@
       <p class="small muted">${esc(t ? t.desc || '' : 'This widget comes from an addon that is turned off or removed. It shows nothing on the phone until the addon is back.')}</p>
       <div class="ly-opts-grid"><div class="ly-size"><label>Width<input type="number" id="ly-w" min="${min.w}" max="${LY.cols}" value="${w.w}"></label><label>Height<input type="number" id="ly-h" min="${min.h}" max="${LY.rows}" value="${w.h}"></label></div>
       ${((t && t.opts) || []).map((f) => lyField(f, w.opts && w.opts[f.key] !== undefined ? w.opts[f.key] : f.default)).join('')}
-      ${w.type.startsWith('addon:') ? '' : lyTapField(w)}</div>`;
+      ${w.type.startsWith('addon:') ? '' : lyTapField(w) + lyTapField(w, 'hold', 'When held')}
+      <label class="field">Style<select id="ly-look"><option value="">Card</option><option value="outline"${w.look === 'outline' ? ' selected' : ''}>Outline only</option><option value="clear"${w.look === 'clear' ? ' selected' : ''}>No card</option></select></label></div>`;
   }
   // "When tapped": open a screen, press a shortcut button, or control the music
-  function lyTapField(w) {
-    const c = state.config || {}, cur = w.tap || '';
+  function lyTapField(w, key, label) {
+    key = key || 'tap'; label = label || 'When tapped';
+    const c = state.config || {}, cur = w[key] || '';
     const opt = (v, label) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
-    return `<label class="field">When tapped<select id="ly-tap"><option value="">Nothing</option>
+    return `<label class="field">${esc(label)}<select id="ly-${key}"><option value="">Nothing</option>
       <optgroup label="Open a screen">${(c.screens || []).map((s) => opt('screen:' + s, screenName(s))).join('')}</optgroup>
       <optgroup label="Press a shortcut">${(c.shortcuts || []).map((s) => opt('shortcut:' + s.id, s.label)).join('')}</optgroup>
       <optgroup label="Music">${opt('media:toggle', 'Play or pause')}${opt('media:next', 'Next song')}${opt('media:prev', 'Previous song')}</optgroup></select></label>`;
@@ -1356,7 +1391,11 @@
       if (r.ok) lyCommit(w, r.n); else { toast('That would overlap another widget'); renderLyOpts(); }
       return;
     }
-    if (e.target.id === 'ly-tap') { if (e.target.value) w.tap = e.target.value; else delete w.tap; lySave(); return; }
+    if (e.target.id === 'ly-tap' || e.target.id === 'ly-hold' || e.target.id === 'ly-look') {
+      const k = e.target.id.slice(3);
+      if (e.target.value) w[k] = e.target.value; else delete w[k];
+      lySave(); return;
+    }
     const key = e.target.dataset.opt; if (!key) return;
     w.opts = w.opts || {};
     w.opts[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' ? Number(e.target.value) : e.target.value;
@@ -1379,6 +1418,7 @@
     renderLayouts(true); lySave();
   });
   $('ly-list').addEventListener('click', (e) => { const b = e.target.closest('[data-pg]'); if (b) { ly.sel = b.dataset.pg; ly.wsel = ''; renderLayouts(); } });
+  $('ly-radius').addEventListener('change', (e) => { const p = lyPage(); if (!p) return; if (e.target.value) p.radius = e.target.value; else delete p.radius; lySave(); });
   $('ly-bg').addEventListener('change', (e) => { const p = lyPage(); if (!p) return; if (e.target.value) p.bg = e.target.value; else delete p.bg; lySave(); });
   $('ly-accent').addEventListener('input', (e) => { const p = lyPage(); if (!p) return; p.accent = e.target.value; $('ly-accent-clear').hidden = false; lySave(); });
   $('ly-accent-clear').addEventListener('click', () => { const p = lyPage(); if (!p) return; delete p.accent; $('ly-accent-clear').hidden = true; lySave(); });

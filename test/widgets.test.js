@@ -80,8 +80,6 @@ t('the config keeps pages, and a page that is gone leaves the swipe row', () => 
   const c2 = config.update({ pages: [] });
   assert.ok(!c2.screens.some((s) => s.startsWith('page:')));
 });
-require('fs').rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
-process.exit(failed ? 1 : 0);
 t('a tap action, a page background and an accent are kept only when valid', () => {
   const [p] = w.sanitizePages([{ name: 'P', bg: 'aurora', accent: '#FFAA00', widgets: [
     { type: 'text', x: 0, y: 0, w: 2, h: 1, tap: 'screen:stats' },
@@ -96,3 +94,20 @@ t('a tap action, a page background and an accent are kept only when valid', () =
   const [q] = w.sanitizePages([{ bg: 'neon', accent: 'red', widgets: [] }]);
   assert.ok(!('bg' in q) && !('accent' in q));
 });
+t('a widget style, a long-press action and page corners are kept only when valid; the new widgets exist', () => {
+  const [p] = w.sanitizePages([{ radius: 'large', widgets: [
+    { type: 'timer', x: 0, y: 0, w: 4, h: 2, look: 'clear', hold: 'media:next' },
+    { type: 'notes', x: 4, y: 0, w: 4, h: 2, look: 'neon', hold: 'rm -rf' },
+    { type: 'worldclock', x: 8, y: 0, w: 4, h: 2 }, { type: 'photos', x: 0, y: 2, w: 4, h: 4 },
+    { type: 'recent', x: 4, y: 2, w: 4, h: 2 }, { type: 'devices', x: 8, y: 2, w: 4, h: 2 },
+  ] }]);
+  assert.strictEqual(p.radius, 'large');
+  assert.deepStrictEqual([p.widgets[0].look, p.widgets[0].hold], ['clear', 'media:next']);
+  assert.ok(!('look' in p.widgets[1]) && !('hold' in p.widgets[1]));
+  assert.deepStrictEqual(p.widgets.map((x) => x.type), ['timer', 'notes', 'worldclock', 'photos', 'recent', 'devices']);
+  assert.deepStrictEqual(p.widgets[0].opts, { mode: 'timer', minutes: 5 });
+  assert.strictEqual(w.sanitizePages([{ radius: 'huge', widgets: [] }])[0].radius, undefined);
+});
+
+require('fs').rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
+process.exit(failed ? 1 : 0);

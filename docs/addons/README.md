@@ -38,7 +38,7 @@ An addon is a folder, shipped as a `.zip`, with a file called `addon.json` at it
 
 `tools/pd-addon.js` has four commands:
 
-- `init <id>` creates a new addon
+- `init <id>` creates a new addon (`--widget` for a widget-only one that scales to any size)
 - `validate [dir]` checks `addon.json` and the files it names
 - `dev [dir] [--watch]` loads the folder into PhoneDesk on this PC
 - `pack [dir]` makes `<id>-<version>.zip`, prints its checksum and a registry entry
