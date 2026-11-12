@@ -486,6 +486,92 @@ function Send-Gpu {
   }
 }
 
+# --- busiest apps and CPU temperature, every ~4s -------------------------------------------------
+# CPU share = processor time each app used since the last look, over the time that passed times the number of cores.
+# Processes with the same name (all of Chrome's) count as one app.
+$ncpu = [Environment]::ProcessorCount
+$script:procPrev = @{}
+$script:procAt = $null
+$script:tempSrc = ''
+$script:tempRetry = [DateTime]::MinValue
+function Get-CpuTemp {
+  if ($script:tempSrc -eq 'none' -and [DateTime]::UtcNow -lt $script:tempRetry) { return -1 }
+  if ($script:tempSrc -ne 'acpi') {
+    # LibreHardwareMonitor (if it runs) knows the real package temperature
+    try {
+      $s = Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor -ErrorAction Stop |
+        Where-Object { $_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU Package|Tctl|Tdie|Core \(Tctl' } | Select-Object -First 1
+      if ($s) { $script:tempSrc = 'lhm'; return [int]$s.Value }
+    } catch { }
+  }
+  if ($script:tempSrc -ne 'lhm') {
+    # the ACPI thermal zone: not on every PC, and sometimes only for administrators
+    try {
+      $z = Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop | Select-Object -First 1
+      if ($z -and $z.CurrentTemperature -gt 0) { $script:tempSrc = 'acpi'; return [int](($z.CurrentTemperature / 10) - 273.15) }
+    } catch { }
+  }
+  $script:tempSrc = 'none'; $script:tempRetry = [DateTime]::UtcNow.AddMinutes(2)
+  return -1
+}
+function Send-Sys {
+  $now = [DateTime]::UtcNow
+  $cur = @{}; $rows = @{}
+  foreach ($p in [System.Diagnostics.Process]::GetProcesses()) {
+    $name = $p.ProcessName
+    if ($name -eq 'Idle' -or $name -eq 'System' -or $name -eq 'Memory Compression') { continue }
+    $ms = -1
+    try { $ms = $p.TotalProcessorTime.TotalMilliseconds } catch { }
+    $cur[$p.Id] = $ms
+    if (-not $rows.ContainsKey($name)) { $rows[$name] = @{ name = $name; cpu = 0.0; mem = [int64]0 } }
+    try { $rows[$name].mem += [int64]$p.WorkingSet64 } catch { }
+    if ($script:procAt -and $ms -ge 0 -and $script:procPrev.ContainsKey($p.Id)) {
+      $d = $ms - $script:procPrev[$p.Id]
+      if ($d -gt 0) { $rows[$name].cpu += $d }
+    }
+  }
+  $byCpu = @(); $byMem = @()
+  if ($script:procAt) {
+    $span = ($now - $script:procAt).TotalMilliseconds * $ncpu
+    if ($span -gt 0) {
+      $list = @($rows.Values | ForEach-Object { @{ name = $_.name; cpu = [math]::Round($_.cpu / $span * 100, 1); mem = $_.mem } })
+      $byCpu = @($list | Sort-Object { $_.cpu } -Descending | Select-Object -First 6)
+      $byMem = @($list | Sort-Object { $_.mem } -Descending | Select-Object -First 6)
+    }
+  }
+  $script:procPrev = $cur; $script:procAt = $now
+  Emit @{ t = 'sys'; procs = $byCpu; procsMem = $byMem; cpuTemp = (Get-CpuTemp) }
+}
+
+# --- battery of Bluetooth devices (headphones, mice...), once a minute -----------------------------
+# Reading device properties takes a second or two, so it runs on its own runspace and the loop only collects it.
+$script:btPs = $null
+$script:btAsync = $null
+function Start-Bt {
+  if ($script:btPs) { return }
+  $ps = [powershell]::Create()
+  [void]$ps.AddScript({
+    $key = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
+    $seen = @{}
+    foreach ($d in (Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like 'BTHENUM*' -or $_.InstanceId -like 'BTHLE*' })) {
+      try {
+        $v = (Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName $key -ErrorAction Stop).Data
+        if ($null -ne $v -and [int]$v -ge 0 -and [int]$v -le 100 -and -not $seen.ContainsKey($d.FriendlyName)) {
+          $seen[$d.FriendlyName] = 1
+          [pscustomobject]@{ name = [string]$d.FriendlyName; level = [int]$v }
+        }
+      } catch { }
+    }
+  })
+  $script:btPs = $ps
+  $script:btAsync = $ps.BeginInvoke()
+}
+function Poll-Bt {
+  if (-not $script:btPs -or -not $script:btAsync.IsCompleted) { return }
+  try { $r = @($script:btPs.EndInvoke($script:btAsync)); Emit @{ t = 'bt'; items = @($r | ForEach-Object { @{ name = $_.name; level = $_.level } }) } } catch { }
+  $script:btPs.Dispose(); $script:btPs = $null; $script:btAsync = $null
+}
+
 [void][Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
 $AsStreamForRead = [System.IO.WindowsRuntimeStreamExtensions].GetMethod('AsStreamForRead', [Type[]]@([Windows.Storage.Streams.IInputStream]))
 
@@ -588,6 +674,11 @@ while ($true) {
   if ($tick % 8 -eq 1) { try { Send-Gpu } catch { } }
   # --- network byte totals, every ~2s ---
   if ($tick % 8 -eq 5) { try { Send-Net } catch { } }
+  # --- busiest apps and CPU temperature, every ~4s ---
+  if ($tick % 16 -eq 3) { try { Send-Sys } catch { if ($tick % 480 -eq 3) { Log "app stats failed: $($_.Exception.Message)" } } }
+  # --- Bluetooth batteries: start a read once a minute, collect it when it is done ---
+  if ($tick % 240 -eq 9) { try { Start-Bt } catch { } }
+  try { Poll-Bt } catch { }
 
   $tick++
   Start-Sleep -Milliseconds 250

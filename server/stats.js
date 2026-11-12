@@ -10,6 +10,7 @@ const HIST_MAX = 360; // one hour
 let net = null;          // { rx, tx } bytes per second
 let netPrev = null;      // { rx, tx, at } last byte totals
 let gpuLoad = () => -1;
+let extras = { cpuTemp: -1, procs: [], procsMem: [], disks: [] }; // from the bridge (temperature, busiest apps) and from statfs (disks)
 const history = [];      // { t, cpu, mem, gpu, rx, tx }
 let acc = null;          // running sums for the current history step
 let prev = snapshot();
@@ -34,6 +35,10 @@ function sampleMem(cpu, cores) {
     host: os.hostname(),
     cores: os.cpus().length,
     net,
+    cpuTemp: extras.cpuTemp,
+    procs: extras.procs,
+    procsMem: extras.procsMem,
+    disks: extras.disks,
   };
 }
 
@@ -78,8 +83,35 @@ function addHistory(s) {
 
 let onPoint = () => {};
 
+// Disk space: every drive letter that exists (C: to Z:) on Windows, the root elsewhere. Every 30 s is plenty.
+const fs = require('fs');
+function readDisks() {
+  if (typeof fs.statfsSync !== 'function') return;
+  const roots = process.platform === 'win32' ? 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l) => l + ':\\') : ['/'];
+  const out = [];
+  for (const r of roots) {
+    try {
+      if (process.platform === 'win32' && !fs.existsSync(r)) continue;
+      const st = fs.statfsSync(r), total = st.blocks * st.bsize, free = st.bavail * st.bsize;
+      if (total > 1e9) out.push({ name: process.platform === 'win32' ? r.slice(0, 2) : r, used: total - free, total });
+    } catch {}
+    if (out.length >= 8) break;
+  }
+  extras.disks = out;
+}
+try { readDisks(); } catch {}
+setInterval(() => { try { readDisks(); } catch {} }, 30000).unref();
+
 module.exports = {
   latest: () => last,
+  /** CPU temperature (°C, -1 when unknown) and the busiest apps [{ name, cpu, mem }] from the bridge. */
+  setExtras(x) {
+    if (!x) return;
+    if (Number.isFinite(+x.cpuTemp)) extras.cpuTemp = Math.round(+x.cpuTemp);
+    const clean = (l) => l.slice(0, 8).map((p) => ({ name: String((p && p.name) || '').slice(0, 40), cpu: Math.max(0, Math.min(100, Math.round(+(p && p.cpu) || 0))), mem: Math.max(0, +(p && p.mem) || 0) }));
+    if (Array.isArray(x.procs)) extras.procs = clean(x.procs);
+    if (Array.isArray(x.procsMem)) extras.procsMem = clean(x.procsMem);
+  },
   history: () => history.slice(),
   /** Byte totals of all network adapters (from the bridge); turned into speeds here. */
   setNet(rx, tx) {

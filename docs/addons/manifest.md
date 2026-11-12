@@ -43,6 +43,9 @@ Every permission is shown to the person installing, in plain words, and has to b
 - `media`: read what is playing (title, artist, app)
 - `volume`: read the PC's volume and mute state
 - `stats`: read CPU, memory and GPU use
+- `weather`: read the weather and forecast PhoneDesk shows
+- `calendar`: read your upcoming calendar events
+- `notifications`: read the PC notifications PhoneDesk shows (app, title and text)
 - `control`: start, pause and skip playback, and set the volume
 - `keys`: press keys on the PC. **Powerful**: a key press can do almost anything the person could.
 - `run`: run programs on the PC. **Powerful.**

@@ -18,6 +18,7 @@ It runs in a sandboxed frame: it can not reach the rest of PhoneDesk, it has no 
 - `PD.on('message', fn)`: data your server sent with `pd.screen.send(data)`.
 - `PD.send(data)`: data for your server (its `pd.screen.on` handler).
 - `PD.on('media', fn)`, `PD.on('volume', fn)`, `PD.on('stats', fn)`: the current state and every change, **if** your manifest asks for `media`, `volume` or `stats`. Only while your screen is showing.
+- `PD.on('weather', fn)` and `PD.on('calendar', fn)`: the weather (now and the next days) and your upcoming events, with the `weather` and `calendar` permissions. `PD.on('notification', fn)`: each PC notification PhoneDesk shows (`{ app, title, body }`), with `notifications`.
 - `PD.on('visible', fn)`: `true` when your screen is swiped to, `false` when it is swiped away.
 - `PD.media.command('toggle' | 'play' | 'pause' | 'next' | 'prev')` and `PD.volume.set(0 to 1)`: need `control`.
 - `PD.captureSwipe(true)`: keep horizontal swipes for your screen (they normally change the page).
@@ -36,6 +37,7 @@ A widget is a page like a screen, but small, and sitting on a page next to other
 - Media, volume and stats events (with the permissions) reach a widget while its page is showing. `PD.on('visible', fn)` tells you when the page is shown or hidden.
 - Give your widget a card look that matches PhoneDesk, or none, as suits it: the frame is transparent. The colours come as CSS variables, like on a screen.
 - Taps work as usual. A horizontal swipe on your widget changes the page, unless you call `PD.captureSwipe(true)`.
+- `PD.autoscale(w, h)`: lay your widget out in `em` for a `w` x `h` pixel box, and PhoneDesk sets the page's font size so it fits the real widget at any size. This is the easiest way to avoid clipped text. `node tools/pd-addon.js init my-widget --widget` starts you with it.
 
 A widget with no `server` is fine: a clock face, a timer or a counter can run entirely on the phone.
 
@@ -53,7 +55,7 @@ It runs in its own Node process, started again if it crashes (five times in five
 - `pd.screen.on(fn)`: receive what the screen sent with `PD.send`.
 - `pd.settings.get(key, fallback)` and `pd.settings.all()`: the values people set. `pd.on('settings', fn)` runs when they change.
 - `pd.storage.get(key, fallback)`, `.set(key, value)`, `.delete(key)`, `.all()`: your own saved data (JSON, up to 1 MB), kept between runs.
-- `pd.on('media' | 'volume' | 'stats', fn)`: events, if you have the permission.
+- `pd.on('media' | 'volume' | 'stats' | 'weather' | 'calendar' | 'notification', fn)`: events, if you have the permission (`notification` needs `notifications`).
 - `pd.action(id, fn)`: run when a shortcut button using your action is pressed (declare it in `actions` in the manifest).
 - `pd.on('stop', fn)`: PhoneDesk is stopping your addon (the person turned it off, or PhoneDesk is closing).
 - `pd.log.info(...)`, `.warn(...)`, `.error(...)`.
@@ -61,7 +63,7 @@ It runs in its own Node process, started again if it crashes (five times in five
 Calls that need a permission return a promise and fail with a clear message if it was not granted:
 
 - `pd.http.request({ url, method, headers, body })` resolves with `{ status, ok, headers, text }`; `pd.http.get(url)` and `pd.http.json(url)` are shortcuts. Needs `network:<host>`. Redirects are followed only to hosts you may contact. Responses are limited to 2 MB, requests time out after 15 seconds.
-- `pd.media.get()`, `pd.volume.get()`, `pd.stats.get()`: need `media`, `volume`, `stats`.
+- `pd.media.get()`, `pd.volume.get()`, `pd.stats.get()`, `pd.weather.get()`, `pd.calendar.get()`: need `media`, `volume`, `stats`, `weather`, `calendar`.
 - `pd.media.command(cmd)` and `pd.volume.set(v)`: need `control`.
 - `pd.keys.send('ctrl+shift+m')`: needs `keys`. Key names are the ones shortcut buttons use.
 - `pd.run.exec(file, args)` resolves with `{ code, stdout, stderr }`: needs `run`. No shell; 30 seconds at most.

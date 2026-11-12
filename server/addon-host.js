@@ -75,7 +75,7 @@ const pd = {
   // The screen (and widgets) on the phone: send(data) reaches every frame of this addon's PD.on('message');
   // on(fn) gets PD.send(data) from them, with { widget: id } as the second argument when it came from a widget.
   screen: { send: (data) => process.send({ op: 'screen', data }), on: (fn) => { handlers.screen.push(fn); } },
-  // 'media' | 'volume' | 'stats' (need those permissions), 'settings', 'stop'
+  // 'media' | 'volume' | 'stats' | 'weather' | 'calendar' | 'notification' (need those permissions), 'settings', 'stop'
   on(name, fn) {
     if (name === 'settings') handlers.settings.push(fn);
     else if (name === 'stop') handlers.stop.push(fn);
@@ -90,6 +90,8 @@ const pd = {
   media: { get: () => call('media.get'), command: (c) => call('media.command', c) },
   volume: { get: () => call('volume.get'), set: (v) => call('volume.set', v) },
   stats: { get: () => call('stats.get') },
+  weather: { get: () => call('weather.get') },
+  calendar: { get: () => call('calendar.get') },
   keys: { send: (combo) => call('keys.send', combo) },
   run: { exec: (file, args) => call('run.exec', file, args) },
 };

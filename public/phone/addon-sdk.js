@@ -5,13 +5,16 @@
  *
  *   PD.on('ready', fn)      the frame is connected; PD.theme, PD.permissions and PD.id are set
  *   PD.on('message', fn)    data your PC-side code sent with pd.screen.send(data)
- *   PD.on('media', fn)      what is playing (needs the "media" permission); also 'volume', 'stats'
+ *   PD.on('media', fn)      what is playing (needs the "media" permission); also 'volume', 'stats',
+ *                           'weather', 'calendar' and 'notification' (each needs the permission of that name; notifications: "notifications")
  *   PD.on('visible', fn)    true or false: your screen was swiped to or away from
  *   PD.send(data)           data for your PC-side code (its pd.screen.on handler)
  *   PD.widget, PD.options   in a widget: its size in pixels and the options chosen in the layout editor; PD.on('resize', fn) when it changes
  *   PD.media.command(c)     'toggle' | 'play' | 'pause' | 'next' | 'prev'  (needs "control")
  *   PD.volume.set(0..1)     (needs "control")
  *   PD.captureSwipe(true)   keep horizontal swipes for your screen (they normally change the screen)
+ *   PD.autoscale(w, h)      a widget: design it in ems for a w x h pixel box; the page font size then follows the
+ *                           widget's real size, so everything keeps its proportions and nothing is clipped
  *
  * PhoneDesk's colours arrive as CSS variables on <html>: --bg --fg --fg2 --fg3 --card --line --accent --radius.
  * Keep your content clear of the top --safe-top (44px: battery pill, full-screen button) and bottom --safe-bottom (30px: page dots).
@@ -33,7 +36,20 @@
     media: { command: function (c) { post('media', c); } },
     volume: { set: function (v) { post('volume', v); } },
     captureSwipe: function (on) { capture = !!on; },
+    autoscale: function (w, h, base) {
+      scale = { w: +w || 200, h: +h || 100, base: +base || 14 };
+      applyScale();
+    },
   };
+  var scale = null;
+  // Size the root font so that a layout made in ems for scale.w x scale.h fits the frame's real size.
+  function applyScale() {
+    if (!scale) return;
+    var w = (PD.widget && PD.widget.w) || window.innerWidth, h = (PD.widget && PD.widget.h) || window.innerHeight;
+    var f = scale.base * Math.min(w / scale.w, h / scale.h);
+    document.documentElement.style.fontSize = Math.max(8, Math.min(64, f)).toFixed(2) + 'px';
+  }
+  window.addEventListener('resize', applyScale);
   function post(t, d) { try { parent.postMessage({ pd: 1, t: t, d: d }, '*'); } catch (e) {} }
   function emit(name, d) { (handlers[name] || []).forEach(function (fn) { try { fn(d); } catch (e) { if (window.console) console.error(e); } }); }
 
@@ -50,10 +66,11 @@
       Object.keys(PD.theme).forEach(function (k) { root.style.setProperty('--' + k, PD.theme[k]); });
       root.className = (root.className.replace(/\bpd-theme-\w+\b/g, '') + ' pd-theme-' + (m.d.themeName || 'dark')).trim();
       PD.ready = true;
+      applyScale();
       emit('ready');
       return;
     }
-    if (m.t === 'resize' && PD.widget) { PD.widget.w = m.d.w; PD.widget.h = m.d.h; last.resize = m.d; }
+    if (m.t === 'resize' && PD.widget) { PD.widget.w = m.d.w; PD.widget.h = m.d.h; last.resize = m.d; applyScale(); }
     else if (m.t === 'visible') { PD.visible = !!m.d; last.visible = !!m.d; }
     else if (m.t !== 'message') last[m.t] = m.d;
     emit(m.t, m.d);

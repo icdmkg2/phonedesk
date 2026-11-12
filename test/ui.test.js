@@ -239,6 +239,38 @@ async function t(name, fn) {
       await ctx.close();
       await api('config', { pages: before.pages, screens: before.screens });
     });
+
+    await t('a page can be rearranged on the phone (hold, drag, Done), and a note can be ticked off there', async () => {
+      const w = require('../server/widgets');
+      const page = w.sanitizePages([{ name: 'Edit', widgets: [
+        { type: 'text', x: 0, y: 0, w: 3, h: 2, opts: { text: 'A' } }, { type: 'notes', x: 6, y: 0, w: 4, h: 3 },
+      ] }])[0];
+      const before = await api('config');
+      await api('config', { pages: [...before.pages, page], screens: [...before.screens, 'page:' + page.id], notes: [{ text: 'Water the plants', done: false }] });
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript((id) => { if (window === window.top) localStorage.setItem('pd.screen', JSON.stringify('page:' + id)); }, page.id);
+      const pg = await ctx.newPage();
+      const errors = []; pg.on('pageerror', (e) => errors.push(e.message));
+      await pg.goto(BASE + '/phone/'); await sleep(2500);
+      // tick the note
+      await pg.locator('.wg-notes .nt-i').first().click(); await sleep(800);
+      assert.strictEqual((await api('config')).notes[0].done, true, 'the note was ticked on the PC too');
+      // hold an empty spot to start editing
+      const grid = await pg.locator('.wgrid').boundingBox();
+      await pg.mouse.move(grid.x + grid.width - 10, grid.y + grid.height - 10); await pg.mouse.down(); await sleep(900); await pg.mouse.up();
+      assert.ok(await pg.evaluate(() => document.body.classList.contains('editing')), 'editing started');
+      // drag the text widget two columns right and one row down
+      const a = await pg.locator('.wg-text').boundingBox(), cw = (grid.width - 8 * 11) / 12 + 8, ch = (grid.height - 8 * 5) / 6 + 8;
+      await pg.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await pg.mouse.down();
+      await pg.mouse.move(a.x + a.width / 2 + cw * 2, a.y + a.height / 2 + ch, { steps: 8 }); await pg.mouse.up(); await sleep(200);
+      await pg.click('.ed-bar .ed-ok'); await sleep(1000);
+      const saved = (await api('config')).pages.find((p) => p.id === page.id).widgets.find((x) => x.type === 'text');
+      assert.deepStrictEqual([saved.x, saved.y, saved.w, saved.h], [2, 1, 3, 2]);
+      assert.ok(!(await pg.evaluate(() => document.body.classList.contains('editing'))), 'editing ended');
+      assert.deepStrictEqual(errors, []);
+      await ctx.close();
+      await api('config', { pages: before.pages, screens: before.screens, notes: [] });
+    });
   } finally {
     if (browser) await browser.close();
     server.kill();

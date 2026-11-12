@@ -7,6 +7,27 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.12.0] — 2026-11-12
+
+Six new widgets, a layout you can rearrange on the phone, and more for addons.
+
+### Added
+
+- **New widgets:** World clock (up to four places), Timer and stopwatch, Notes (a to-do list you write in the PC window and tick off on the phone), Photo frame (pictures from a folder on your PC), Recently played, and Device batteries (Bluetooth headphones, mice and keyboards that report their battery to Windows).
+- **PC stats:** the CPU temperature (when Windows or LibreHardwareMonitor provides it), a Disks view with free space on every drive, and a Busiest apps view.
+- **Up next:** Now playing shows the next song when PhoneDesk is connected to Spotify.
+- **Lyrics widget:** words light up as they are sung, like on the Lyrics screen.
+- **Rearrange a page on the phone:** hold an empty spot (or a widget for a second), drag widgets to move them and their corner to resize them, then tap Done.
+- **Long press:** a widget can do something when held (open a screen, press a shortcut, control the music), as well as when tapped.
+- **Double-tap to play or pause** anywhere on the phone (turn it on in Phone display).
+- **Widget style and page corners:** show a widget as a card, an outline or with no card at all; make a page's corners square, small or round.
+- **Schedule night mode or a dim screen:** a Schedule time can now turn on night mode or dim the screen instead of showing a screen.
+- **Addons:** new `weather`, `calendar` and `notifications` permissions with events on the phone and the PC side, and `PD.autoscale(w, h)` so a widget scales to any size. `pd-addon init <id> --widget` starts a widget-only addon set up that way.
+
+### Fixed
+
+- Unselected pages in the Layouts list no longer have a grey background.
+
 ## [1.11.1] — 2026-11-12
 
 A fix for the Lyrics widget's timing.

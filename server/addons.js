@@ -600,6 +600,8 @@ async function rpc(id, perms, method, args) {
     case 'media.get': need('media'); return api.media();
     case 'volume.get': need('volume'); return api.volume();
     case 'stats.get': need('stats'); return api.stats();
+    case 'weather.get': need('weather'); return api.weather ? api.weather() : null;
+    case 'calendar.get': need('calendar'); return api.calendar ? api.calendar() : null;
     case 'media.command': need('control'); if (!['toggle', 'play', 'pause', 'next', 'prev'].includes(args[0])) throw new Error('unknown command'); return api.mediaCommand(args[0]);
     case 'volume.set': need('control'); { const v = Number(args[0]); if (!Number.isFinite(v)) throw new Error('volume must be 0 to 1'); return api.setVolume(Math.min(1, Math.max(0, v))); }
     case 'keys.send': need('keys'); if (!/^[a-z0-9+]{1,60}$/i.test(String(args[0]))) throw new Error('bad key combination'); return api.sendKeys(String(args[0]).toLowerCase());
@@ -652,7 +654,7 @@ function fromPhone(id, data, widget) {
 }
 /** media / volume / stats -> the addon servers that asked for them. */
 function emit(name, data) {
-  const perm = { media: 'media', volume: 'volume', stats: 'stats' }[name];
+  const perm = { media: 'media', volume: 'volume', stats: 'stats', weather: 'weather', calendar: 'calendar', notification: 'notifications' }[name];
   for (const [id, h] of hosts) {
     if (h.child && h.child.connected && state[id] && state[id].permissions.includes(perm)) h.child.send({ op: 'event', name, data });
   }
