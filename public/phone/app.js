@@ -1005,7 +1005,7 @@
         el.setAttribute('data-mode', mode);
         var box = mode === 'col' ? wScale(el, w, h, 170, 250, 9, 34) : mode === 'mini' ? wScale(el, w, h, 260, 44, 9, 22) : wScale(el, w, h, 330, 112, 9, 34);
         if (img) {
-          var side = mode === 'col' ? Math.min(box.w * 0.82, box.h * 0.44) : mode === 'mini' ? 0 : Math.min(box.h, box.w * 0.4);
+          var side = mode === 'col' ? Math.min(box.w * 0.8, box.h * 0.4) : mode === 'mini' ? 0 : Math.min(box.h, box.w * 0.4);
           img.parentNode.style.width = img.parentNode.style.height = Math.max(0, side) + 'px';
         }
         requestAnimationFrame(function () { mqCheck(titleBox); mqCheck(artistBox); });

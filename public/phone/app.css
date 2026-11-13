@@ -1167,3 +1167,67 @@ body.look-ios .wg-timer .tm-k, body.look-ios .wg-worldclock .wc-n, body.look-ios
 html.preview body.look-ios .screen.page { padding: 8px; }
 html.preview body.look-ios .wgrid { gap: 8px; }
 
+
+/* ---- iOS style, Liquid Glass: clear tiles that show the wallpaper's colour, a bright rim that catches the light at
+   the top left and bottom right, a soft inner glow, and glass capsules for buttons and the page dots.
+   Still no backdrop-filter: the wallpaper behind is already blurred, so a clear fill reads as frosted glass. ---- */
+body.look-ios { --card: rgba(255, 255, 255, .085); --line: transparent; --glass-rim: linear-gradient(135deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, .14) 28%, rgba(255, 255, 255, .03) 55%, rgba(255, 255, 255, .1) 78%, rgba(255, 255, 255, .45)); }
+body.look-ios #wall.has-art { filter: blur(44px) saturate(1.9) brightness(.78); }
+body.look-ios #wall:not(.has-art) { filter: saturate(1.2) brightness(1.1); }
+body.look-ios .wg:not(.look-clear):not(.wg-clock) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05) 45%, rgba(255, 255, 255, .03));
+  border: 0;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .28), inset 0 0 18px rgba(255, 255, 255, .06), 0 10px 30px rgba(0, 0, 0, .22);
+}
+body.look-ios .wg:not(.look-clear):not(.wg-clock)::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.2px; pointer-events: none; z-index: 2;
+  background: var(--glass-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* a faint sheen across the top, like light on curved glass */
+body.look-ios .wg:not(.look-clear):not(.wg-clock)::after {
+  content: ""; position: absolute; left: 6%; right: 6%; top: 0; height: 38%; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .1), transparent);
+}
+body.look-ios .wg > * { position: relative; z-index: 1; }
+body.look-ios .wg-photos > img { position: absolute; }
+body.look-ios .wg.look-outline { background: none !important; box-shadow: none !important; }
+
+/* Now playing keeps a hint of the cover's colour in the glass */
+body.look-ios .wg-nowplaying:not(.look-clear) { background: linear-gradient(150deg, rgba(var(--tint), .38), rgba(255, 255, 255, .06) 55%, rgba(255, 255, 255, .03)) !important; }
+body.look-ios .wg-nowplaying .w-ctl button { width: 2.3em !important; height: 2.3em !important; border-radius: 50% !important; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .14) !important; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), inset 0 -1px 1px rgba(255, 255, 255, .06); }
+body.look-ios .wg-nowplaying .w-ctl button.play { width: 2.8em !important; height: 2.8em !important; background: rgba(255, 255, 255, .26) !important; }
+body.look-ios .wg-nowplaying .w-ctl .ic { width: 1.05em; height: 1.05em; }
+body.look-ios .wg-nowplaying .w-ctl button.play .ic { width: 1.35em; height: 1.35em; }
+body.look-ios .wg-nowplaying .w-ctl { gap: .7em; }
+
+/* the sky tiles stay coloured, seen through glass */
+body.look-ios .io-sky:not(.look-clear) { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .45), inset 0 0 22px rgba(255, 255, 255, .12), 0 10px 30px rgba(0, 0, 0, .22); }
+body.look-ios .io-sky[data-sky=clear] { background: linear-gradient(170deg, rgba(61, 143, 230, .85), rgba(109, 177, 242, .7)) !important; }
+body.look-ios .io-sky[data-sky=partly] { background: linear-gradient(170deg, rgba(75, 134, 201, .85), rgba(126, 166, 207, .7)) !important; }
+body.look-ios .io-sky[data-sky=cloudy] { background: linear-gradient(170deg, rgba(93, 111, 132, .85), rgba(132, 148, 166, .7)) !important; }
+body.look-ios .io-sky[data-sky=rain] { background: linear-gradient(170deg, rgba(63, 78, 97, .88), rgba(92, 109, 128, .72)) !important; }
+body.look-ios .io-sky[data-sky=snow] { background: linear-gradient(170deg, rgba(138, 162, 189, .85), rgba(185, 200, 217, .72)) !important; }
+body.look-ios .io-sky[data-sky=night] { background: linear-gradient(170deg, rgba(11, 22, 51, .85), rgba(35, 52, 94, .72)) !important; }
+
+/* rings: brighter tracks on glass */
+body.look-ios .io-ring .io-rt { opacity: .28; }
+body.look-ios .io-ring span, body.look-ios .iwc span { color: rgba(255, 255, 255, .72); }
+
+/* page dots and the top pills as glass capsules */
+body.look-ios #dots { left: 50%; right: auto; transform: translateX(-50%); padding: 3px 6px; border-radius: 999px; background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .3); }
+body.look-ios #dots button { width: 18px; }
+body.look-ios .batt { background: rgba(255, 255, 255, .13); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .3); color: #fff; }
+body.look-ios .batt.charging, body.look-ios .batt.low { color: #fff; }
+body.look-ios .wg:not(.look-clear):not(.wg-clock)::after { left: 0; right: 0; height: 60%; background: radial-gradient(110% 70% at 50% 0%, rgba(255, 255, 255, .13), transparent 70%); }
+body.look-ios .screen.page { padding-bottom: 40px; }
+html.preview body.look-ios .screen.page { padding: 8px; }
+body.look-ios .ic-h span, body.look-ios .wg-notes .nt-h, body.look-ios .wg-recent .nt-h, body.look-ios .wg-nowplaying .w-src { text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
+body.look-ios .ic-h span { color: #ff6961; }
+body.look-ios .wg-notes .nt-h { color: #ffc04d; }
+body.look-ios .wg-nowplaying[data-mode=col] { gap: .55em; }
+body.look-ios .wg-nowplaying[data-mode=col] .w-ctl button { width: 2em !important; height: 2em !important; }
+body.look-ios .wg-nowplaying[data-mode=col] .w-ctl button.play { width: 2.4em !important; height: 2.4em !important; }
+body.look-ios .wg-nowplaying[data-mode=col] .w-ctl { margin-top: .25em; }
