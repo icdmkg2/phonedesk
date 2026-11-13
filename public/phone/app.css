@@ -1119,8 +1119,8 @@ body.look-ios .if-lo { opacity: .7; font-size: .9em; }
 body.look-ios .io-rings { display: flex; flex-direction: row; align-items: center; justify-content: space-around; gap: .6em; padding: 12px 14px; }
 .io-ring { position: relative; display: flex; flex-direction: column; align-items: center; gap: .35em; flex: 1; min-width: 0; }
 .io-dial { position: relative; width: 100%; max-width: 5.6em; aspect-ratio: 1; }
-.io-ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
-.io-ring circle { fill: none; stroke-width: 11; stroke-linecap: round; }
+.io-dial > svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.io-dial > svg circle { fill: none; stroke-width: 11; stroke-linecap: round; }
 .io-ring .io-rt { stroke: var(--rc); opacity: .22; }
 .io-ring .io-rv { stroke: var(--rc); transition: stroke-dasharray .6s ease-out; }
 .io-ring b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.15em; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
@@ -1242,3 +1242,18 @@ body.look-ios .key { border-radius: 22px; }
 body.look-ios .card, body.look-ios .st-hist, body.look-ios .st-cores, body.look-ios .agenda { border-radius: 24px; }
 body.look-ios .graph { background: none !important; }
 body.look-ios .np-top > *, body.look-ios .app { background: rgba(255, 255, 255, .13) !important; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .3); }
+
+/* Bluetooth devices: an icon per device; "Connected" when it does not report a battery */
+.bt-ic { width: 1.25em; height: 1.25em; flex: none; color: var(--fg2); }
+.wg-devices { justify-content: center; }
+.wg-devices .dv-i { grid-template-columns: auto 1fr auto; column-gap: .65em; row-gap: .25em; }
+.wg-devices .dv-i .bt-ic { grid-row: 1 / span 2; align-self: center; width: 1.4em; height: 1.4em; }
+.wg-devices .dv-i .dv-n { grid-column: 2; grid-row: 1; }
+.wg-devices .dv-i b { grid-column: 3; grid-row: 1; }
+.wg-devices .dv-b { grid-column: 2 / -1; grid-row: 2; }
+.wg-devices .dv-i.nb .bt-ic { grid-row: 1; }
+.wg-devices .dv-i.nb b { color: var(--fg3); font-weight: 600; font-size: .85em; }
+.io-ring > span { display: inline-flex; align-items: center; gap: .3em; }
+.io-ring > span .bt-ic { width: 1.1em; height: 1.1em; color: rgba(255, 255, 255, .7); }
+.io-ring .io-icon { display: grid; place-items: center; }
+.io-ring .io-icon .bt-ic { width: 1.5em; height: 1.5em; color: rgba(255, 255, 255, .85); }

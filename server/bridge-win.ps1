@@ -551,24 +551,54 @@ function Start-Bt {
   if ($script:btPs) { return }
   $ps = [powershell]::Create()
   [void]$ps.AddScript({
-    $key = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
-    $seen = @{}
-    foreach ($d in (Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like 'BTHENUM*' -or $_.InstanceId -like 'BTHLE*' })) {
+    # Every Bluetooth device that is connected to this PC, with its battery when Windows knows it.
+    # A device is one "BTHENUM\DEV_<address>" (classic) or "BTHLE\DEV_<address>" (Low Energy) node; its battery is
+    # often reported on one of its service nodes instead, so batteries are matched to devices by the address.
+    $kBattery = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
+    $kConnected = '{83DA6326-97A6-4088-9453-A1923F573B29} 15'
+    $kClass = '{2BD67D8B-8BEB-48D5-87E0-6CDA3428040A} 10'
+    $all = @(Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -match '^BTH' })
+    $devs = @{}
+    foreach ($d in $all) {
+      if ($d.InstanceId -notmatch '^(BTHENUM|BTHLE)\\DEV_([0-9A-Fa-f]{12})') { continue }
+      $mac = $Matches[2].ToUpper()
+      $on = $null
+      try { $on = [bool](Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName $kConnected -ErrorAction Stop).Data } catch { }
+      if ($null -eq $on) { $on = ($d.Status -eq 'OK') }
+      if (-not $on) { continue }
+      $kind = ''
       try {
-        $v = (Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName $key -ErrorAction Stop).Data
-        if ($null -ne $v -and [int]$v -ge 0 -and [int]$v -le 100 -and -not $seen.ContainsKey($d.FriendlyName)) {
-          $seen[$d.FriendlyName] = 1
-          [pscustomobject]@{ name = [string]$d.FriendlyName; level = [int]$v }
-        }
+        $cod = [int](Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName $kClass -ErrorAction Stop).Data
+        $major = ($cod -shr 8) -band 0x1F; $minor = ($cod -shr 2) -band 0x3F
+        if ($major -eq 4) { $kind = 'audio' }
+        elseif ($major -eq 5) { if ($minor -band 0x10) { $kind = 'keyboard' } elseif ($minor -band 0x20) { $kind = 'mouse' } elseif (($minor -band 0x0F) -eq 2) { $kind = 'controller' } else { $kind = 'input' } }
+        elseif ($major -eq 2) { $kind = 'phone' }
+        elseif ($major -eq 1) { $kind = 'computer' }
+        elseif ($major -eq 7) { $kind = 'watch' }
       } catch { }
+      if (-not $devs.ContainsKey($mac)) { $devs[$mac] = @{ name = [string]$d.FriendlyName; level = -1; kind = $kind } }
+      elseif (-not $devs[$mac].kind -and $kind) { $devs[$mac].kind = $kind }
     }
+    if ($devs.Count -gt 0) {
+      foreach ($d in $all) {
+        $m = [regex]::Matches($d.InstanceId, '[0-9A-Fa-f]{12}')
+        if ($m.Count -eq 0) { continue }
+        $mac = $m[$m.Count - 1].Value.ToUpper()
+        if (-not $devs.ContainsKey($mac) -or $devs[$mac].level -ge 0) { continue }
+        try {
+          $v = (Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName $kBattery -ErrorAction Stop).Data
+          if ($null -ne $v -and [int]$v -ge 0 -and [int]$v -le 100) { $devs[$mac].level = [int]$v }
+        } catch { }
+      }
+    }
+    foreach ($k in $devs.Keys) { [pscustomobject]$devs[$k] }
   })
   $script:btPs = $ps
   $script:btAsync = $ps.BeginInvoke()
 }
 function Poll-Bt {
   if (-not $script:btPs -or -not $script:btAsync.IsCompleted) { return }
-  try { $r = @($script:btPs.EndInvoke($script:btAsync)); Emit @{ t = 'bt'; items = @($r | ForEach-Object { @{ name = $_.name; level = $_.level } }) } } catch { }
+  try { $r = @($script:btPs.EndInvoke($script:btAsync)); Emit @{ t = 'bt'; items = @($r | ForEach-Object { @{ name = $_.name; level = $_.level; kind = $_.kind } }) } } catch { }
   $script:btPs.Dispose(); $script:btPs = $null; $script:btAsync = $null
 }
 
@@ -677,7 +707,7 @@ while ($true) {
   # --- busiest apps and CPU temperature, every ~4s ---
   if ($tick % 16 -eq 3) { try { Send-Sys } catch { if ($tick % 480 -eq 3) { Log "app stats failed: $($_.Exception.Message)" } } }
   # --- Bluetooth batteries: start a read once a minute, collect it when it is done ---
-  if ($tick % 240 -eq 9) { try { Start-Bt } catch { } }
+  if ($tick % 120 -eq 9) { try { Start-Bt } catch { } }
   try { Poll-Bt } catch { }
 
   $tick++

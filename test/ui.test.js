@@ -156,8 +156,10 @@ async function t(name, fn) {
         window.WebSocket = class extends P {
           constructor(u, p) {
             super(u, p);
+            // the test server sends its own (GPU-less) stats too: drop those so only the pretend PC is seen
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics', 'stats', 'history', 'histPoint'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
             this.addEventListener('open', () => {
-              const d = (m) => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(m) }));
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
               setTimeout(() => {
                 d({ t: 'media', d: { active: true, title: 'A very long song title that cannot possibly fit in the box', artist: 'Someone', app: 'Spotify', status: 'Playing', position: 130, duration: 200, updated: Date.now() } });
                 d({ t: 'lyrics', d: { synced: true, lines } });

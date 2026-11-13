@@ -1350,18 +1350,44 @@
     };
   }
 
-  // Batteries of Bluetooth devices connected to the PC.
-  function wDevices() {
+  // What kind of Bluetooth device it is (from Windows, or guessed from the name), for its icon.
+  var BT_ICONS = {
+    audio: '<path d="M4 13v-1a8 8 0 0 1 16 0v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="3" y="13" width="4.5" height="7" rx="1.8" fill="currentColor"/><rect x="16.5" y="13" width="4.5" height="7" rx="1.8" fill="currentColor"/>',
+    mouse: '<rect x="6.5" y="3" width="11" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6.5v3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 14h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    controller: '<path d="M7 8h10a4 4 0 0 1 3.9 4.9l-.9 4a2.2 2.2 0 0 1-3.8 1L14.5 16h-5l-1.7 1.9a2.2 2.2 0 0 1-3.8-1l-.9-4A4 4 0 0 1 7 8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+    phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 18.5h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    watch: '<rect x="7" y="6" width="10" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 6l.6-3h4.8L15 6M9 18l.6 3h4.8L15 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+    other: '<path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  };
+  function btKind(d) {
+    if (d.kind && d.kind !== 'input' && d.kind !== 'computer' && BT_ICONS[d.kind]) return d.kind;
+    var n = String(d.name || '').toLowerCase();
+    if (/bud|pod|head|ear|wh-|wf-|jbl|beats|bose|sony|speaker|soundcore|audio/.test(n)) return 'audio';
+    if (/mouse|mx master|mx anywhere|trackpad|mx ergo/.test(n)) return 'mouse';
+    if (/keyboard|keychron|mx keys|k380|kbd/.test(n)) return 'keyboard';
+    if (/controller|xbox|dualsense|dualshock|pro controller|gamepad|8bitdo/.test(n)) return 'controller';
+    if (/watch|band/.test(n)) return 'watch';
+    return d.kind === 'phone' ? 'phone' : 'other';
+  }
+  function btIcon(d) { return '<svg class="bt-ic" viewBox="0 0 24 24" aria-hidden="true">' + BT_ICONS[btKind(d)] + '</svg>'; }
+  function btList(o) { var l = state.bt || []; return o && o.onlyBattery ? l.filter(function (d) { return d.level >= 0; }) : l; }
+
+  // Every Bluetooth device connected to the PC, with its battery when it reports one.
+  function wDevices(wd) {
     var el = wEl('devices'), last = '';
     return {
       el: el,
       update: function () {
-        var l = state.bt || [];
-        var html = l.length ? l.map(function (d) { return '<div class="dv-i' + (d.level <= 20 ? ' low' : '') + '"><span class="dv-n">' + escHtml(d.name) + '</span><b>' + d.level + '%</b><div class="dv-b"><i style="transform:scaleX(' + (d.level / 100).toFixed(2) + ')"></i></div></div>'; }).join('')
-          : '<div class="w-empty">No Bluetooth device reports its battery to Windows yet</div>';
-        if (html !== last) { last = html; el.innerHTML = html; }
+        var l = btList(wd && wd.opts);
+        var html = l.length ? l.map(function (d) {
+          var has = d.level >= 0;
+          return '<div class="dv-i' + (has && d.level <= 20 ? ' low' : '') + (has ? '' : ' nb') + '">' + btIcon(d) + '<span class="dv-n">' + escHtml(d.name) + '</span><b>' + (has ? d.level + '%' : 'Connected') + '</b>' +
+            (has ? '<div class="dv-b"><i style="transform:scaleX(' + (d.level / 100).toFixed(2) + ')"></i></div>' : '') + '</div>';
+        }).join('') : '<div class="w-empty">No Bluetooth devices connected to the PC</div>';
+        if (html !== last) { last = html; el.innerHTML = html; if (el._wh && l.length !== el._n) this.resize(el._wh[0], el._wh[1]); }
       },
-      resize: function (w, h) { wScale(el, w, h, 220, Math.max(60, 46 * Math.max(1, (state.bt || []).length)), 9, 22); },
+      resize: function (w, h) { el._wh = [w, h]; el._n = btList(wd && wd.opts).length; wScale(el, w, h, 230, 37 * Math.max(1, el._n) + 8, 7, 22); },
     };
   }
 
@@ -1393,10 +1419,11 @@
   };
   function skyOf(code, day) { return !day ? 'night' : code === 0 ? 'clear' : code <= 2 ? 'partly' : code === 3 || code === 45 || code === 48 ? 'cloudy' : (code >= 71 && code <= 77) || code === 85 || code === 86 ? 'snow' : 'rain'; }
   // A ring like the Activity and Batteries widgets: the share as an arc, the value in the middle.
-  function ring(pct, color, label, inner) {
+  // label may start with an icon (labelIcon); inner replaces the percentage (an icon in an empty ring, for example)
+  function ring(pct, color, label, inner, labelIcon) {
     var r = 40, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct || 0));
     // the number sits in a box that is exactly the ring's size, so it is centred on the ring whatever its font size
-    return '<div class="io-ring" style="--rc:' + color + '"><div class="io-dial"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/><circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg><b>' + (inner != null ? inner : '<i>' + Math.round(v) + '<small>%</small></i>') + '</b></div>' + (label ? '<span>' + escHtml(label) + '</span>' : '') + '</div>';
+    return '<div class="io-ring" style="--rc:' + color + '"><div class="io-dial"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/>' + (v > 0 ? '<circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/>' : '') + '</svg><b>' + (inner != null ? inner : '<i>' + Math.round(v) + '<small>%</small></i>') + '</b></div>' + (label ? '<span>' + (labelIcon || '') + escHtml(label) + '</span>' : '') + '</div>';
   }
   function iosWeather() {
     var el = wEl('weather'), last = null;
@@ -1449,17 +1476,18 @@
       resize: function (w, h) { var n = mode === 'all' ? 4 : 1; wScale(el, w, h, 90 * n + 40, 130, 9, 30); },
     };
   }
-  function iosDevices() {
-    var el = wEl('devices'), last = '';
+  function iosDevices(wd) {
+    var o = (wd && wd.opts) || {}, el = wEl('devices'), last = '';
     el.classList.add('io-rings');
     return {
       el: el,
       update: function () {
-        var l = (state.bt || []).slice(0, 4);
-        var html = l.length ? l.map(function (d) { return ring(d.level, d.level <= 20 ? '#ff453a' : '#30d158', d.name); }).join('') : '<div class="w-empty">No Bluetooth device reports its battery yet</div>';
-        if (html !== last) { last = html; el.innerHTML = html; }
+        var l = btList(o).slice(0, 6);
+        // a ring with the battery, or the device's icon in an empty ring when it does not report one
+        var html = l.length ? l.map(function (d) { return d.level >= 0 ? ring(d.level, d.level <= 20 ? '#ff453a' : '#30d158', d.name, null, btIcon(d)) : ring(0, 'rgba(255,255,255,.6)', d.name, '<span class="io-icon">' + btIcon(d) + '</span>'); }).join('') : '<div class="w-empty">No Bluetooth devices connected to the PC</div>';
+        if (html !== last) { last = html; el.innerHTML = html; if (el._wh) this.resize(el._wh[0], el._wh[1]); }
       },
-      resize: function (w, h) { wScale(el, w, h, 90 * Math.max(1, Math.min(4, (state.bt || []).length)) + 30, 130, 9, 30); },
+      resize: function (w, h) { el._wh = [w, h]; wScale(el, w, h, 90 * Math.max(1, Math.min(6, btList(o).length)) + 30, 130, 9, 30); },
     };
   }
   function iosWorld(wd) {

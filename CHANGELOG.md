@@ -15,6 +15,9 @@ An iOS-style look for your pages, and lyrics that stay in time.
 
 - **iOS widget style, in Liquid Glass.** In Phone display, under Widget style, choose iOS: pages sit on a blurred copy of the album cover, and widgets become clear glass tiles with a bright edge that catches the light, so the wallpaper's colour shows through. Buttons and the page dots are glass too. Weather is coloured like the sky, PC stats and device batteries are rings, the world clock has analog faces, the calendar shows the date large, and Now playing takes the cover's colour. Classic stays the default.
 
+- **Bluetooth devices widget** (was Device batteries): lists every Bluetooth device connected to the PC (headphones, mouse, keyboard, controller, phone) with an icon for each, and its battery when it reports one. Devices that don't report one show as Connected; an option hides them. It looks for new devices every 30 seconds.
+- The iOS style also covers the built-in screens (stats, clock, shortcuts) and the top pills.
+
 ### Fixed
 
 - **Lyrics from LRCLIB are in time.** LRCLIB gives only when each line starts, and PhoneDesk used to guess when each word inside it is sung, which drifted ahead of or behind the singer. Lines without word timings now light up whole, right when they start, on the Lyrics screen, in the kinetic style and in the Lyrics widget. Spicy Lyrics, which has the real timing of every word, still lights up word by word. LRC files with an `[offset:]` tag are now shifted by it.
