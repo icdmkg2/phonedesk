@@ -17,6 +17,7 @@ An iOS-style look for your pages, and lyrics that stay in time.
 
 - **Bluetooth devices widget** (was Device batteries): lists every Bluetooth device connected to the PC (headphones, mouse, keyboard, controller, phone) with an icon for each, and its battery when it reports one. Devices that don't report one show as Connected; an option hides them. It looks for new devices every 30 seconds.
 - The iOS style also covers the built-in screens (stats, clock, shortcuts) and the top pills.
+- **A new logo**: your PC and your phone side by side. It is the app icon on Windows and Android, the icon in the PC window and on the phone, and the website's favicon.
 
 ### Fixed
 
