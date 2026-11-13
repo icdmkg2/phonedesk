@@ -1231,3 +1231,14 @@ body.look-ios .wg-nowplaying[data-mode=col] { gap: .55em; }
 body.look-ios .wg-nowplaying[data-mode=col] .w-ctl button { width: 2em !important; height: 2em !important; }
 body.look-ios .wg-nowplaying[data-mode=col] .w-ctl button.play { width: 2.4em !important; height: 2.4em !important; }
 body.look-ios .wg-nowplaying[data-mode=col] .w-ctl { margin-top: .25em; }
+
+/* iOS style on the built-in screens (stats, clock, shortcuts...): the same glass, as inner highlights */
+body.look-ios .card, body.look-ios .key, body.look-ios .st-hist, body.look-ios .st-cores, body.look-ios .agenda, body.look-ios .fc-d, body.look-ios .pad-tabs {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05) 45%, rgba(255, 255, 255, .03)) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .32), inset 0 0 0 1px rgba(255, 255, 255, .08), inset 0 0 18px rgba(255, 255, 255, .05), 0 10px 30px rgba(0, 0, 0, .2);
+}
+body.look-ios .key { border-radius: 22px; }
+body.look-ios .card, body.look-ios .st-hist, body.look-ios .st-cores, body.look-ios .agenda { border-radius: 24px; }
+body.look-ios .graph { background: none !important; }
+body.look-ios .np-top > *, body.look-ios .app { background: rgba(255, 255, 255, .13) !important; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .3); }
