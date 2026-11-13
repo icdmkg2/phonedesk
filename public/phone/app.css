@@ -1123,7 +1123,8 @@ body.look-ios .io-rings { display: flex; flex-direction: row; align-items: cente
 .io-ring .io-rt { stroke: var(--rc); opacity: .22; }
 .io-ring .io-rv { stroke: var(--rc); transition: stroke-dasharray .6s ease-out; }
 .io-ring b { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 1; max-width: 5.6em; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.15em; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.io-ring b small { font-size: .6em; font-weight: 600; color: var(--fg2); margin-left: .05em; align-self: center; }
+.io-ring b > i { position: relative; font-style: normal; }
+.io-ring b small { position: absolute; left: 100%; top: 50%; transform: translateY(-38%); margin-left: .08em; font-size: .55em; font-weight: 600; color: var(--fg2); }
 .io-ring span { font-size: .78em; font-weight: 600; color: var(--fg2); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .io-net { display: flex; flex-direction: column; align-items: center; gap: .2em; flex: 1; text-align: center; }
 .io-net span { font-size: .78em; font-weight: 600; color: var(--fg2); }
@@ -1164,3 +1165,4 @@ body.look-ios .wg-timer .tm-k, body.look-ios .wg-worldclock .wc-n, body.look-ios
 /* the layout editor's preview keeps the editor's grid (8px padding and gaps) so its drag boxes line up */
 html.preview body.look-ios .screen.page { padding: 8px; }
 html.preview body.look-ios .wgrid { gap: 8px; }
+

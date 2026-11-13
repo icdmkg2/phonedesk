@@ -7,6 +7,19 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.13.0] — 2026-11-13
+
+An iOS-style look for your pages, and lyrics that stay in time.
+
+### Added
+
+- **iOS widget style.** In Phone display, under Widget style, choose iOS: pages sit on a blurred copy of the album cover, and widgets become rounded glass tiles. Weather is coloured like the sky, PC stats and device batteries are rings, the world clock has analog faces, the calendar shows the date large, and Now playing takes the cover's colour. Classic stays the default.
+
+### Fixed
+
+- **Lyrics from LRCLIB are in time.** LRCLIB gives only when each line starts, and PhoneDesk used to guess when each word inside it is sung, which drifted ahead of or behind the singer. Lines without word timings now light up whole, right when they start, on the Lyrics screen, in the kinetic style and in the Lyrics widget. Spicy Lyrics, which has the real timing of every word, still lights up word by word. LRC files with an `[offset:]` tag are now shifted by it.
+- In the iOS style, the battery percentage of each device is centred in its ring.
+
 ## [1.12.0] — 2026-11-12
 
 Six new widgets, a layout you can rearrange on the phone, and more for addons.

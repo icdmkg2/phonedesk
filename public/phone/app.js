@@ -1146,7 +1146,8 @@
           if (k < words.length - 1) L.c.appendChild(document.createTextNode(' '));
           spans.push(sp); wf.push(acc / total); acc += wv.length + 1;
         });
-        if (ln.words && ln.words.length === words.length && ln.dur > 0) wf = ln.words.map(function (x) { return Math.max(0, Math.min(0.98, (x.t - ln.t) / ln.dur)); });
+        if (lyWordsTimed(ln, words.length)) wf = ln.words.map(function (x) { return Math.max(0, Math.min(0.98, (x.t - ln.t) / ln.dur)); });
+        else wf = words.map(function () { return 0; });
         var gap = (lines[idx + 1] ? lines[idx + 1].t : ln.t + 6) - ln.t;
         cw = { spans: spans, wf: wf, start: ln.t, sung: ln.dur > 0 ? ln.dur : lySung(ln.text.length, gap), lit: -1 };
         el.classList.add('words');
@@ -1394,7 +1395,7 @@
   // A ring like the Activity and Batteries widgets: the share as an arc, the value in the middle.
   function ring(pct, color, label, inner) {
     var r = 40, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct || 0));
-    return '<div class="io-ring" style="--rc:' + color + '"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/><circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg><b>' + (inner != null ? inner : Math.round(v) + '<small>%</small>') + '</b>' + (label ? '<span>' + escHtml(label) + '</span>' : '') + '</div>';
+    return '<div class="io-ring" style="--rc:' + color + '"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/><circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg><b>' + (inner != null ? inner : '<i>' + Math.round(v) + '<small>%</small></i>') + '</b>' + (label ? '<span>' + escHtml(label) + '</span>' : '') + '</div>';
   }
   function iosWeather() {
     var el = wEl('weather'), last = null;
@@ -2298,9 +2299,8 @@
           if (k < words.length - 1) div.appendChild(document.createTextNode(' '));
           spans.push(sp); wf.push(acc / total); acc += w.length + 1;
         });
-        if (l.words && l.words.length === words.length && l.dur > 0) {
-          wf = l.words.map(function (w) { return Math.max(0, Math.min(0.98, (w.t - l.t) / l.dur)); });
-        }
+        if (lyWordsTimed(l, words.length)) wf = l.words.map(function (w) { return Math.max(0, Math.min(0.98, (w.t - l.t) / l.dur)); });
+        else wf = words.map(function () { return 0; });
         div._w = spans; div._wf = wf; div._cur = -2;
       }
       else div.innerHTML = '<i></i><i></i><i></i>';
@@ -2329,6 +2329,9 @@
   }
   // Where in the song are we? Binary search over the line start times.
   // How long a line is actually sung: most of the gap to the next line, but not stretched over a long instrumental break.
+  // Real word timings (Spicy Lyrics) or only the line's start (LRCLIB and most others)? Without word timings the
+  // whole line lights up when it starts: guessing each word's time from its length looked out of sync.
+  function lyWordsTimed(l, n) { return !!(l && l.words && l.words.length === n && l.dur > 0); }
   function lySung(len, gap) {
     var expected = Math.max(1.5, (len / 10) * 1.7);
     return Math.max(0.8, Math.min(gap * 0.92, expected));
@@ -2638,11 +2641,13 @@
     });
     el.appendChild(kd);
     // Real word timings (word-synced lyrics): each word fills exactly while it is sung.
-    if (ln.words && ln.words.length === spans.length && ln.dur > 0) {
+    if (lyWordsTimed(ln, spans.length)) {
       for (var wi2 = 0; wi2 < spans.length; wi2++) {
         wf[wi2] = Math.max(0, Math.min(0.98, (ln.words[wi2].t - ln.t) / ln.dur));
         spans[wi2].style.setProperty('--fd', Math.max(0.12, (ln.words[wi2].e || ln.words[wi2].t) - ln.words[wi2].t).toFixed(2) + 's');
       }
+    } else { // only the line's start is known: all words come in together, quickly, on time
+      for (var wi3 = 0; wi3 < spans.length; wi3++) { wf[wi3] = 0; spans[wi3].style.setProperty('--fd', '0.35s'); }
     }
     el._w = spans; el._wf = wf; el._cur = -2; el._sung = sung;
     stage.appendChild(el);

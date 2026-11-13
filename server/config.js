@@ -34,7 +34,7 @@ const DEFAULTS = {
   notes: [],                   // [{ id, text, done }]: the Notes widget's list
   photosDir: '',               // a folder of pictures for the Photo frame widget
   doubleTapPlay: false,        // double-tap anywhere on the phone to play or pause
-  look: 'ios',                 // how pages and widgets look on the phone: 'ios' (glass tiles on the album wallpaper) or 'classic'
+  look: 'classic',             // how pages and widgets look on the phone: 'classic' or 'ios' (glass tiles on the album wallpaper)
   nowStyle: 'immersive',
   lyricsMode: 'scroll',
   lyricsFont: 'serif',
@@ -109,7 +109,7 @@ function sanitize(c) {
     .map((n) => ({ id: /^[a-z0-9]{4,16}$/.test(n.id || '') ? n.id : crypto.randomBytes(4).toString('hex'), text: String(n.text).trim().slice(0, 200), done: n.done === true }));
   out.photosDir = String(c.photosDir || '').trim().slice(0, 400);
   out.doubleTapPlay = c.doubleTapPlay === true;
-  out.look = c.look === 'classic' ? 'classic' : 'ios';
+  out.look = c.look === 'ios' ? 'ios' : 'classic';
   out.schedule = (Array.isArray(c.schedule) ? c.schedule : []).slice(0, 6).filter((r) => r && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.from) && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.to) && /^[a-z]+(:[\w.-]{1,60})?$/.test(r.screen || '') && r.from !== r.to)
     .map((r) => ({ from: r.from, to: r.to, screen: r.screen }));
   out.nowStyle = c.nowStyle === 'classic' ? 'classic' : 'immersive';
