@@ -97,7 +97,10 @@ jobs:
             if gh release view "v$v" --repo "$REPO" > /dev/null 2>&1; then
               gh release edit "v$v" --repo "$REPO" --title "PhoneDesk $v" --notes-file notes.md
             else
+              # a version that shipped inside a later one (1.11.1) may have no release; GitHub can refuse to
+              # make one for it (403), and that must not mark the release that was just published as failed
               commit=$(node build/release.js commit "$v")
-              gh release create "v$v" --repo "$REPO" --target "$commit" --title "PhoneDesk $v" --notes-file notes.md --latest=false
+              gh release create "v$v" --repo "$REPO" --target "$commit" --title "PhoneDesk $v" --notes-file notes.md --latest=false \
+                || echo "::warning::No release for $v: GitHub refused to create it; skipped"
             fi
           done
