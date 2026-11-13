@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-type="software">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -16,12 +16,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta name="page-type" content="software">
+<meta name="site-kind" content="software">
 <link rel="stylesheet" href="assets/site.css">
+<script>document.documentElement.classList.add('mo-js');setTimeout(()=>document.documentElement.classList.add('mo-safe'),2500)</script>
+<link rel="modulepreload" href="assets/moments/moments.js"><link rel="modulepreload" href="assets/moments/lib.js"><link rel="modulepreload" href="assets/moments/pinned-chapters/moment.js">
 </head>
 <body>
-<a class="skip" href="#top">Skip to content</a>
 <header class="nav">
   <div class="wrap nav__bar">
+    <a class="skip" href="#top">Skip to content</a>
     <a class="logo" href="./" translate="no"><img src="assets/favicon.svg" alt="" width="30" height="30">PhoneDesk</a>
     <nav class="nav__links" aria-label="Main">
       <a href="./#widgets">Widgets</a>
@@ -36,24 +40,23 @@
 </header>
 
 <main id="top">
-<section class="hx">
-  <div class="hx__glow" aria-hidden="true"></div>
-  <div class="wrap hx__grid">
+<section class="hx" data-enter>
+  <div class="wrap"><div class="hero-text hx__grid">
     <div class="hx__copy">
-      <a class="pill" href="changelog.html"><b>New in {{VERSION}}</b> Liquid Glass widgets and Bluetooth batteries <span aria-hidden="true">→</span></a>
       <h1>Your desk, on an old&nbsp;phone.</h1>
       <p class="lead">PhoneDesk turns a spare Android phone into a display for your Windows PC: what is playing, synced lyrics, your calendar, PC stats and the battery of every Bluetooth device, laid out the way you want.</p>
       <div class="hero__cta">
         <a class="btn btn--p" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows</a>
         <a class="btn btn--g" href="#widgets">See the widgets</a>
       </div>
+      <a class="pill" href="changelog.html"><b>New in {{VERSION}}</b> Liquid Glass widgets and Bluetooth batteries <span aria-hidden="true">→</span></a>
       <p class="small">Free and open source · Windows 10 and 11 · Android 7 or newer</p>
     </div>
     <figure class="hx__shot">
       <div class="phone" data-look="glass">
         <div class="phone__screen">
-          <img src="img/1.13.0-phone-home-ios-1200.webp" srcset="img/1.13.0-phone-home-ios-640.webp 640w, img/1.13.0-phone-home-ios-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 60vw" alt="The Home page in the Liquid Glass style: clock, Now playing, weather, agenda and PC stats rings" width="1920" height="888" fetchpriority="high" class="ph-glass">
-          <img src="img/1.13.0-phone-home-classic-1200.webp" srcset="img/1.13.0-phone-home-classic-640.webp 640w, img/1.13.0-phone-home-classic-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 60vw" alt="The same Home page in the Classic style" width="1920" height="888" loading="lazy" class="ph-classic">
+          <img src="img/1.13.0-phone-home-ios-1200.webp" srcset="img/1.13.0-phone-home-ios-640.webp 640w, img/1.13.0-phone-home-ios-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 58vw" alt="The Home page in the Liquid Glass style: clock, Now playing, weather, agenda and PC stats rings" width="1920" height="888" fetchpriority="high" class="ph-glass">
+          <img src="img/1.13.0-phone-home-classic-1200.webp" srcset="img/1.13.0-phone-home-classic-640.webp 640w, img/1.13.0-phone-home-classic-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 58vw" alt="The same Home page in the Classic style" width="1920" height="888" loading="lazy" class="ph-classic">
         </div>
       </div>
       <div class="seg" role="group" aria-label="Widget style">
@@ -61,42 +64,39 @@
         <button type="button" aria-pressed="false" data-look="classic">Classic</button>
       </div>
     </figure>
-  </div>
+  </div></div>
 </section>
 
 <section class="sec" id="widgets">
   <div class="wrap">
-    <p class="eyebrow">Widgets</p>
-    <h2>Sixteen widgets. Put them anywhere.</h2>
-    <p class="sec__lead">Every widget scales to the space you give it, and every one comes in two styles: Classic, and Liquid Glass over a blur of the album you are playing.</p>
+    <h2>Sixteen widgets for the phone, placed anywhere.</h2>
+    <p class="sec__lead">Every widget scales to the space you give it, in two styles: Classic, or Liquid Glass over a blur of the album you are playing.</p>
     <div class="wb">
-      <div class="wt w8"><div class="wt__img"><img src="img/1.13.0-crop-stats.webp" alt="PC stats as rings: CPU 34%, memory 61%, GPU 41% and network speed" width="1068" height="348" loading="lazy"></div><div class="wt__t"><h3>PC stats</h3><p>CPU, memory, GPU with its heat, network, disks and the busiest apps.</p></div></div>
-      <div class="wt w4"><div class="wt__img"><img src="img/1.13.0-crop-weather.webp" alt="Weather: Tel Aviv, 19°, partly cloudy" width="444" height="346" loading="lazy"></div><div class="wt__t"><h3>Weather</h3><p>Now, or five days ahead.</p></div></div>
-      <div class="wt w5"><div class="wt__img"><img src="img/1.13.0-crop-devices.webp" alt="Bluetooth devices: headphones at 72%, a mouse at 15%, a keyboard at 54%, a controller and a phone" width="754" height="346" loading="lazy"></div><div class="wt__t"><h3>Bluetooth devices <span class="tag">New</span></h3><p>Every device connected to the PC, with its battery when it reports one.</p></div></div>
-      <div class="wt w7"><div class="wt__img"><img src="img/1.13.0-crop-worldclock.webp" alt="World clock with Tel Aviv, London, New York and Tokyo" width="1068" height="346" loading="lazy"></div><div class="wt__t"><h3>World clock <span class="tag">New</span></h3><p>The time in up to four places.</p></div></div>
-      <div class="wt w4"><div class="wt__img"><img src="img/1.13.0-crop-agenda.webp" alt="Agenda: Design review now, then Gym and Dinner with Dana" width="598" height="346" loading="lazy"></div><div class="wt__t"><h3>Agenda</h3><p>Google, Outlook or iCloud.</p></div></div>
-      <div class="wt w4"><div class="wt__img"><img src="img/1.13.0-crop-notes.webp" alt="A to-do list with one item checked off" width="598" height="346" loading="lazy"></div><div class="wt__t"><h3>Notes <span class="tag">New</span></h3><p>Write them on the PC, tick them off on the phone.</p></div></div>
-      <div class="wt w4"><div class="wt__img"><img src="img/1.13.0-crop-nowplaying.webp" alt="Now playing: Paper Lanterns by Harbor Lights, with the next song" width="754" height="472" loading="lazy"></div><div class="wt__t"><h3>Now playing</h3><p>With the song that plays next.</p></div></div>
+      <div class="card wt wt--a w8"><div class="wt__img"><img src="img/1.13.0-crop-stats.webp" alt="PC stats as rings: CPU 34%, memory 61%, GPU 41% and network speed" width="1068" height="348" loading="lazy"></div><div class="wt__t"><div class="wt__h"><h3>PC stats</h3></div><p>CPU, memory, GPU with its heat, network, disks and the busiest apps.</p></div></div>
+      <div class="card wt wt--b w4"><div class="wt__t"><div class="wt__h"><h3>Weather</h3></div><p>Now, or five days ahead.</p></div><div class="wt__img"><img src="img/1.13.0-crop-weather.webp" alt="Weather: Tel Aviv, 19°, partly cloudy" width="444" height="346" loading="lazy"></div></div>
+      <div class="card wt wt--b w5"><div class="wt__t"><div class="wt__h"><h3>Bluetooth devices</h3><span class="tag">New</span></div><p>Every device connected to the PC, with its battery when it reports one.</p></div><div class="wt__img"><img src="img/1.13.0-crop-devices.webp" alt="Bluetooth devices: headphones at 72%, a mouse at 15%, a keyboard at 54%, a controller and a phone" width="754" height="346" loading="lazy"></div></div>
+      <div class="card wt wt--a w7"><div class="wt__img"><img src="img/1.13.0-crop-worldclock.webp" alt="World clock with Tel Aviv, London, New York and Tokyo" width="1068" height="346" loading="lazy"></div><div class="wt__t"><div class="wt__h"><h3>World clock</h3><span class="tag">New</span></div><p>The time in up to four places.</p></div></div>
+      <div class="card wt wt--d w6"><div class="wt__img"><img src="img/1.13.0-crop-agenda.webp" alt="Agenda: Design review now, then Gym and Dinner with Dana" width="598" height="346" loading="lazy"></div><div class="wt__t"><div class="wt__h"><h3>Agenda</h3></div><p>Your next events from Google, Outlook or iCloud.</p></div></div>
+      <div class="card wt wt--d w6"><div class="wt__img"><img src="img/1.13.0-crop-notes.webp" alt="A to-do list with one item checked off" width="598" height="346" loading="lazy"></div><div class="wt__t"><div class="wt__h"><h3>Notes</h3><span class="tag">New</span></div><p>Write them on the PC, tick them off on the phone.</p></div></div>
     </div>
-    <p class="wb__more">Also: clock, 5-day forecast, lyrics, volume, shortcut buttons, timer, photo frame, recently played, text, and widgets from addons.</p>
+    <p class="wb__more">Also: clock, 5-day forecast, Now playing, lyrics, volume, shortcut buttons, timer, photo frame, recently played, text, and widgets from addons.</p>
   </div>
 </section>
 
 <section class="sec sec--band" id="layouts">
   <div class="wrap">
-    <p class="eyebrow">Layouts</p>
     <h2>Lay out pages on the PC, or right on the phone.</h2>
     <div class="lay">
-      <figure class="lay__pc"><img src="img/1.13.0-pc-layouts-1200.webp" srcset="img/1.13.0-pc-layouts-640.webp 640w, img/1.13.0-pc-layouts-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 66vw" alt="The Layouts page in the PhoneDesk window: a list of pages, a live preview of Home and the widget catalog" width="1920" height="1200" loading="lazy"></figure>
       <div class="lay__side">
-        <figure class="lay__phone"><img src="img/1.13.0-phone-edit-ios-1200.webp" srcset="img/1.13.0-phone-edit-ios-640.webp 640w, img/1.13.0-phone-edit-ios-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 33vw" alt="Editing on the phone: the widgets have dashed outlines and a resize corner, with Cancel and Done at the top" width="1920" height="888" loading="lazy"></figure>
         <ul class="ticks">
           <li><b>A 12 by 6 grid.</b> Drag to move, pull a corner to resize, undo and redo.</li>
           <li><b>Hold a widget on the phone</b> to move it there, then tap Done.</li>
           <li><b>Tap and hold actions</b> per widget: play, open a screen, run a shortcut.</li>
           <li><b>Corners, background and accent</b> for each page.</li>
         </ul>
+        <figure class="lay__phone"><img src="img/1.13.0-phone-edit-ios-1200.webp" srcset="img/1.13.0-phone-edit-ios-640.webp 640w, img/1.13.0-phone-edit-ios-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 33vw" alt="Editing on the phone: the widgets have dashed outlines and a resize corner, with Cancel and Done at the top" width="1920" height="888" loading="lazy"></figure>
       </div>
+      <figure class="lay__pc"><img src="img/1.13.0-pc-layouts-1200.webp" srcset="img/1.13.0-pc-layouts-640.webp 640w, img/1.13.0-pc-layouts-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 66vw" alt="The Layouts page in the PhoneDesk window: a list of pages, a live preview of Home and the widget catalog" width="1920" height="1200" loading="lazy"></figure>
     </div>
   </div>
 </section>
@@ -104,9 +104,8 @@
 <section class="sec" id="music">
   <div class="wrap mu">
     <div class="mu__copy">
-      <p class="eyebrow">Music</p>
-      <h2>Lyrics that keep time with the song.</h2>
-      <p class="sec__lead">Spicy Lyrics lights each word as it is sung. When only LRCLIB has the song, the whole line lights on its cue instead of guessing at words.</p>
+      <h2>Lyrics on the phone, in time with the song.</h2>
+      <p class="sec__lead">Spicy Lyrics lights each word as it is sung. When only LRCLIB has the song, each line lights whole, right on its cue.</p>
       <ul class="ticks">
         <li><b>Spotify, or any player</b> that shows in the Windows media controls.</li>
         <li><b>Up next</b> from your Spotify queue.</li>
@@ -120,74 +119,87 @@
 
 <section class="sec" id="screens">
   <div class="wrap">
-    <p class="eyebrow">Screens</p>
-    <h2>Built-in screens, in the same style.</h2>
+    <h2>Four built-in PhoneDesk screens.</h2>
     <p class="sec__lead">Swipe between them and your own pages, switch them on a schedule, and let night mode dim the phone with the room.</p>
     <div class="scr">
-      <figure><img src="img/1.13.0-screen-media-ios-1200.webp" srcset="img/1.13.0-screen-media-ios-640.webp 640w, img/1.13.0-screen-media-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The Now playing screen with the album art and lyrics" width="1920" height="888" loading="lazy"><figcaption>Now playing</figcaption></figure>
-      <figure><img src="img/1.13.0-screen-stats-ios-1200.webp" srcset="img/1.13.0-screen-stats-ios-640.webp 640w, img/1.13.0-screen-stats-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The PC stats screen with an hour of history" width="1920" height="888" loading="lazy"><figcaption>PC stats</figcaption></figure>
-      <figure><img src="img/1.13.0-screen-clock-ios-1200.webp" srcset="img/1.13.0-screen-clock-ios-640.webp 640w, img/1.13.0-screen-clock-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The clock screen with the forecast and agenda" width="1920" height="888" loading="lazy"><figcaption>Clock</figcaption></figure>
-      <figure><img src="img/1.13.0-screen-shortcuts-ios-1200.webp" srcset="img/1.13.0-screen-shortcuts-ios-640.webp 640w, img/1.13.0-screen-shortcuts-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The shortcuts screen with large buttons" width="1920" height="888" loading="lazy"><figcaption>Shortcuts</figcaption></figure>
+      <figure><img src="img/1.13.0-screen-media-ios-1200.webp" srcset="img/1.13.0-screen-media-ios-640.webp 640w, img/1.13.0-screen-media-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The Now playing screen with the album art and lyrics" width="1920" height="888" loading="lazy"></figure>
+      <figure><img src="img/1.13.0-screen-stats-ios-1200.webp" srcset="img/1.13.0-screen-stats-ios-640.webp 640w, img/1.13.0-screen-stats-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The PC stats screen with an hour of history" width="1920" height="888" loading="lazy"></figure>
+      <figure><img src="img/1.13.0-screen-clock-ios-1200.webp" srcset="img/1.13.0-screen-clock-ios-640.webp 640w, img/1.13.0-screen-clock-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The clock screen with the forecast and agenda" width="1920" height="888" loading="lazy"></figure>
+      <figure><img src="img/1.13.0-screen-shortcuts-ios-1200.webp" srcset="img/1.13.0-screen-shortcuts-ios-640.webp 640w, img/1.13.0-screen-shortcuts-ios-1200.webp 1200w" sizes="(max-width: 767px) 100vw, 50vw" alt="The shortcuts screen with large buttons" width="1920" height="888" loading="lazy"></figure>
     </div>
   </div>
 </section>
 
-<section class="sec sec--band" id="setup">
-  <div class="wrap">
-    <p class="eyebrow">Setup</p>
-    <h2>Running in three steps.</h2>
-    <div class="steps">
-      <div class="step"><i>01</i><h3>Install it on the PC</h3><p>No admin rights and nothing else to install. It sits in the tray, starts with Windows and updates itself.</p></div>
-      <div class="step"><i>02</i><h3>Open it on the phone</h3><p>Scan the QR code, or install the small phone app: it finds the PC by itself over Wi-Fi or USB.</p></div>
-      <div class="step"><i>03</i><h3>Pick a template</h3><p>Start from Desk, Music or Clock, then change any page from the PC or the phone.</p></div>
+<section class="sec sec--band" id="setup" data-moment="pinned-chapters" aria-labelledby="setup-h">
+  <div class="wrap mo-pc__grid">
+    <div class="mo-pc__text">
+      <h2 id="setup-h">PhoneDesk setup in three steps.</h2>
+      <ol class="mo-pc__steps">
+        <li class="mo-pc__step">
+          <h3>Install PhoneDesk on the PC</h3>
+          <p>No admin rights and nothing else to install. It sits in the tray, starts with Windows and updates itself.</p>
+          <figure class="mo-pc__visual mo-pc__visual--lit"><img src="img/1.7.3-dashboard-updates-default-1200.webp" srcset="img/1.7.3-dashboard-updates-default-640.webp 640w, img/1.7.3-dashboard-updates-default-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 50vw" alt="The PhoneDesk window with the QR code for the phone and the update settings" width="1200" height="750" loading="lazy"></figure>
+        </li>
+        <li class="mo-pc__step">
+          <h3>Open it on the phone</h3>
+          <p>Scan the QR code, or install the small phone app: it finds the PC by itself over Wi-Fi or USB.</p>
+          <figure class="mo-pc__visual mo-pc__visual--lit"><img src="img/1.4.0-phone-app-finding-pc-1200.webp" srcset="img/1.4.0-phone-app-finding-pc-640.webp 640w, img/1.4.0-phone-app-finding-pc-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 50vw" alt="The phone app looking for the PC on the network" width="1200" height="555" loading="lazy"></figure>
+        </li>
+        <li class="mo-pc__step">
+          <h3>Pick a template</h3>
+          <p>Start from Desk, Music or Clock, then change any page from the PC or the phone.</p>
+          <figure class="mo-pc__visual mo-pc__visual--lit"><img src="img/1.13.0-phone-tools-ios-1200.webp" srcset="img/1.13.0-phone-tools-ios-640.webp 640w, img/1.13.0-phone-tools-ios-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 50vw" alt="A page with a world clock, Bluetooth devices, notes and the forecast" width="1920" height="888" loading="lazy"></figure>
+        </li>
+      </ol>
     </div>
+    <div class="mo-pc__visuals frame"></div>
   </div>
 </section>
 
 <section class="sec" id="addons">
   <div class="wrap split">
     <div>
-      <p class="eyebrow">Addons</p>
-      <h2>Add your own screens and widgets.</h2>
+      <h2>PhoneDesk addons for your own screens and widgets.</h2>
       <p>Addons bring new screens, widgets and shortcut actions: a Home Assistant panel, a focus timer, anything you can build with the SDK. Every permission is shown before an addon installs. <a class="link" href="addons.html">Browse the addons</a> or <a class="link" href="docs/addons">build one</a>.</p>
     </div>
-    <img src="img/1.13.0-pc-addons-1200.webp" srcset="img/1.13.0-pc-addons-640.webp 640w, img/1.13.0-pc-addons-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 60vw" alt="The Addons page of the PhoneDesk window, listing installed addons and the marketplace" width="2160" height="1350" loading="lazy">
+    <img src="img/1.13.0-pc-addons-1200.webp" srcset="img/1.13.0-pc-addons-640.webp 640w, img/1.13.0-pc-addons-1200.webp 1200w" sizes="(max-width: 1023px) 100vw, 58vw" alt="The Addons page of the PhoneDesk window, listing the marketplace" width="2160" height="1350" loading="lazy">
   </div>
 </section>
 
 <section class="sec" id="faq">
   <div class="wrap">
-    <h2>Questions before you install.</h2>
+    <h2>PhoneDesk questions before you install.</h2>
     <div class="faq">
-      <div><h3>What you need</h3><p>A Windows 10 or 11 PC and a phone on Android 7 or newer, on the same Wi-Fi or plugged in by USB.</p></div>
-      <div><h3>Security warning on install</h3><p>The setup isn’t code-signed yet, so Windows asks first: More info, then Run anyway. GitHub Actions builds every release.</p></div>
-      <div><h3>Privacy</h3><p>Keys, tokens and your calendar address never leave the PC. Lyric and weather lookups send only the song or the city.</p></div>
-      <div><h3>Old phones</h3><p>The glass look uses a pre-blurred wallpaper, not live blur, so it stays smooth on old hardware.</p></div>
+      <div><h3>The PC and phone you need</h3><p>A Windows 10 or 11 PC and a phone on Android 7 or newer, on the same Wi-Fi or plugged in by USB.</p></div>
+      <div><h3>Security warning on install</h3><p>The setup is not code-signed yet, so Windows asks first: More info, then Run anyway. GitHub Actions builds every release.</p></div>
+      <div><h3>Privacy</h3><p>Keys, tokens and your calendar address stay on the PC. Lyric and weather lookups send only the song or the city.</p></div>
+      <div><h3>Old phones</h3><p>The glass look draws on a wallpaper blurred once per song, so it stays smooth on old hardware.</p></div>
     </div>
   </div>
 </section>
 
-<section class="wrap" aria-labelledby="close-h">
-  <div class="cta">
-    <img src="assets/favicon.svg" alt="" width="72" height="72">
-    <h2 id="close-h">Give the old phone a job.</h2>
-    <p>PhoneDesk {{VERSION}} is free and open source. Windows 10 and 11, Android 7 or newer.</p>
-    <a class="btn btn--p btn--lg" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows</a>
-  </div>
-</section>
 </main>
 
-<footer class="foot">
-  <div class="wrap foot__row">
-    <span>&copy; 2026 PhoneDesk · v{{VERSION}}</span>
-    <nav aria-label="Project">
-      <a href="https://github.com/icdmkg2/phonedesk">GitHub</a>
-      <a href="https://github.com/icdmkg2/phonedesk/releases">Releases</a>
-      <a href="addons.html">Addons</a>
-      <a href="changelog.html">Changelog</a>
-      <a href="https://github.com/icdmkg2/phonedesk/issues/new/choose">Report a problem</a>
-    </nav>
-    <span>Lyrics via Spicy Lyrics and LRCLIB, weather via Open-Meteo.</span>
+<footer class="foot closing close" aria-labelledby="close-h">
+  <div class="wrap">
+    <div class="close__row">
+      <div class="close__copy">
+        <h2 id="close-h"><img src="assets/favicon.svg" alt="" width="64" height="64">Give the old phone a job.</h2>
+        <p>PhoneDesk {{VERSION}} is free and open source. Windows 10 and 11, Android 7 or newer.</p>
+      </div>
+      <a class="btn btn--p btn--lg" href="https://github.com/icdmkg2/phonedesk/releases/latest">Download for Windows</a>
+    </div>
+    <div class="foot__grid">
+      <span>&copy; 2026 PhoneDesk · v{{VERSION}}</span>
+      <nav aria-label="Project">
+        <a href="https://github.com/icdmkg2/phonedesk">GitHub</a>
+        <a href="https://github.com/icdmkg2/phonedesk/releases">Releases</a>
+        <a href="addons.html">Addons</a>
+        <a href="changelog.html">Changelog</a>
+        <a href="https://github.com/icdmkg2/phonedesk/issues/new/choose">Report a problem</a>
+      </nav>
+      <span class="foot__credit">Lyrics via Spicy Lyrics and LRCLIB, weather via Open-Meteo.</span>
+    </div>
   </div>
 </footer>
 <script>
@@ -198,5 +210,6 @@ document.querySelectorAll('.seg button').forEach(function (b) {
   });
 });
 </script>
+<script type="module" src="assets/moments/moments.js"></script>
 </body>
 </html>
