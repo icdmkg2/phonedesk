@@ -1395,7 +1395,8 @@
   // A ring like the Activity and Batteries widgets: the share as an arc, the value in the middle.
   function ring(pct, color, label, inner) {
     var r = 40, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct || 0));
-    return '<div class="io-ring" style="--rc:' + color + '"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/><circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg><b>' + (inner != null ? inner : '<i>' + Math.round(v) + '<small>%</small></i>') + '</b>' + (label ? '<span>' + escHtml(label) + '</span>' : '') + '</div>';
+    // the number sits in a box that is exactly the ring's size, so it is centred on the ring whatever its font size
+    return '<div class="io-ring" style="--rc:' + color + '"><div class="io-dial"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/><circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg><b>' + (inner != null ? inner : '<i>' + Math.round(v) + '<small>%</small></i>') + '</b></div>' + (label ? '<span>' + escHtml(label) + '</span>' : '') + '</div>';
   }
   function iosWeather() {
     var el = wEl('weather'), last = null;

@@ -309,9 +309,9 @@ async function t(name, fn) {
       assert.ok(await pg.evaluate(() => document.body.classList.contains('look-ios')), 'the iOS style is on');
       assert.strictEqual(await pg.locator('.wg-devices .io-ring').count(), 2, 'a ring per device');
       assert.strictEqual(await pg.locator('.wg-stats .io-ring').count(), 3, 'CPU, memory and GPU rings');
-      // the number is centred in its ring (the % hangs beside it)
-      const off = await pg.evaluate(() => { const r = document.querySelector('.wg-devices .io-ring'), b = r.querySelector('svg').getBoundingClientRect(), n = r.querySelector('b > i').getBoundingClientRect(); return Math.abs((n.left + n.width / 2) - (b.left + b.width / 2)); });
-      assert.ok(off < 2, 'the battery number is ' + off.toFixed(1) + 'px off the ring centre');
+      // the reading (number and %) is centred on its ring, across and up and down
+      const off = await pg.evaluate(() => { const r = document.querySelector('.wg-devices .io-ring'), b = r.querySelector('svg').getBoundingClientRect(), n = r.querySelector('b > i').getBoundingClientRect(); return Math.max(Math.abs((n.left + n.width / 2) - (b.left + b.width / 2)), Math.abs((n.top + n.height / 2) - (b.top + b.height / 2))); });
+      assert.ok(off < 1.5, 'the battery reading is ' + off.toFixed(1) + 'px off the ring centre');
       const lit = await pg.evaluate(() => [...document.querySelectorAll('.wg-lyrics .lw-c .lw-w')].map((s) => s.classList.contains('lit')));
       assert.ok(lit.length > 3 && lit.every(Boolean), 'every word of the sung line is lit: ' + JSON.stringify(lit));
       await ctx.close();
