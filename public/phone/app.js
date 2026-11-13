@@ -305,6 +305,14 @@
   // (two stacked <img>s). A light sweep runs on the placeholder while loading.
   var artWrap = el.art.parentNode, artB = el.art.cloneNode(false), artTok = 0, artOld = null;
   artB.removeAttribute('id'); artWrap.appendChild(artB);
+  // iOS look: the pages sit on a blurred copy of the album cover, like a lock screen wallpaper.
+  var wallSrc = null;
+  function setWall(src) {
+    if (src === wallSrc) return; wallSrc = src;
+    var w = $('wall'); if (!w) return;
+    w.style.backgroundImage = src ? 'url("' + String(src).replace(/"/g, '%22') + '")' : '';
+    w.classList.toggle('has-art', !!src);
+  }
   function setArt(src) {
     if (src === lastArt) return;
     lastArt = src;
@@ -312,7 +320,7 @@
     if (!src) {
       artWrap.classList.remove('loading');
       el.art.classList.remove('ok'); artB.classList.remove('ok');
-      applyAccent(null);
+      applyAccent(null); setWall('');
       return;
     }
     artWrap.classList.add('loading');
@@ -330,6 +338,7 @@
       artOld = setTimeout(function () { back.classList.remove('ok'); }, 470);
       if (front !== el.art) { var t = el.art; el.art = artB; artB = t; } // el.art always points at the visible one
       applyAccent(im);
+      setWall(im.src);
     };
     im.onerror = function () {
       if (tok !== artTok) return;
@@ -996,7 +1005,7 @@
         el.setAttribute('data-mode', mode);
         var box = mode === 'col' ? wScale(el, w, h, 170, 250, 9, 34) : mode === 'mini' ? wScale(el, w, h, 260, 44, 9, 22) : wScale(el, w, h, 330, 112, 9, 34);
         if (img) {
-          var side = mode === 'col' ? Math.min(box.w, box.h * 0.52) : mode === 'mini' ? 0 : Math.min(box.h, box.w * 0.4);
+          var side = mode === 'col' ? Math.min(box.w * 0.82, box.h * 0.44) : mode === 'mini' ? 0 : Math.min(box.h, box.w * 0.4);
           img.parentNode.style.width = img.parentNode.style.height = Math.max(0, side) + 'px';
         }
         requestAnimationFrame(function () { mqCheck(titleBox); mqCheck(artistBox); });
@@ -1375,7 +1384,132 @@
   function widgetsOf(aid, pageId) { return Object.keys(wFrames).filter(function (k) { var f = wFrames[k]; return f.aid === aid && (!pageId || f.page === pageId); }); }
   function pageVisible(id, on) { Object.keys(wFrames).forEach(function (k) { if (wFrames[k].page === id) toWidget(k, 'visible', on); }); }
 
+  /* ---- iOS look: widgets laid out like iPhone home-screen widgets ---- */
+  function isIos() { return state.config.look === 'ios'; }
+  var WX_TEXT = function (c) {
+    if (c === 0) return 'Clear'; if (c <= 2) return 'Partly Cloudy'; if (c === 3) return 'Cloudy'; if (c === 45 || c === 48) return 'Fog';
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'Snow'; if (c >= 95) return 'Thunderstorm'; if (c >= 51 && c <= 57) return 'Drizzle'; return 'Rain';
+  };
+  function skyOf(code, day) { return !day ? 'night' : code === 0 ? 'clear' : code <= 2 ? 'partly' : code === 3 || code === 45 || code === 48 ? 'cloudy' : (code >= 71 && code <= 77) || code === 85 || code === 86 ? 'snow' : 'rain'; }
+  // A ring like the Activity and Batteries widgets: the share as an arc, the value in the middle.
+  function ring(pct, color, label, inner) {
+    var r = 40, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct || 0));
+    return '<div class="io-ring" style="--rc:' + color + '"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/><circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg><b>' + (inner != null ? inner : Math.round(v) + '<small>%</small>') + '</b>' + (label ? '<span>' + escHtml(label) + '</span>' : '') + '</div>';
+  }
+  function iosWeather() {
+    var el = wEl('weather'), last = null;
+    el.classList.add('io-sky');
+    return {
+      el: el,
+      update: function () {
+        var w = wFresh() ? weather : null;
+        var html = w ? '<div class="iw-top"><span class="iw-city">' + escHtml(w.city || 'Weather') + '</span><b class="iw-temp">' + w.temp + '°</b></div><div class="iw-bot">' + wxIcon(w.code, w.day) + '<span class="iw-cond">' + WX_TEXT(w.code) + '</span><span class="iw-hl">H:' + w.hi + '° L:' + w.lo + '°</span></div>' : null;
+        if (html === last) return; last = html;
+        el.setAttribute('data-sky', w ? skyOf(w.code, w.day) : 'cloudy');
+        if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
+      },
+      resize: function (w, h) { wScale(el, w, h, 150, 140, 10, 26); el.classList.toggle('io-wide', w > h * 1.6); },
+    };
+  }
+  function iosForecast() {
+    var el = wEl('forecast'), last = null;
+    el.classList.add('io-sky');
+    return {
+      el: el,
+      update: function () {
+        var days = wFresh() && weather.days ? weather.days.slice(0, 5) : [], html = '';
+        days.forEach(function (x, i) {
+          var p = String(x.d).split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2]);
+          html += '<div class="if-d"><span class="if-n">' + escHtml(i === 0 ? 'Today' : dt.toLocaleDateString(undefined, { weekday: 'short' })) + '</span>' + wxIcon(x.code, true) + '<b>' + x.hi + '°</b><span class="if-lo">' + x.lo + '°</span></div>';
+        });
+        if (html === last) return; last = html;
+        el.setAttribute('data-sky', weather ? skyOf(weather.code, weather.day) : 'cloudy');
+        if (html) el.innerHTML = html; else wEmpty(el, 'No forecast yet');
+      },
+      resize: function (w, h) { wScale(el, w, h, 330, 96, 9, 24); },
+    };
+  }
+  function iosStats(wd) {
+    var o = wd.opts || {}, mode = ['cpu', 'memory', 'gpu'].indexOf(o.metric) >= 0 ? o.metric : 'all', el = wEl('stats'), last = '';
+    el.classList.add('io-rings'); el.setAttribute('data-mode', mode === 'all' ? 'all' : 'one');
+    return {
+      el: el,
+      update: function () {
+        var s = state.stats; if (!s) return;
+        var mem = s.memTotal ? s.memUsed / s.memTotal * 100 : 0, g = s.gpu && s.gpu.load >= 0 ? s.gpu.load : null, items = [];
+        if (mode === 'all' || mode === 'cpu') items.push(ring(s.cpu, '#30d158', 'CPU' + (s.cpuTemp > 0 ? ' · ' + s.cpuTemp + '°' : '')));
+        if (mode === 'all' || mode === 'memory') items.push(ring(mem, '#0a84ff', 'Memory'));
+        if ((mode === 'all' && g != null) || mode === 'gpu') items.push(ring(g || 0, '#ff9f0a', 'GPU' + (s.gpu && s.gpu.temp > 0 ? ' · ' + s.gpu.temp + '°' : '')));
+        if (mode === 'all' && s.net) { var rx = speed(s.net.rx); items.push('<div class="io-net"><span>Network</span><b>' + rx[0] + '<small>' + rx[1] + '</small></b><span>↑ ' + speed(s.net.tx).join(' ') + '</span></div>'); }
+        var html = items.join('');
+        if (html !== last) { last = html; el.innerHTML = html; el.style.setProperty('--n', items.length); }
+      },
+      resize: function (w, h) { var n = mode === 'all' ? 4 : 1; wScale(el, w, h, 90 * n + 40, 130, 9, 30); },
+    };
+  }
+  function iosDevices() {
+    var el = wEl('devices'), last = '';
+    el.classList.add('io-rings');
+    return {
+      el: el,
+      update: function () {
+        var l = (state.bt || []).slice(0, 4);
+        var html = l.length ? l.map(function (d) { return ring(d.level, d.level <= 20 ? '#ff453a' : '#30d158', d.name); }).join('') : '<div class="w-empty">No Bluetooth device reports its battery yet</div>';
+        if (html !== last) { last = html; el.innerHTML = html; }
+      },
+      resize: function (w, h) { wScale(el, w, h, 90 * Math.max(1, Math.min(4, (state.bt || []).length)) + 30, 130, 9, 30); },
+    };
+  }
+  function iosWorld(wd) {
+    var o = wd.opts || {}, el = wEl('worldclock');
+    el.classList.add('io-world');
+    var zones = String(o.zones || '').split(/[;\n]/).map(function (p) { var kv = p.split('='); return { name: (kv[0] || '').trim(), zone: (kv[1] || kv[0] || '').trim() }; }).filter(function (z) { return z.zone; }).slice(0, 4);
+    if (!zones.length) { wEmpty(el, 'Add places like London=Europe/London'); return { el: el, update: function () {} }; }
+    var ticks = ''; for (var i = 0; i < 12; i++) { var a = i * Math.PI / 6; ticks += '<circle cx="' + (50 + 40 * Math.sin(a)).toFixed(1) + '" cy="' + (50 - 40 * Math.cos(a)).toFixed(1) + '" r="' + (i % 3 ? 1.6 : 2.6) + '"/>'; }
+    el.innerHTML = zones.map(function () { return '<div class="iwc"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" class="iwc-f"/><g class="iwc-t">' + ticks + '</g><line x1="50" y1="50" x2="50" y2="28" class="iwc-h"/><line x1="50" y1="50" x2="50" y2="16" class="iwc-m"/><circle cx="50" cy="50" r="3" class="iwc-p"/></svg><b></b><span></span></div>'; }).join('');
+    var cells = el.querySelectorAll('.iwc');
+    return {
+      el: el,
+      update: function () {
+        var now = new Date(Date.now() + state.clockOffset), here = now.getDate();
+        zones.forEach(function (z, i) {
+          var c = cells[i], hh = 0, mm = 0, day = true, rel = '';
+          try {
+            var parts = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', day: 'numeric', hour12: false, timeZone: z.zone }).formatToParts(now);
+            parts.forEach(function (p) { if (p.type === 'hour') hh = +p.value % 24; if (p.type === 'minute') mm = +p.value; if (p.type === 'day') rel = +p.value === here ? 'Today' : (+p.value > here || (here > 25 && +p.value < 3) ? 'Tomorrow' : 'Yesterday'); });
+            day = hh >= 6 && hh < 18;
+          } catch (e) { rel = '?'; }
+          c.classList.toggle('night', !day);
+          c.querySelector('.iwc-h').setAttribute('transform', 'rotate(' + ((hh % 12) * 30 + mm / 2).toFixed(1) + ' 50 50)');
+          c.querySelector('.iwc-m').setAttribute('transform', 'rotate(' + (mm * 6) + ' 50 50)');
+          setText(c.querySelector('b'), z.name || z.zone.split('/').pop().replace(/_/g, ' ')); setText(c.querySelector('span'), rel);
+        });
+      },
+      resize: function (w, h) { wScale(el, w, h, 95 * zones.length + 20, 140, 9, 30); },
+    };
+  }
+  function iosAgenda(wd) {
+    var el = wEl('agenda'), count = Math.max(1, Math.min(8, +(wd.opts || {}).count || 4)), last = null;
+    el.classList.add('io-cal');
+    return {
+      el: el,
+      update: function () {
+        var nowT = Date.now() + state.clockOffset, d = new Date(nowT), ev = agenda && agenda.events ? agenda.events : [];
+        ev = ev.filter(function (e) { return e.end > nowT; }).slice(0, count);
+        var html = '<div class="ic-h"><span>' + escHtml(d.toLocaleDateString(undefined, { weekday: 'long' })) + '</span><b>' + d.getDate() + '</b></div><div class="ic-l">' +
+          (ev.length ? ev.map(function (e) { var on = !e.allDay && e.start <= nowT && e.end > nowT; return '<div class="ic-e' + (on ? ' on' : '') + '"><b>' + escHtml(e.title) + '</b><span>' + escHtml(e.allDay ? 'All day' : (dayLabel(e.start, nowT) === 'Today' ? '' : dayLabel(e.start, nowT) + ' · ') + timeLabel(e.start) + ' – ' + timeLabel(e.end)) + '</span></div>'; }).join('') : '<div class="ic-none">No more events today</div>') + '</div>';
+        if (html === last) return; last = html; el.innerHTML = html;
+      },
+      resize: function (w, h) { wScale(el, w, h, 230, 190, 10, 22); },
+    };
+  }
+
   function makeWidget(wd, live, pageId) {
+    if (isIos()) {
+      var io = { weather: iosWeather, forecast: iosForecast, devices: iosDevices, worldclock: iosWorld, agenda: iosAgenda }[wd.type];
+      if (io) return io(wd);
+      if (wd.type === 'stats' && ['network', 'disks', 'apps'].indexOf((wd.opts || {}).metric) < 0) return iosStats(wd);
+    }
     switch (wd.type) {
       case 'clock': return wClock(wd);
       case 'weather': return wWeather(wd);
@@ -1426,7 +1560,7 @@
       runTap(tap);
     });
   }
-  function pageKey(page) { return JSON.stringify(page) + '|' + JSON.stringify(state.config.addonWidgets || []) + '|' + JSON.stringify(state.config.shortcuts || []); }
+  function pageKey(page) { return (state.config.look || '') + JSON.stringify(page) + '|' + JSON.stringify(state.config.addonWidgets || []) + '|' + JSON.stringify(state.config.shortcuts || []); }
   function ensurePage(name) {
     var id = name.slice(5), page = pageById(id);
     if (!page) return;
@@ -1460,7 +1594,7 @@
   function layoutPage(id) {
     var b = pagesBuilt[id]; if (!b) return;
     var W = b.grid.clientWidth, H = b.grid.clientHeight; if (!W || !H) return;
-    var gap = 8, cw = (W - gap * 11) / 12, ch = (H - gap * 5) / 6;
+    var gap = parseFloat(getComputedStyle(b.grid).columnGap) || 8, cw = (W - gap * 11) / 12, ch = (H - gap * 5) / 6;
     b.insts.forEach(function (i) {
       var w = i.wd.w * cw + (i.wd.w - 1) * gap, h = i.wd.h * ch + (i.wd.h - 1) * gap;
       i.el.style.setProperty('--ww', w + 'px'); i.el.style.setProperty('--wh', h + 'px');
@@ -1497,7 +1631,7 @@
 
   /* ---- Editing a page on the phone: hold an empty spot (or a widget for a second) to move and resize widgets ---- */
   var ed = null; // { id, b, pos: { widgetId: {x,y,w,h} }, bar, drag }
-  function edCell(b) { var W = b.grid.clientWidth, H = b.grid.clientHeight, gap = 8; return { cw: (W - gap * 11) / 12, ch: (H - gap * 5) / 6, gap: gap }; }
+  function edCell(b) { var W = b.grid.clientWidth, H = b.grid.clientHeight, gap = parseFloat(getComputedStyle(b.grid).columnGap) || 8; return { cw: (W - gap * 11) / 12, ch: (H - gap * 5) / 6, gap: gap }; }
   function edOverlap(a, c) { return a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h; }
   function edPlace(i, q) { i.el.style.gridArea = (q.y + 1) + ' / ' + (q.x + 1) + ' / span ' + q.h + ' / span ' + q.w; }
   function startEdit(id) {
@@ -1815,6 +1949,7 @@
     placeSourcePill();
     if (c.nowStyle === 'classic') closeLyrics(true);
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
+    toggle(document.body, 'look-ios', c.look === 'ios');
     var meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', c.theme === 'light' ? '#f4f5f7' : c.theme === 'black' ? '#000000' : '#0e0f12');
     currentTint = '';

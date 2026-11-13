@@ -14,7 +14,7 @@ try { ({ chromium } = require('playwright')); } catch { console.log('skip  Playw
 const PORT = 18000 + Math.floor(Math.random() * 1000);
 const BASE = 'http://127.0.0.1:' + PORT;
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-ui-'));
-fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify({ port: PORT, port80: false }));
+fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify({ port: PORT, port80: false, look: 'classic' })); // the iOS look has its own test below
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const J = { 'content-type': 'application/json' };
 const api = (u, body) => fetch(BASE + '/api/' + u, { method: body ? 'POST' : 'GET', headers: J, body: body && JSON.stringify(body) }).then((r) => r.json());

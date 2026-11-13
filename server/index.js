@@ -624,6 +624,7 @@ function publicConfig() {
     notes: c.notes,
     photos: photoList().length,
     doubleTapPlay: c.doubleTapPlay,
+    look: c.look,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
     lyricsFont: c.lyricsFont,
