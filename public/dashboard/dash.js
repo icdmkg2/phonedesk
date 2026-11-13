@@ -583,6 +583,7 @@
     $$('#ds-lylines button').forEach((b) => { const on = b.dataset.v === (c.lyricsLines || 'off'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-lyfont button').forEach((b) => { const on = b.dataset.v === (c.lyricsFont || 'serif'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $$('#ds-themes .theme').forEach((b) => { b.classList.toggle('on', b.dataset.v === c.theme); b.setAttribute('aria-pressed', String(b.dataset.v === c.theme)); });
+    $$('#ds-looks .theme').forEach((b) => { const on = b.dataset.v === (c.look || 'classic'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     c.accent = c.accent === 'auto' ? 'auto' : String(c.accent).toUpperCase();
     const custom = c.accent !== 'auto' && !ACCENTS.includes(c.accent);
     $('ds-accent').innerHTML =
@@ -661,6 +662,7 @@
   $('ds-lyfont').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) saveConfig({ lyricsFont: b.dataset.v }); });
   $('ds-lystyle').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ lyricsMode: b.dataset.v }); });
   $('ds-themes').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ theme: b.dataset.v }); });
+  $('ds-looks').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (b) saveConfig({ look: b.dataset.v }); });
   $('ds-accent').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) saveConfig({ accent: b.dataset.a }); });
   $('ds-accent').addEventListener('change', (e) => { if (e.target.id === 'ds-accent-pick') saveConfig({ accent: e.target.value }); });
   $('ds-clock').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) saveConfig({ clock24: b.dataset.v === '24' }); });

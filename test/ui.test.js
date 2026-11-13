@@ -14,7 +14,7 @@ try { ({ chromium } = require('playwright')); } catch { console.log('skip  Playw
 const PORT = 18000 + Math.floor(Math.random() * 1000);
 const BASE = 'http://127.0.0.1:' + PORT;
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-ui-'));
-fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify({ port: PORT, port80: false }));
+fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify({ port: PORT, port80: false, look: 'classic' })); // the iOS look has its own test below
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const J = { 'content-type': 'application/json' };
 const api = (u, body) => fetch(BASE + '/api/' + u, { method: body ? 'POST' : 'GET', headers: J, body: body && JSON.stringify(body) }).then((r) => r.json());
@@ -156,8 +156,10 @@ async function t(name, fn) {
         window.WebSocket = class extends P {
           constructor(u, p) {
             super(u, p);
+            // the test server sends its own (GPU-less) stats too: drop those so only the pretend PC is seen
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics', 'stats', 'history', 'histPoint'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
             this.addEventListener('open', () => {
-              const d = (m) => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(m) }));
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
               setTimeout(() => {
                 d({ t: 'media', d: { active: true, title: 'A very long song title that cannot possibly fit in the box', artist: 'Someone', app: 'Spotify', status: 'Playing', position: 130, duration: 200, updated: Date.now() } });
                 d({ t: 'lyrics', d: { synced: true, lines } });
@@ -270,6 +272,52 @@ async function t(name, fn) {
       assert.deepStrictEqual(errors, []);
       await ctx.close();
       await api('config', { pages: before.pages, screens: before.screens, notes: [] });
+    });
+
+    await t('the iOS widget style draws its own tiles, and lyrics without word timings light a whole line at once', async () => {
+      const w = require('../server/widgets');
+      const page = w.sanitizePages([{ name: 'iOS', widgets: [
+        { type: 'devices', x: 0, y: 0, w: 6, h: 3 }, { type: 'stats', x: 6, y: 0, w: 6, h: 3, opts: { metric: 'all' } },
+        { type: 'lyrics', x: 0, y: 3, w: 12, h: 3 },
+      ] }])[0];
+      const before = await api('config');
+      await api('config', { look: 'ios', pages: [...before.pages, page], screens: [...before.screens, 'page:' + page.id] });
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript((id) => {
+        if (window !== window.top) return;
+        localStorage.setItem('pd.screen', JSON.stringify('page:' + id));
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics', 'bt', 'stats'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+            this.addEventListener('open', () => {
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+              setTimeout(() => {
+                d({ t: 'media', d: { active: true, title: 'Song', artist: 'X', app: 'Spotify', status: 'Playing', position: 31, duration: 300, updated: Date.now() } });
+                // like LRCLIB: line start times only, no word timings
+                d({ t: 'lyrics', d: { synced: true, lines: [{ t: 0, text: 'first line here' }, { t: 30, text: 'every word of this line lights at once' }, { t: 90, text: 'later' }] } });
+                d({ t: 'bt', d: [{ name: 'Headphones', level: 72 }, { name: 'Mouse', level: 15 }] });
+                setInterval(() => d({ t: 'stats', d: { cpu: 30, cores: 4, coresLoad: [1, 2, 3, 4], memUsed: 8e9, memTotal: 16e9, uptime: 1, host: 'PC', gpu: { load: 40, temp: 60 }, net: { rx: 1000, tx: 10 } } }), 300);
+              }, 300);
+            });
+          }
+        };
+      }, page.id);
+      const pg = await ctx.newPage();
+      const errors = []; pg.on('pageerror', (e) => errors.push(e.message));
+      await pg.goto(BASE + '/phone/'); await sleep(2500);
+      assert.deepStrictEqual(errors, []);
+      assert.ok(await pg.evaluate(() => document.body.classList.contains('look-ios')), 'the iOS style is on');
+      assert.strictEqual(await pg.locator('.wg-devices .io-ring').count(), 2, 'a ring per device');
+      assert.strictEqual(await pg.locator('.wg-stats .io-ring').count(), 3, 'CPU, memory and GPU rings');
+      // the reading (number and %) is centred on its ring, across and up and down
+      const off = await pg.evaluate(() => { const r = document.querySelector('.wg-devices .io-ring'), b = r.querySelector('svg').getBoundingClientRect(), n = r.querySelector('b > i').getBoundingClientRect(); return Math.max(Math.abs((n.left + n.width / 2) - (b.left + b.width / 2)), Math.abs((n.top + n.height / 2) - (b.top + b.height / 2))); });
+      assert.ok(off < 1.5, 'the battery reading is ' + off.toFixed(1) + 'px off the ring centre');
+      const lit = await pg.evaluate(() => [...document.querySelectorAll('.wg-lyrics .lw-c .lw-w')].map((s) => s.classList.contains('lit')));
+      assert.ok(lit.length > 3 && lit.every(Boolean), 'every word of the sung line is lit: ' + JSON.stringify(lit));
+      await ctx.close();
+      await api('config', { look: 'classic', pages: before.pages, screens: before.screens });
     });
   } finally {
     if (browser) await browser.close();

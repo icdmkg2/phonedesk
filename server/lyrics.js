@@ -20,11 +20,14 @@ function clean(s) {
 
 function parseLrc(text) {
   const lines = [];
+  // [offset:+500] moves every line 0.5 s earlier (the LRC convention); a few files on LRCLIB carry one.
+  const off = /\[offset:\s*([+-]?\d+)\s*\]/i.exec(String(text || ''));
+  const shift = off ? +off[1] / 1000 : 0;
   for (const raw of String(text || '').split(/\r?\n/)) {
     const stamps = [...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
     if (!stamps.length) continue;
     const words = raw.replace(/\[[^\]]*\]/g, '').trim();
-    for (const st of stamps) lines.push({ t: +st[1] * 60 + +st[2], text: words });
+    for (const st of stamps) lines.push({ t: Math.max(0, +st[1] * 60 + +st[2] - shift), text: words });
   }
   return lines.sort((a, b) => a.t - b.t);
 }
@@ -81,6 +84,7 @@ async function lookup(artist, title, album, duration) {
 }
 
 module.exports = {
+  parseLrc, // for tests
   /** Resolves to { synced, lines:[{t,text,...}], credit } or null. Never throws. `cfg` is the PhoneDesk config. */
   find(media, cfg) {
     let artist = clean(media.artist);

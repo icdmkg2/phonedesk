@@ -1035,3 +1035,225 @@ body.editing .screen.page .wg.ed-bad { outline-color: #f87171; }
 @keyframes edwob { from { transform: rotate(-.25deg); } to { transform: rotate(.25deg); } }
 body.sched-dim #app { filter: brightness(.45); }
 .wg-nowplaying .w-next[hidden] { display: none; }
+
+/* ======================================================================= iOS look
+   Pages sit on a blurred copy of the album cover (a lock-screen wallpaper); widgets are rounded glass tiles in the
+   style of iPhone home-screen widgets. Old-phone rules still apply: the wallpaper is blurred once (a static layer),
+   the tiles are plain translucent fills (no backdrop-filter). */
+@font-face { font-family: "PD Inter"; src: url("/dashboard/fonts/Inter.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+#wall { display: none; }
+body.look-ios {
+  --radius: 24px; --card: rgba(22, 22, 26, .52); --line: rgba(255, 255, 255, .08);
+  --fg: #fff; --fg2: rgba(235, 235, 245, .66); --fg3: rgba(235, 235, 245, .36);
+  font-family: "PD Inter", "PD Hebrew Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+body.look-ios #bg { opacity: 0; }
+body.look-ios #wall {
+  display: block; position: absolute; inset: -14%; z-index: 0; pointer-events: none;
+  background: radial-gradient(80% 90% at 15% 10%, #3b4fd8 0%, transparent 60%), radial-gradient(70% 80% at 95% 95%, #a3378f 0%, transparent 60%), linear-gradient(160deg, #182046, #0c0d1a);
+  background-size: cover; background-position: center;
+}
+body.look-ios #wall.has-art { filter: blur(48px) saturate(1.6) brightness(.62); transform: translateZ(0); }
+body.look-ios .screen.page { padding: 44px 18px 30px; }
+body.look-ios .wgrid { gap: 14px; }
+body.look-ios .wg { background: var(--card); border: .5px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+body.look-ios .wg.look-clear { background: none; border-color: transparent; }
+body.look-ios .wg.look-outline { background: none; }
+body.look-ios #dots { gap: 2px; }
+body.look-ios #dots button::after { width: 7px; height: 7px; border-radius: 50%; background: #fff; opacity: .35; }
+body.look-ios #dots button.on::after { width: 7px; opacity: 1; background: #fff; }
+
+/* clock: a lock-screen clock, date above the time, no tile */
+body.look-ios .wg-clock { background: none; border-color: transparent; flex-direction: column-reverse; justify-content: center; }
+body.look-ios .wg-clock .w-time { font-weight: 600; letter-spacing: -.05em; color: rgba(255, 255, 255, .92); }
+body.look-ios .wg-clock .w-date { margin: 0 0 .15em; font-weight: 600; color: rgba(255, 255, 255, .78); }
+
+/* Now playing: the tile takes the cover's colour; plain glyph controls */
+body.look-ios .wg-nowplaying { background: linear-gradient(150deg, rgba(var(--tint), .62), rgba(var(--tint), .22) 55%, rgba(16, 16, 20, .6)); gap: 1em; }
+body.look-ios .wg-nowplaying .w-cover { border-radius: .9em; background: rgba(255, 255, 255, .1); box-shadow: 0 .4em 1.2em rgba(0, 0, 0, .35); }
+body.look-ios .wg-nowplaying .w-src { color: var(--fg2); letter-spacing: 0; text-transform: none; font-size: .8em; font-weight: 600; }
+body.look-ios .wg-nowplaying .w-title { font-weight: 700; letter-spacing: -.02em; }
+body.look-ios .wg-nowplaying .w-artist { color: var(--fg2); font-weight: 500; }
+body.look-ios .wg-nowplaying .w-prog { height: .3em; background: rgba(255, 255, 255, .22); }
+body.look-ios .wg-nowplaying .w-prog i { background: #fff; }
+body.look-ios .wg-nowplaying .w-next { color: var(--fg3); }
+body.look-ios .wg-nowplaying .w-next span { text-transform: none; letter-spacing: 0; font-size: 1em; }
+body.look-ios .wg-nowplaying .w-ctl { gap: 1.1em; margin-top: .45em; }
+body.look-ios .wg-nowplaying .w-ctl button, body.look-ios .wg-nowplaying .w-ctl button.play { width: auto; height: auto; background: none; color: #fff; border-radius: 0; }
+body.look-ios .wg-nowplaying .w-ctl .ic { width: 1.35em; height: 1.35em; }
+body.look-ios .wg-nowplaying .w-ctl button.play .ic { width: 1.9em; height: 1.9em; }
+
+/* Lyrics: Apple Music style, big bold lines on the left */
+body.look-ios .wg-lyrics { align-items: stretch; text-align: left; padding: 14px 20px; }
+body.look-ios .wg-lyrics .lw-c { font-weight: 800; letter-spacing: -.02em; }
+body.look-ios .wg-lyrics .lw-l:not(.lw-c) { color: #fff; opacity: .32; font-weight: 700; }
+body.look-ios .wg-lyrics.words .lw-c { color: rgba(255, 255, 255, .36); }
+body.look-ios .wg-lyrics .lw-w.lit { color: #fff; }
+
+/* Weather and forecast: the sky as the tile */
+body.look-ios .io-sky { border-color: transparent; color: #fff; background: linear-gradient(170deg, #4a90e2, #2f6fc4); }
+body.look-ios .io-sky[data-sky=clear] { background: linear-gradient(170deg, #3d8fe6, #6db1f2); }
+body.look-ios .io-sky[data-sky=partly] { background: linear-gradient(170deg, #4b86c9, #7ea6cf); }
+body.look-ios .io-sky[data-sky=cloudy] { background: linear-gradient(170deg, #5d6f84, #8494a6); }
+body.look-ios .io-sky[data-sky=rain] { background: linear-gradient(170deg, #3f4e61, #5c6d80); }
+body.look-ios .io-sky[data-sky=snow] { background: linear-gradient(170deg, #8aa2bd, #b9c8d9); }
+body.look-ios .io-sky[data-sky=night] { background: linear-gradient(170deg, #0b1633, #23345e); }
+body.look-ios .wg-weather.io-sky { justify-content: space-between; padding: 14px 16px; }
+body.look-ios .iw-top { display: flex; flex-direction: column; }
+body.look-ios .iw-city { font-weight: 600; font-size: 1.05em; }
+body.look-ios .iw-temp { font-weight: 300; font-size: 3.2em; line-height: 1; letter-spacing: -.04em; }
+body.look-ios .iw-bot { display: flex; flex-direction: column; gap: .1em; font-size: .9em; }
+body.look-ios .iw-bot svg { width: 1.5em; height: 1.5em; margin-bottom: .15em; }
+body.look-ios .iw-cond { font-weight: 600; }
+body.look-ios .iw-hl { font-weight: 500; opacity: .9; }
+body.look-ios .wg-weather.io-wide { flex-direction: row; align-items: flex-end; }
+body.look-ios .wg-weather.io-wide .iw-bot { align-items: flex-end; text-align: right; }
+body.look-ios .wg-forecast.io-sky { display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 10px 14px; }
+body.look-ios .if-d { display: flex; flex-direction: column; align-items: center; gap: .25em; }
+body.look-ios .if-n { font-weight: 600; font-size: .85em; }
+body.look-ios .if-d svg { width: 1.8em; height: 1.8em; }
+body.look-ios .if-d b { font-weight: 600; }
+body.look-ios .if-lo { opacity: .7; font-size: .9em; }
+
+/* Rings: PC stats and device batteries */
+body.look-ios .io-rings { display: flex; flex-direction: row; align-items: center; justify-content: space-around; gap: .6em; padding: 12px 14px; }
+.io-ring { position: relative; display: flex; flex-direction: column; align-items: center; gap: .35em; flex: 1; min-width: 0; }
+.io-dial { position: relative; width: 100%; max-width: 5.6em; aspect-ratio: 1; }
+.io-dial > svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.io-dial > svg circle { fill: none; stroke-width: 11; stroke-linecap: round; }
+.io-ring .io-rt { stroke: var(--rc); opacity: .22; }
+.io-ring .io-rv { stroke: var(--rc); transition: stroke-dasharray .6s ease-out; }
+.io-ring b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.15em; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.io-ring b > i { font-style: normal; line-height: 1; }
+.io-ring b small { font-size: .55em; font-weight: 600; color: var(--fg2); margin-left: .06em; }
+.io-ring span { font-size: .78em; font-weight: 600; color: var(--fg2); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.io-net { display: flex; flex-direction: column; align-items: center; gap: .2em; flex: 1; text-align: center; }
+.io-net span { font-size: .78em; font-weight: 600; color: var(--fg2); }
+.io-net b { font-size: 1.6em; font-weight: 700; letter-spacing: -.02em; }
+.io-net b small { font-size: .5em; color: var(--fg2); margin-left: .15em; }
+body.look-ios .wg-stats.io-rings[data-mode=one] .io-dial { max-width: 8em; }
+body.look-ios .wg-stats.io-rings[data-mode=one] .io-ring b { font-size: 1.8em; }
+
+/* World clock: analog faces, white by day, dark by night */
+body.look-ios .io-world { display: flex; flex-direction: row; justify-content: space-around; align-items: center; gap: .6em; padding: 12px 14px; }
+.iwc { display: flex; flex-direction: column; align-items: center; gap: .2em; flex: 1; min-width: 0; }
+.iwc svg { width: 100%; max-width: 5.4em; aspect-ratio: 1; }
+.iwc .iwc-f { fill: #f5f5f7; } .iwc .iwc-t circle { fill: #1c1c1e; }
+.iwc .iwc-h, .iwc .iwc-m { stroke: #1c1c1e; stroke-linecap: round; } .iwc .iwc-h { stroke-width: 5; } .iwc .iwc-m { stroke-width: 3.5; }
+.iwc .iwc-p { fill: #ff9f0a; }
+.iwc.night .iwc-f { fill: #1c1c1e; } .iwc.night .iwc-t circle { fill: #f5f5f7; } .iwc.night .iwc-h, .iwc.night .iwc-m { stroke: #f5f5f7; }
+.iwc b { font-weight: 600; font-size: .95em; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iwc span { font-size: .78em; color: var(--fg2); }
+
+/* Calendar: weekday in red, the date large, events with a colour bar */
+body.look-ios .io-cal { display: grid; grid-template-columns: auto 1fr; gap: 1.1em; align-items: start; justify-content: stretch; padding: 14px 16px; }
+body.look-ios .ic-h { display: flex; flex-direction: column; }
+body.look-ios .ic-h span { color: #ff453a; font-weight: 700; font-size: .8em; text-transform: uppercase; letter-spacing: .02em; }
+body.look-ios .ic-h b { font-size: 2.8em; font-weight: 300; line-height: 1; letter-spacing: -.03em; }
+body.look-ios .ic-l { display: flex; flex-direction: column; gap: .5em; min-width: 0; }
+body.look-ios .ic-e { border-left: .22em solid var(--accent); padding-left: .55em; display: flex; flex-direction: column; min-width: 0; }
+body.look-ios .ic-e b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.look-ios .ic-e span { font-size: .8em; color: var(--fg2); }
+body.look-ios .ic-e.on { border-color: #30d158; }
+body.look-ios .ic-none { color: var(--fg2); font-size: .9em; }
+
+/* Notes: Reminders style */
+body.look-ios .wg-notes .nt-h { color: #ff9f0a; text-transform: none; letter-spacing: -.01em; font-size: 1.15em; font-weight: 700; }
+body.look-ios .wg-notes .nt-i i { border-radius: 50%; border-width: 1.5px; border-color: rgba(235, 235, 245, .4); }
+body.look-ios .wg-notes .nt-i.done i { background: #ff9f0a; border-color: #ff9f0a; box-shadow: inset 0 0 0 2px var(--bg); }
+body.look-ios .wg-recent .nt-h { color: #ff375f; text-transform: none; letter-spacing: -.01em; font-size: 1.05em; font-weight: 700; }
+body.look-ios .wg-timer .tm-k, body.look-ios .wg-worldclock .wc-n, body.look-ios .wg-stats .st-lab { letter-spacing: .02em; }
+/* the layout editor's preview keeps the editor's grid (8px padding and gaps) so its drag boxes line up */
+html.preview body.look-ios .screen.page { padding: 8px; }
+html.preview body.look-ios .wgrid { gap: 8px; }
+
+
+/* ---- iOS style, Liquid Glass: clear tiles that show the wallpaper's colour, a bright rim that catches the light at
+   the top left and bottom right, a soft inner glow, and glass capsules for buttons and the page dots.
+   Still no backdrop-filter: the wallpaper behind is already blurred, so a clear fill reads as frosted glass. ---- */
+body.look-ios { --card: rgba(255, 255, 255, .085); --line: transparent; --glass-rim: linear-gradient(135deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, .14) 28%, rgba(255, 255, 255, .03) 55%, rgba(255, 255, 255, .1) 78%, rgba(255, 255, 255, .45)); }
+body.look-ios #wall.has-art { filter: blur(44px) saturate(1.9) brightness(.78); }
+body.look-ios #wall:not(.has-art) { filter: saturate(1.2) brightness(1.1); }
+body.look-ios .wg:not(.look-clear):not(.wg-clock) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05) 45%, rgba(255, 255, 255, .03));
+  border: 0;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .28), inset 0 0 18px rgba(255, 255, 255, .06), 0 10px 30px rgba(0, 0, 0, .22);
+}
+body.look-ios .wg:not(.look-clear):not(.wg-clock)::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.2px; pointer-events: none; z-index: 2;
+  background: var(--glass-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* a faint sheen across the top, like light on curved glass */
+body.look-ios .wg:not(.look-clear):not(.wg-clock)::after {
+  content: ""; position: absolute; left: 6%; right: 6%; top: 0; height: 38%; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .1), transparent);
+}
+body.look-ios .wg > * { position: relative; z-index: 1; }
+body.look-ios .wg-photos > img { position: absolute; }
+body.look-ios .wg.look-outline { background: none !important; box-shadow: none !important; }
+
+/* Now playing keeps a hint of the cover's colour in the glass */
+body.look-ios .wg-nowplaying:not(.look-clear) { background: linear-gradient(150deg, rgba(var(--tint), .38), rgba(255, 255, 255, .06) 55%, rgba(255, 255, 255, .03)) !important; }
+body.look-ios .wg-nowplaying .w-ctl button { width: 2.3em !important; height: 2.3em !important; border-radius: 50% !important; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .14) !important; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), inset 0 -1px 1px rgba(255, 255, 255, .06); }
+body.look-ios .wg-nowplaying .w-ctl button.play { width: 2.8em !important; height: 2.8em !important; background: rgba(255, 255, 255, .26) !important; }
+body.look-ios .wg-nowplaying .w-ctl .ic { width: 1.05em; height: 1.05em; }
+body.look-ios .wg-nowplaying .w-ctl button.play .ic { width: 1.35em; height: 1.35em; }
+body.look-ios .wg-nowplaying .w-ctl { gap: .7em; }
+
+/* the sky tiles stay coloured, seen through glass */
+body.look-ios .io-sky:not(.look-clear) { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .45), inset 0 0 22px rgba(255, 255, 255, .12), 0 10px 30px rgba(0, 0, 0, .22); }
+body.look-ios .io-sky[data-sky=clear] { background: linear-gradient(170deg, rgba(61, 143, 230, .85), rgba(109, 177, 242, .7)) !important; }
+body.look-ios .io-sky[data-sky=partly] { background: linear-gradient(170deg, rgba(75, 134, 201, .85), rgba(126, 166, 207, .7)) !important; }
+body.look-ios .io-sky[data-sky=cloudy] { background: linear-gradient(170deg, rgba(93, 111, 132, .85), rgba(132, 148, 166, .7)) !important; }
+body.look-ios .io-sky[data-sky=rain] { background: linear-gradient(170deg, rgba(63, 78, 97, .88), rgba(92, 109, 128, .72)) !important; }
+body.look-ios .io-sky[data-sky=snow] { background: linear-gradient(170deg, rgba(138, 162, 189, .85), rgba(185, 200, 217, .72)) !important; }
+body.look-ios .io-sky[data-sky=night] { background: linear-gradient(170deg, rgba(11, 22, 51, .85), rgba(35, 52, 94, .72)) !important; }
+
+/* rings: brighter tracks on glass */
+body.look-ios .io-ring .io-rt { opacity: .28; }
+body.look-ios .io-ring span, body.look-ios .iwc span { color: rgba(255, 255, 255, .72); }
+
+/* page dots and the top pills as glass capsules */
+body.look-ios #dots { left: 50%; right: auto; transform: translateX(-50%); padding: 3px 6px; border-radius: 999px; background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .3); }
+body.look-ios #dots button { width: 18px; }
+body.look-ios .batt { background: rgba(255, 255, 255, .13); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .3); color: #fff; }
+body.look-ios .batt.charging, body.look-ios .batt.low { color: #fff; }
+body.look-ios .wg:not(.look-clear):not(.wg-clock)::after { left: 0; right: 0; height: 60%; background: radial-gradient(110% 70% at 50% 0%, rgba(255, 255, 255, .13), transparent 70%); }
+body.look-ios .screen.page { padding-bottom: 40px; }
+html.preview body.look-ios .screen.page { padding: 8px; }
+body.look-ios .ic-h span, body.look-ios .wg-notes .nt-h, body.look-ios .wg-recent .nt-h, body.look-ios .wg-nowplaying .w-src { text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
+body.look-ios .ic-h span { color: #ff6961; }
+body.look-ios .wg-notes .nt-h { color: #ffc04d; }
+body.look-ios .wg-nowplaying[data-mode=col] { gap: .55em; }
+body.look-ios .wg-nowplaying[data-mode=col] .w-ctl button { width: 2em !important; height: 2em !important; }
+body.look-ios .wg-nowplaying[data-mode=col] .w-ctl button.play { width: 2.4em !important; height: 2.4em !important; }
+body.look-ios .wg-nowplaying[data-mode=col] .w-ctl { margin-top: .25em; }
+
+/* iOS style on the built-in screens (stats, clock, shortcuts...): the same glass, as inner highlights */
+body.look-ios .card, body.look-ios .key, body.look-ios .st-hist, body.look-ios .st-cores, body.look-ios .agenda, body.look-ios .fc-d, body.look-ios .pad-tabs {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .05) 45%, rgba(255, 255, 255, .03)) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .32), inset 0 0 0 1px rgba(255, 255, 255, .08), inset 0 0 18px rgba(255, 255, 255, .05), 0 10px 30px rgba(0, 0, 0, .2);
+}
+body.look-ios .key { border-radius: 22px; }
+body.look-ios .card, body.look-ios .st-hist, body.look-ios .st-cores, body.look-ios .agenda { border-radius: 24px; }
+body.look-ios .graph { background: none !important; }
+body.look-ios .np-top > *, body.look-ios .app { background: rgba(255, 255, 255, .13) !important; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .3); }
+
+/* Bluetooth devices: an icon per device; "Connected" when it does not report a battery */
+.bt-ic { width: 1.25em; height: 1.25em; flex: none; color: var(--fg2); }
+.wg-devices { justify-content: center; }
+.wg-devices .dv-i { grid-template-columns: auto 1fr auto; column-gap: .65em; row-gap: .25em; }
+.wg-devices .dv-i .bt-ic { grid-row: 1 / span 2; align-self: center; width: 1.4em; height: 1.4em; }
+.wg-devices .dv-i .dv-n { grid-column: 2; grid-row: 1; }
+.wg-devices .dv-i b { grid-column: 3; grid-row: 1; }
+.wg-devices .dv-b { grid-column: 2 / -1; grid-row: 2; }
+.wg-devices .dv-i.nb .bt-ic { grid-row: 1; }
+.wg-devices .dv-i.nb b { color: var(--fg3); font-weight: 600; font-size: .85em; }
+.io-ring > span { display: inline-flex; align-items: center; gap: .3em; }
+.io-ring > span .bt-ic { width: 1.1em; height: 1.1em; color: rgba(255, 255, 255, .7); }
+.io-ring .io-icon { display: grid; place-items: center; }
+.io-ring .io-icon .bt-ic { width: 1.5em; height: 1.5em; color: rgba(255, 255, 255, .85); }

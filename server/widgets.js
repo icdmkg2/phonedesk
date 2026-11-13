@@ -68,8 +68,8 @@ const WIDGETS = {
     opts: [T('count', 'Songs to show', 'number', { default: 5, min: 1, max: 20 })],
   },
   devices: {
-    name: 'Device batteries', desc: 'Battery of Bluetooth headphones, mice and keyboards connected to the PC', defW: 4, defH: 2, minW: 2, minH: 1,
-    opts: [],
+    name: 'Bluetooth devices', desc: 'Every Bluetooth device connected to the PC (headphones, mouse, keyboard, controller...) with its battery when it reports one', defW: 5, defH: 2, minW: 2, minH: 1,
+    opts: [T('onlyBattery', 'Only devices that report a battery', 'boolean', { default: false })],
   },
   text: {
     name: 'Text', desc: 'A line or two of your own text', defW: 4, defH: 2, minW: 1, minH: 1,

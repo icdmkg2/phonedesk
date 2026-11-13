@@ -124,8 +124,11 @@ bridge.on('message', (m) => {
   } else if (m.t === 'sys') {
     stats.setExtras({ cpuTemp: m.cpuTemp, procs: m.procs, procsMem: m.procsMem });
   } else if (m.t === 'bt') {
-    const items = (Array.isArray(m.items) ? m.items : []).filter((x) => x && x.name && +x.level >= 0 && +x.level <= 100)
-      .slice(0, 12).map((x) => ({ name: String(x.name).slice(0, 60), level: Math.round(+x.level) }));
+    // every connected Bluetooth device; level is -1 when it does not report a battery
+    const KINDS = ['audio', 'keyboard', 'mouse', 'controller', 'input', 'phone', 'computer', 'watch'];
+    const items = (Array.isArray(m.items) ? m.items : []).filter((x) => x && x.name)
+      .slice(0, 16).map((x) => ({ name: String(x.name).slice(0, 60), level: +x.level >= 0 && +x.level <= 100 ? Math.round(+x.level) : -1, kind: KINDS.includes(x.kind) ? x.kind : '' }))
+      .sort((a, b) => (b.level >= 0) - (a.level >= 0) || a.name.localeCompare(b.name));
     if (JSON.stringify(items) !== JSON.stringify(state.bt)) { state.bt = items; broadcast({ t: 'bt', d: items }); }
   } else if (m.t === 'log') {
     log.warn('[bridge] ' + m.msg);
@@ -624,6 +627,7 @@ function publicConfig() {
     notes: c.notes,
     photos: photoList().length,
     doubleTapPlay: c.doubleTapPlay,
+    look: c.look,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
     lyricsFont: c.lyricsFont,
