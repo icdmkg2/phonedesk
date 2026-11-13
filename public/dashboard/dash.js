@@ -297,6 +297,9 @@
     if (tag.innerHTML !== tagHtml) tag.innerHTML = tagHtml;
     const art = $('np-art');
     if (m.active && m.art) { if (art.getAttribute('src') !== m.art) art.src = m.art; art.hidden = false; } else art.hidden = true;
+    // the window's backdrop and the Now playing card are a blur of the cover (Liquid Glass)
+    const wall = m.active && m.art ? 'url("' + m.art.replace(/"/g, '%22') + '")' : '';
+    if (document.body.dataset.wall !== wall) { document.body.dataset.wall = wall; document.body.style.setProperty('--art', wall || 'none'); document.body.classList.toggle('has-art', !!wall); }
     $('np-play').setAttribute('href', m.active && m.status === 'Playing' ? '#i-pause' : '#i-play');
   }
   let volDrag = false;
@@ -309,6 +312,8 @@
   $('np-vol').addEventListener('input', (e) => { volDrag = true; setText($('np-vol-n'), e.target.value); send({ t: 'volume', v: e.target.value / 100 }); });
   $('np-vol').addEventListener('change', () => setTimeout(() => { volDrag = false; }, 500));
 
+  // a meter is a bar and, in the overview, a ring: both read the same value
+  function ring(id, v) { const el = $(id); el.style.width = v + '%'; el.parentNode.style.setProperty('--p', Math.max(0, Math.min(100, v))); }
   function renderPc() {
     const s = state.stats;
     if (!s) return;
@@ -316,14 +321,14 @@
     setText($('pc-name'), s.host || 'This PC');
     setText($('pc-cpu'), s.cpu + '%');
     setText($('pc-mem'), mem + '%');
-    $('pc-cpu-m').style.width = s.cpu + '%';
-    $('pc-mem-m').style.width = mem + '%';
+    ring('pc-cpu-m', s.cpu);
+    ring('pc-mem-m', mem);
     const g = s.gpu;
     $('pc-gpu-box').hidden = !g || g.load < 0;
     if (g && g.load >= 0) {
       setText($('pc-gpu'), g.load + '%');
       setText($('pc-gpu-t'), g.temp > 0 ? '· ' + g.temp + '°C' + (g.hotspot > 0 ? ' (hotspot ' + g.hotspot + '°C)' : '') : '');
-      $('pc-gpu-m').style.width = g.load + '%';
+      ring('pc-gpu-m', g.load);
     }
     if (state.previewScreen === 'stats' || (selectedPhone() || {}).screen === 'stats') renderMirrors();
   }

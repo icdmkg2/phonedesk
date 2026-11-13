@@ -36,6 +36,7 @@
   </defs>
 </svg>
 
+<div class="backdrop" aria-hidden="true"></div>
 <div class="shell">
   <nav class="side" aria-label="Sections">
     <div class="brand"><img src="/favicon.svg" alt="">PhoneDesk</div>
@@ -73,7 +74,24 @@
         </div>
       </div>
 
-      <section class="card hero" id="ov-hero" aria-label="Connected phone" hidden>
+      <div class="ov-grid">
+        <section class="card ov-np" aria-label="Now playing on this PC">
+          <div class="card-head"><h2 class="label">Now playing on this PC</h2><span class="app-tag" id="np-app"></span></div>
+          <div class="np">
+            <div class="np-art"><img id="np-art" alt="" hidden></div>
+            <div style="min-width:0">
+              <div class="np-title" id="np-title">Nothing playing</div>
+              <div class="np-artist" id="np-artist">Start music or a video on this PC</div>
+            </div>
+          </div>
+          <div class="np-ctrl">
+            <button class="icon-btn" data-cmd="prev" aria-label="Previous"><svg><use href="#i-prev"/></svg></button>
+            <button class="play-btn" data-cmd="toggle" aria-label="Play or pause"><svg><use id="np-play" href="#i-play"/></svg></button>
+            <button class="icon-btn" data-cmd="next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
+            <label class="vol">Volume <input type="range" id="np-vol" min="0" max="100" step="1"><span id="np-vol-n">0</span></label>
+          </div>
+        </section>
+      <section class="card hero ov-phone" id="ov-hero" aria-label="Connected phone" hidden>
         <div class="device"><div class="screen" id="ov-mirror"></div></div>
         <div class="hero-info">
           <div class="phone-tabs" id="ov-tabs" hidden></div>
@@ -98,7 +116,7 @@
         </div>
       </section>
 
-      <section class="card empty-hero" id="ov-empty" aria-label="No phone connected" hidden>
+      <section class="card empty-hero ov-phone" id="ov-empty" aria-label="No phone connected" hidden>
         <div class="qr lg"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
         <div class="steps">
           <h3 class="big">Connect your phone</h3>
@@ -110,8 +128,15 @@
         </div>
       </section>
 
-      <div class="grid">
-        <section class="card" aria-label="Phone address">
+        <section class="card ov-pc" aria-label="This PC">
+          <h2 class="label" id="pc-name">This PC</h2>
+          <div class="pc">
+            <div><div class="small muted">CPU</div><div class="num" id="pc-cpu">–</div><div class="meter"><i id="pc-cpu-m"></i></div></div>
+            <div><div class="small muted">Memory</div><div class="num" id="pc-mem">–</div><div class="meter"><i id="pc-mem-m"></i></div></div>
+            <div id="pc-gpu-box" hidden><div class="small muted">GPU <span id="pc-gpu-t"></span></div><div class="num" id="pc-gpu">–</div><div class="meter"><i id="pc-gpu-m"></i></div></div>
+          </div>
+        </section>
+        <section class="card ov-addr" aria-label="Phone address">
           <div class="addr">
             <div class="qr"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
             <div class="addr-body">
@@ -122,34 +147,7 @@
             </div>
           </div>
         </section>
-
-        <section class="card" aria-label="Now playing on this PC">
-          <div class="card-head"><h2 class="label">Now playing on this PC</h2><span class="app-tag" id="np-app"></span></div>
-          <div class="np">
-            <div class="np-art"><img id="np-art" alt="" hidden></div>
-            <div style="min-width:0">
-              <div class="np-title" id="np-title">Nothing playing</div>
-              <div class="np-artist" id="np-artist">Start music or a video on this PC</div>
-            </div>
-          </div>
-          <div class="np-ctrl">
-            <button class="icon-btn" data-cmd="prev" aria-label="Previous"><svg><use href="#i-prev"/></svg></button>
-            <button class="play-btn" data-cmd="toggle" aria-label="Play or pause"><svg><use id="np-play" href="#i-play"/></svg></button>
-            <button class="icon-btn" data-cmd="next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
-            <label class="vol">Volume <input type="range" id="np-vol" min="0" max="100" step="1"><span id="np-vol-n">0</span></label>
-          </div>
-        </section>
-
-        <section class="card" aria-label="This PC">
-          <h2 class="label" id="pc-name">This PC</h2>
-          <div class="pc">
-            <div><div class="small muted">CPU</div><div class="num" id="pc-cpu">–</div><div class="meter"><i id="pc-cpu-m"></i></div></div>
-            <div><div class="small muted">Memory</div><div class="num" id="pc-mem">–</div><div class="meter"><i id="pc-mem-m"></i></div></div>
-            <div id="pc-gpu-box" hidden><div class="small muted">GPU <span id="pc-gpu-t"></span></div><div class="num" id="pc-gpu">–</div><div class="meter"><i id="pc-gpu-m"></i></div></div>
-          </div>
-        </section>
-
-        <section class="card" aria-label="Recent activity">
+        <section class="card ov-feed" aria-label="Recent activity">
           <div class="card-head"><h2 class="label">Recent activity</h2><button class="btn sm ghost" data-goto="activity">See all</button></div>
           <ul class="feed" id="ov-feed"></ul>
         </section>

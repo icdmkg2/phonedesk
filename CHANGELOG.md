@@ -7,6 +7,24 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.14.0] — 2026-11-13
+
+A new look for the PhoneDesk window on your PC, to match the phone's Liquid Glass style.
+
+### Changed
+
+- **The PC window is redesigned in Liquid Glass.** It sits on a blur of the album that is playing (soft colour when
+  nothing is), and the sidebar and every panel are sheets of glass over it, with rounded corners, pill buttons and
+  switches like the phone's.
+- **A new Overview:** a large Now playing card with the cover and its colours, the phone (or the code to connect one)
+  beside it, and PC stats as rings for CPU, memory and GPU.
+
+![The Overview page of the PhoneDesk window in Liquid Glass](docs/changelog/1.14.0/dashboard-overview.png)
+
+### Fixed
+
+- The release workflow no longer fails when GitHub won't create a page for an older version that shipped inside a later one.
+
 ## [1.13.0] — 2026-11-13
 
 An iOS-style look for your pages, and lyrics that stay in time.
