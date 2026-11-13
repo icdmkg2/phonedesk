@@ -9,17 +9,17 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 ## [1.14.0] — 2026-11-13
 
-A new look for the PhoneDesk window on your PC, to match the phone's Liquid Glass style.
+A new look for the PhoneDesk window on your PC, made to feel at home in Windows 11.
 
 ### Changed
 
-- **The PC window is redesigned in Liquid Glass.** It sits on a blur of the album that is playing (soft colour when
-  nothing is), and the sidebar and every panel are sheets of glass over it, with rounded corners, pill buttons and
-  switches like the phone's.
-- **A new Overview:** a large Now playing card with the cover and its colours, the phone (or the code to connect one)
-  beside it, and PC stats as rings for CPU, memory and GPU.
+- **The PC window looks like Windows 11 Settings.** A quiet dark window, a plain sidebar where the selected page is
+  marked by a small blue bar, large page titles, and settings in flat rounded cards with Windows-style buttons, text
+  boxes and switches. It uses Segoe UI, like Windows itself.
+- **A new Overview:** Now playing and your phone (or the code to connect one) side by side at the top, then PC stats,
+  the phone address and recent activity.
 
-![The Overview page of the PhoneDesk window in Liquid Glass](docs/changelog/1.14.0/dashboard-overview.png)
+![The Overview page of the PhoneDesk window](docs/changelog/1.14.0/dashboard-overview.png)
 
 ### Fixed
 
