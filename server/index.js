@@ -103,6 +103,7 @@ bridge.on('message', (m) => {
     m.app = m.site === 'youtube' ? 'YouTube' : ic && ic.name && ic.name.length <= 24 ? ic.name : prettyApp(rawApp);
     if (m.site === 'youtube') m.title = String(m.title || '').replace(/\s+-\s+YouTube( Music)?$/i, '');
     state.media = m;
+    if (m.active && rawApp) seenApps.set(rawApp, { token: appToken(rawApp), name: m.app, icon: m.appIcon || '' });
     broadcast({ t: 'media', d: state.media });
   } else if (m.t === 'appicon') {
     const buf = Buffer.from(m.png || '', 'base64');
@@ -144,6 +145,16 @@ bridge.on('message', (m) => {
 });
 
 let trackKey = '';
+// Apps seen playing this run, for "Hide these apps" in the PC window: raw id -> { token, name, icon }
+const seenApps = new Map();
+/** The part of a player's id that stays the same and survives the ignore list's cleaning (lower case, [a-z0-9._-]). */
+function appToken(raw) {
+  let s = String(raw || '').toLowerCase();
+  if (s.includes('!')) s = s.split('!')[0].split('_')[0]; // a Store app: its package name
+  else if (/[\\/]/.test(s)) s = s.split(/[\\/]/).pop().replace(/\.exe$/, ''); // a path: the program
+  else s = s.replace(/\.exe$/, '');
+  return s.replace(/[^a-z0-9._-]/g, '').slice(0, 60);
+}
 let lyricsNoLength = false; // the current song's lyrics were looked up before its length was known
 let lyricsSeq = 0;
 function findLyrics(m, key) {
@@ -368,6 +379,11 @@ async function handleApi(req, res, url) {
       return send(res, 200, svg, 'image/svg+xml');
     }
     if (p === '/api/config' && req.method === 'GET') return send(res, 200, config.get());
+    if (p === '/api/media-apps' && req.method === 'GET') { // apps seen playing, newest first, and which one plays now
+      const now = state.mediaRaw ? appToken(state.mediaRaw) : '';
+      const list = [...seenApps.values()].reverse().filter((a, i, l) => a.token && l.findIndex((b) => b.token === a.token) === i);
+      return send(res, 200, { now, apps: list });
+    }
     if (p === '/api/diagnostics' && req.method === 'GET') {
       const z = require('./diagnostics').build({
         version: VERSION, config: config.get(), log, update: updater.status(), bridge: bridge.status ? bridge.status() : null,

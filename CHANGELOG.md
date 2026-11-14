@@ -11,6 +11,12 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 Synced lyrics and the song position keep time with Firefox and with music videos, and Zen shows its own name.
 
+### Added
+
+- **Hide apps from the phone:** in Phone display, under Music, choose apps that never show as playing (voice chat,
+  games, a browser playing videos), so the phone keeps showing your music. Hide the app that is playing now with one
+  click, or pick any app that played since PhoneDesk started. Discord is hidden from the start, as before.
+
 ### Fixed
 
 - **Skipping within a song in a Firefox-based browser no longer throws the lyrics back to the start.** After a skip,

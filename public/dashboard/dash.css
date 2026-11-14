@@ -816,3 +816,11 @@ select { color-scheme: dark; font-weight: 400; background-color: rgba(255, 255, 
 select option, select optgroup { background-color: #2b2b2e; color: #fff; font-weight: 400; }
 select option:checked { background-color: #3a3a3e; color: #fff; }
 select:focus, select:focus-visible { outline: none; border-bottom: 2px solid var(--accent); }
+
+/* Hide these apps on the phone */
+.chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.app-chip { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 10px; border-radius: 4px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08); font-size: 13px; }
+.app-chip img { width: 16px; height: 16px; object-fit: contain; }
+.app-chip button { width: 22px; height: 22px; border: 0; border-radius: 3px; background: none; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.app-chip button:hover { background: rgba(255, 255, 255, .08); color: var(--fg); }
+#ds-hide-pick { width: auto; min-width: 220px; }

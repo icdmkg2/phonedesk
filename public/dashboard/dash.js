@@ -1572,4 +1572,41 @@
   findList.addEventListener('mousedown', (e) => { const b = e.target.closest('.find-i'); if (b) { e.preventDefault(); findGo(findHits[+b.dataset.i]); } });
   find.addEventListener('blur', () => setTimeout(findClose, 150));
   document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); find.focus(); find.select(); } });
+
+  // ---------------------------------------------------------------- Hide these apps on the phone (the ignore list)
+  let hideSeen = { now: '', apps: [] };
+  const hideName = (tok) => {
+    const c = state.config || {};
+    const seen = hideSeen.apps.find((a) => a.token === tok);
+    return (seen && seen.name) || (c.ignoreNames && c.ignoreNames[tok]) || (tok === 'discord' ? 'Discord' : tok);
+  };
+  function renderHide() {
+    const c = state.config; if (!c || !$('ds-hide-list')) return;
+    const list = c.ignoreApps || [];
+    $('ds-hide-list').innerHTML = list.length ? list.map((tok) => {
+      const seen = hideSeen.apps.find((a) => a.token === tok);
+      return '<span class="app-chip">' + (seen && seen.icon ? '<img src="' + esc(seen.icon) + '" alt="">' : '') + esc(hideName(tok)) + '<button type="button" data-rm="' + esc(tok) + '" aria-label="Show ' + esc(hideName(tok)) + ' again">×</button></span>';
+    }).join('') : '<span class="small muted">No apps hidden.</span>';
+    const now = hideSeen.apps.find((a) => a.token === hideSeen.now);
+    $('ds-hide-now').hidden = !now || list.includes(now.token);
+    if (now) $('ds-hide-now').textContent = 'Hide ' + now.name + ' (playing now)';
+    const pick = hideSeen.apps.filter((a) => !list.includes(a.token));
+    $('ds-hide-pick').innerHTML = '<option value="">' + (pick.length ? 'Add an app that played…' : 'Apps show up here once they play') + '</option>' + pick.map((a) => '<option value="' + esc(a.token) + '">' + esc(a.name || a.token) + '</option>').join('');
+    $('ds-hide-pick').disabled = !pick.length;
+  }
+  async function loadHide() { try { hideSeen = await api('media-apps'); } catch (e) { /* keep the last list */ } renderHide(); }
+  function hideAdd(tok) {
+    const c = state.config; if (!tok || (c.ignoreApps || []).includes(tok)) return;
+    const names = Object.assign({}, c.ignoreNames || {}); names[tok] = hideName(tok);
+    saveConfig({ ignoreApps: (c.ignoreApps || []).concat(tok), ignoreNames: names }).then(renderHide);
+  }
+  $('ds-hide-now').addEventListener('click', () => hideAdd(hideSeen.now));
+  $('ds-hide-pick').addEventListener('change', (e) => { hideAdd(e.target.value); e.target.value = ''; });
+  $('ds-hide-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rm]'); if (!b) return;
+    saveConfig({ ignoreApps: (state.config.ignoreApps || []).filter((x) => x !== b.dataset.rm) }).then(renderHide);
+  });
+  document.querySelector('.nav[data-view="display"]').addEventListener('click', loadHide);
+  setInterval(() => { if ($('v-display').classList.contains('on')) loadHide(); }, 5000);
+  loadHide();
 })();
