@@ -334,6 +334,41 @@ async function t(name, fn) {
       assert.ok(after >= before, 'the length arriving does not send it back to the start (' + before + 's, then ' + after + 's)');
       await ctx.close();
     });
+    await t('a skip that a Firefox-based browser reports as a fresh 0:00 is flagged until a pause and play brings the real time', async () => {
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript(() => {
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (JSON.parse(e.data).t === 'media') e.stopImmediatePropagation(); } catch (x) {} } });
+            this.addEventListener('open', () => {
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+              const media = (status, pos) => ({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Zen', status, position: pos, duration: 240, updated: Date.now() } });
+              // the log from Zen: playing at 0:18, then a skip arrives as "0:00, as of now", then pause and play give the real place
+              d(media('Playing', 18));
+              setTimeout(() => d(media('Playing', 0)), 3000);
+              setTimeout(() => d(media('Paused', 95)), 5000);
+              setTimeout(() => d(media('Playing', 95)), 5500);
+            });
+          }
+        };
+      });
+      await ctx.addInitScript(() => localStorage.setItem('pd.screen', JSON.stringify('media')));
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/phone/'); await sleep(2500);
+      const lost = () => pg.evaluate(() => !document.getElementById('ly-lost').hidden);
+      assert.strictEqual(await lost(), false, 'no note while the place is known');
+      await sleep(1200);
+      assert.strictEqual(await lost(), true, 'the skip (a fresh 0:00 mid-song) shows the note');
+      const secs = (t) => { const [m, x] = t.split(':').map(Number); return m * 60 + x; };
+      assert.ok(secs(await pg.locator('#m-pos').innerText()) >= 18, 'the song does not jump back to 0:00');
+      await sleep(2200);
+      assert.strictEqual(await lost(), false, 'pause and play clear the note');
+      const p = secs(await pg.locator('#m-pos').innerText());
+      assert.ok(p >= 95 && p <= 97, 'and the real place is followed (shows ' + p + 's)');
+      await ctx.close();
+    });
     await t('the new widgets work: weather with the next hours, the month calendar, and quick toggles that tell the PC', async () => {
       const w = require('../server/widgets');
       const page = w.sanitizePages([{ name: 'New', widgets: [

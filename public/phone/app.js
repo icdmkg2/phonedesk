@@ -255,13 +255,24 @@
     var frozen = m.position === pc.lastPos && m.updated !== pc.lastUpd && Date.now() > jumpOkUntil;
     var bogusStart = rep < 1.5 && cur > 2.5 && Date.now() > jumpOkUntil && !(m.duration && cur > m.duration - 3);
     var bogusEnd = m.duration && rep > m.duration + 2;
+    var hadPlace = pc.lastPos > 1.5; // the player had told a real place in the song before this report
     pc.lastPos = m.position; pc.lastUpd = m.updated;
     if (!changed && playing && (frozen || bogusStart || bogusEnd)) {
-      pc.pos = cur; pc.at = now;
+      // A fresh 0:00 mid-song is what Firefox-based browsers (Zen...) send after you skip within the song: the real
+      // place is unknown until a pause and play. Keep the clock, and say how to get back in sync.
+      if (bogusStart && hadPlace && m.updated !== pc.prevUpd) setPosLost(true);
+      pc.pos = cur; pc.at = now; pc.prevUpd = m.updated;
       return;
     }
-    if (changed || Math.abs(rep - cur) > 1.2) pc = { pos: rep, at: now, playing: playing, key: key, lastPos: m.position, lastUpd: m.updated };
-    else { pc.pos = cur + (rep - cur) * 0.4; pc.at = now; }
+    if (changed || Math.abs(rep - cur) > 1.2) pc = { pos: rep, at: now, playing: playing, key: key, lastPos: m.position, lastUpd: m.updated, prevUpd: m.updated };
+    else { pc.pos = cur + (rep - cur) * 0.4; pc.at = now; pc.prevUpd = m.updated; }
+    setPosLost(false);
+  }
+  var posLost = false;
+  function setPosLost(v) {
+    if (v === posLost) return;
+    posLost = v;
+    var e = $('ly-lost'); if (e) e.hidden = !v;
   }
   function currentPos() {
     var m = state.media;

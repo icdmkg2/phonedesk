@@ -1374,3 +1374,10 @@ body.look-win .qt.on span { color: rgba(0, 0, 0, .7); }
 #s-lyrics::before { content: ""; position: absolute; inset: -24px; z-index: -1; background: inherit; pointer-events: none; }
 /* iOS style, Classic Now playing: the app name is a small pill, not a bar across the screen */
 body.look-ios:not(.ns-imm) .meta .app { display: inline-flex; width: fit-content; max-width: 100%; padding: 4px 10px 4px 8px; border-radius: 999px; }
+
+/* after a skip in a Firefox-based browser the place in the song is unknown until a pause and play: say so */
+.ly-lost { position: absolute; z-index: 5; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 200px);
+  padding: 7px 14px 7px 10px; border-radius: 999px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); animation: fadein .3s ease-out; }
+.ly-lost[hidden] { display: none; }
+.ly-lost svg { width: 16px; height: 16px; flex: none; opacity: .85; }
