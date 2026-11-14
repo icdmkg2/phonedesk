@@ -89,24 +89,9 @@
         </div>
       </div>
 
-      <div class="ov-grid">
-        <section class="card ov-np" aria-label="Now playing on this PC">
-          <div class="card-head"><h2 class="label">Now playing on this PC</h2><span class="app-tag" id="np-app"></span></div>
-          <div class="np">
-            <div class="np-art"><img id="np-art" alt="" hidden></div>
-            <div style="min-width:0">
-              <div class="np-title" id="np-title">Nothing playing</div>
-              <div class="np-artist" id="np-artist">Start music or a video on this PC</div>
-            </div>
-          </div>
-          <div class="np-ctrl">
-            <button class="icon-btn" data-cmd="prev" aria-label="Previous"><svg><use href="#i-prev"/></svg></button>
-            <button class="play-btn" data-cmd="toggle" aria-label="Play or pause"><svg><use id="np-play" href="#i-play"/></svg></button>
-            <button class="icon-btn" data-cmd="next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
-            <label class="vol">Volume <input type="range" id="np-vol" min="0" max="100" step="1"><span id="np-vol-n">0</span></label>
-          </div>
-        </section>
-      <section class="card hero ov-phone" id="ov-hero" aria-label="Connected phone" hidden>
+      <h2 class="group-h">Your phone</h2>
+      <div class="sgroup">
+        <div class="srow block ov-phone" id="ov-hero" aria-label="Connected phone" hidden>
         <div class="device"><div class="screen" id="ov-mirror"></div></div>
         <div class="hero-info">
           <div class="phone-tabs" id="ov-tabs" hidden></div>
@@ -129,9 +114,8 @@
             </div>
           </div>
         </div>
-      </section>
-
-      <section class="card empty-hero ov-phone" id="ov-empty" aria-label="No phone connected" hidden>
+      </div>
+        <div class="srow block ov-phone ov-connect" id="ov-empty" aria-label="No phone connected" hidden>
         <div class="qr lg"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
         <div class="steps">
           <h3 class="big">Connect your phone</h3>
@@ -141,31 +125,34 @@
           </ol>
           <div class="row"><button class="btn sm copy-url">Copy link</button><button class="btn sm" data-goto="connection">Connection help</button></div>
         </div>
-      </section>
+      </div>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-globe"/></svg><div class="srow-t"><b><span class="name-url">phonedesk.local</span></b><span>Open it on the phone. Works on the same Wi-Fi, even if this PC's IP changes.</span></div><div class="srow-c"><button class="btn copy-url">Copy link</button><button class="btn" data-goto="connection">Other addresses</button></div></div>
+      </div>
 
-        <section class="card ov-pc" aria-label="This PC">
-          <h2 class="label" id="pc-name">This PC</h2>
-          <div class="pc">
-            <div><div class="small muted">CPU</div><div class="num" id="pc-cpu">–</div><div class="meter"><i id="pc-cpu-m"></i></div></div>
-            <div><div class="small muted">Memory</div><div class="num" id="pc-mem">–</div><div class="meter"><i id="pc-mem-m"></i></div></div>
-            <div id="pc-gpu-box" hidden><div class="small muted">GPU <span id="pc-gpu-t"></span></div><div class="num" id="pc-gpu">–</div><div class="meter"><i id="pc-gpu-m"></i></div></div>
+      <h2 class="group-h">Now playing on this PC</h2>
+      <div class="sgroup">
+        <div class="srow ov-np" aria-label="Now playing on this PC">
+          <div class="np-art"><img id="np-art" alt="" hidden></div>
+          <div class="srow-t"><b class="np-title" id="np-title">Nothing playing</b><span class="np-artist" id="np-artist">Start music or a video on this PC</span><span class="app-tag" id="np-app"></span></div>
+          <div class="srow-c np-ctrl">
+            <button class="icon-btn" data-cmd="prev" aria-label="Previous"><svg><use href="#i-prev"/></svg></button>
+            <button class="play-btn" data-cmd="toggle" aria-label="Play or pause"><svg><use id="np-play" href="#i-play"/></svg></button>
+            <button class="icon-btn" data-cmd="next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
           </div>
-        </section>
-        <section class="card ov-addr" aria-label="Phone address">
-          <div class="addr">
-            <div class="qr"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
-            <div class="addr-body">
-              <h2 class="label">Open on your phone</h2>
-              <div class="big name-url">phonedesk.local</div>
-              <p class="small muted">Works on the same Wi-Fi, even if this PC's IP changes.</p>
-              <div class="row"><button class="btn sm copy-url">Copy link</button><button class="btn sm" data-goto="connection">Other addresses</button></div>
-            </div>
-          </div>
-        </section>
-        <section class="card ov-feed" aria-label="Recent activity">
-          <div class="card-head"><h2 class="label">Recent activity</h2><button class="btn sm ghost" data-goto="activity">See all</button></div>
-          <ul class="feed" id="ov-feed"></ul>
-        </section>
+        </div>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-vol"/></svg><div class="srow-t"><b>Volume</b></div><div class="srow-c srow-range"><input type="range" id="np-vol" min="0" max="100" step="1" aria-label="Volume"><span class="small" id="np-vol-n" style="min-width:28px;text-align:right">0</span></div></div>
+      </div>
+
+      <h2 class="group-h" id="pc-name">This PC</h2>
+      <div class="sgroup ov-pc">
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-chart"/></svg><div class="srow-t"><b>CPU</b></div><div class="srow-c meter-c"><div class="meter"><i id="pc-cpu-m"></i></div><span class="num" id="pc-cpu">–</span></div></div>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-chart"/></svg><div class="srow-t"><b>Memory</b></div><div class="srow-c meter-c"><div class="meter"><i id="pc-mem-m"></i></div><span class="num" id="pc-mem">–</span></div></div>
+        <div class="srow" id="pc-gpu-box" hidden><svg class="srow-ic" aria-hidden="true"><use href="#i-chart"/></svg><div class="srow-t"><b>GPU</b><span id="pc-gpu-t"></span></div><div class="srow-c meter-c"><div class="meter"><i id="pc-gpu-m"></i></div><span class="num" id="pc-gpu">–</span></div></div>
+      </div>
+
+      <h2 class="group-h">Recent activity</h2>
+      <div class="sgroup">
+        <div class="srow block"><ul class="feed" id="ov-feed"></ul><div class="row"><button class="btn sm" data-goto="activity">See all activity</button></div></div>
       </div>
     </section>
 
@@ -354,28 +341,25 @@
       <div class="head"><div><h1>Layouts</h1><p>Build your own pages from widgets. They join the phone's swipe row, and changes show on the phone right away.</p></div>
         <div class="row"><span class="save-state" id="ly-state"></span><button class="btn primary" id="ly-new">New page</button></div></div>
       <div class="ly-wrap">
-        <section class="card ly-pages" aria-label="Pages"><div class="card-head"><h3>Pages</h3><span class="badge" id="ly-count">None</span></div><div class="ly-list" id="ly-list"></div></section>
+        <div class="ly-pages"><h2 class="group-h">Pages <span class="badge" id="ly-count">None</span></h2><div class="sgroup"><div class="srow block"><div class="ly-list" id="ly-list"></div></div></div></div>
         <div class="ly-main" id="ly-main" hidden>
-          <section class="card" aria-label="Layout">
-            <div class="ly-top">
-              <label class="ly-name">Name<input type="text" id="ly-name" maxlength="24" autocomplete="off"></label>
-              <label class="ly-show"><span class="switch"><input type="checkbox" id="ly-onphone"><span></span></span>Show on the phone</label>
-              <label class="ly-bg">Background<select id="ly-bg"><option value="">Normal</option><option value="black">Black</option><option value="aurora">Aurora</option><option value="dusk">Dusk</option><option value="forest">Forest</option><option value="slate">Slate</option></select></label>
-              <label class="ly-bg">Corners<select id="ly-radius"><option value="">Normal</option><option value="none">Square</option><option value="small">Small</option><option value="large">Round</option></select></label>
-              <label class="ly-bg">Accent<span class="row" style="gap:6px"><input type="color" id="ly-accent" value="#5b8cff" aria-label="Accent colour"><button class="btn sm ghost" id="ly-accent-clear" hidden>Reset</button></span></label>
-              <div class="ly-tools" role="group" aria-label="Edit">
-                <button class="btn sm ghost" id="ly-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
-                <button class="btn sm ghost" id="ly-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
-                <button class="btn sm ghost" id="ly-reset" title="Go back to how this page was when you opened it" disabled>Reset</button>
-              </div>
-              <button class="btn sm ghost" id="ly-del">Delete page</button>
+          <h2 class="group-h">Page</h2>
+          <div class="sgroup">
+            <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-list"/></svg><div class="srow-t"><b>Name</b></div><div class="srow-c"><input type="text" id="ly-name" maxlength="24" autocomplete="off" aria-label="Name" style="width:220px"></div></div>
+            <label class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-screens"/></svg><div class="srow-t"><b>Show on the phone</b><span>Adds this page to the phone’s swipe row</span></div><div class="srow-c"><span class="switch"><input type="checkbox" id="ly-onphone"><span></span></span></div></label>
+            <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-palette"/></svg><div class="srow-t"><b>Background</b></div><div class="srow-c"><select id="ly-bg" aria-label="Background"><option value="">Normal</option><option value="black">Black</option><option value="aurora">Aurora</option><option value="dusk">Dusk</option><option value="forest">Forest</option><option value="slate">Slate</option></select></div></div>
+            <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-screens"/></svg><div class="srow-t"><b>Corners</b></div><div class="srow-c"><select id="ly-radius" aria-label="Corners"><option value="">Normal</option><option value="none">Square</option><option value="small">Small</option><option value="large">Round</option></select></div></div>
+            <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-palette"/></svg><div class="srow-t"><b>Accent</b><span>The colour of this page’s highlights</span></div><div class="srow-c"><input type="color" id="ly-accent" value="#5b8cff" aria-label="Accent colour"><button class="btn sm ghost" id="ly-accent-clear" hidden>Reset</button></div></div>
+          </div>
+          <h2 class="group-h">Layout</h2>
+          <div class="sgroup">
+            <div class="srow block">
+              <div class="srow-head"><svg class="srow-ic" aria-hidden="true"><use href="#i-screens"/></svg><div class="srow-t"><b>Widgets on the page</b><span>Drag a widget to move it and its corner to resize. With a widget selected, the arrow keys move it and Shift with the arrows resizes it.</span></div>
+                <div class="ly-tools" role="group" aria-label="Edit"><button class="btn sm" id="ly-undo" title="Undo (Ctrl+Z)" disabled>Undo</button><button class="btn sm" id="ly-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button><button class="btn sm" id="ly-reset" title="Go back to how this page was when you opened it" disabled>Reset</button><button class="btn sm danger" id="ly-del">Delete page</button></div></div>
+              <div class="ly-stage" id="ly-stage"><div class="ly-canvas" id="ly-canvas"><iframe id="ly-frame" title="Live preview of this page" tabindex="-1"></iframe><div class="ly-over" id="ly-over"></div></div></div>
             </div>
-            <div class="ly-stage" id="ly-stage"><div class="ly-canvas" id="ly-canvas"><iframe id="ly-frame" title="Live preview of this page" tabindex="-1"></iframe><div class="ly-over" id="ly-over"></div></div></div>
-            <div class="small muted">Drag a widget to move it and its corner to resize. With a widget selected, the arrow keys move it and Shift with the arrows resizes it.</div>
-          </section>
-          <div class="ly-row">
-            <section class="card" aria-label="Add a widget"><h3>Add a widget</h3><div class="ly-palette" id="ly-palette"></div></section>
-            <section class="card" aria-label="Selected widget" id="ly-opts"></section>
+            <div class="srow block"><div class="srow-head"><svg class="srow-ic" aria-hidden="true"><use href="#i-bolt"/></svg><div class="srow-t"><b>Add a widget</b></div></div><div class="srow-body"><div class="ly-palette" id="ly-palette"></div></div></div>
+            <div class="srow block ly-opts" id="ly-opts" aria-label="Selected widget"></div>
           </div>
         </div>
         <section class="card ly-none" id="ly-none"><h3>Make a page</h3><p class="small muted">A page is a grid you fill with widgets: a clock with the weather, your calendar, PC stats, shortcut buttons, and widgets from addons. Start from a template or a blank page.</p><div class="row"><button class="btn primary" id="ly-new2">New page</button></div></section>
@@ -385,126 +369,119 @@
     <section class="view" id="v-addons" aria-label="Addons">
       <div class="head"><div><h1>Addons</h1><p>Add screens and features to the phone. Anyone can build one.</p></div>
         <div class="row"><button class="btn" id="ad-link">Install from a file or link</button><button class="btn" id="ad-refresh">Check for updates</button></div></div>
-      <section class="card" aria-label="Installed addons">
-        <div class="card-head"><h3>Installed</h3><span class="badge" id="ad-count">None</span></div>
-        <div class="ad-list" id="ad-installed"></div>
-      </section>
-      <section class="card" aria-label="Marketplace">
-        <div class="card-head"><h3>Marketplace</h3><label class="ad-auto small muted"><input type="checkbox" id="ad-auto"> Update addons automatically</label></div>
-        <div class="small muted" id="ad-reg-msg"></div>
-        <div class="ad-list" id="ad-registry"></div>
-        <p class="small muted">Addons in the marketplace are listed by the PhoneDesk project and checked against a checksum before they install. <a class="link" href="https://phonedesk.orreinis.me/docs/addons" target="_blank" rel="noopener">Build your own addon</a>.</p>
-      </section>
+      <h2 class="group-h">Installed <span class="badge" id="ad-count">None</span></h2>
+      <div class="sgroup ad-group"><div class="ad-list" id="ad-installed"></div></div>
+
+      <h2 class="group-h">Marketplace</h2>
+      <div class="sgroup">
+        <label class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-power"/></svg><div class="srow-t"><b>Update addons automatically</b></div><div class="srow-c"><span class="switch"><input type="checkbox" id="ad-auto"><span></span></span></div></label>
+      </div>
+      <div class="small muted" id="ad-reg-msg"></div>
+      <div class="sgroup ad-group"><div class="ad-list" id="ad-registry"></div></div>
+      <p class="small muted" style="margin-top:12px">Addons in the marketplace are listed by the PhoneDesk project and checked against a checksum before they install. <a class="link" href="https://phonedesk.orreinis.me/docs/addons" target="_blank" rel="noopener">Build your own addon</a>.</p>
+    </section>
     </section>
 
     <section class="view" id="v-connection" aria-label="Connection">
       <div class="head"><div><h1>Connection</h1><p>Phones and online services.</p></div></div>
 
-      <section class="card" aria-label="Phones">
-        <div class="card-head"><h3>Your phones</h3><span class="badge" id="cn-count">None</span></div>
-        <div class="phones" id="cn-phones"></div>
-      </section>
+      <div class="sgroup">
+        <div class="srow block">
+          <div class="srow-head"><svg class="srow-ic" aria-hidden="true"><use href="#i-screens"/></svg><div class="srow-t"><b>Your phones</b><span>Every phone that has opened PhoneDesk</span></div><span class="badge" id="cn-count">None</span></div>
+          <div class="srow-body"><div class="phones" id="cn-phones"></div></div>
+        </div>
+      </div>
 
-      <div class="grid">
-        <section class="card" aria-label="Connect a phone">
-          <div class="card-head"><h3>Connect a phone</h3></div>
-          <div class="addr">
-            <div class="qr lg"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
-            <div class="addr-body">
-              <div class="small muted">Scan, or open on the phone</div>
-              <div class="big name-url">phonedesk.local</div>
-              <div class="row"><button class="btn sm copy-url">Copy link</button></div>
-            </div>
-          </div>
-          <details class="more">
-            <summary>Install the phone app (recommended)</summary>
+      <h2 class="group-h">Connect a phone</h2>
+      <div class="sgroup">
+        <div class="srow">
+          <div class="qr"><img class="qr-img" alt="QR code that opens PhoneDesk on your phone"></div>
+          <div class="srow-t"><b class="big name-url">phonedesk.local</b><span>Scan the code, or open this address in the phone's browser</span></div>
+          <div class="srow-c"><button class="btn copy-url">Copy link</button></div>
+        </div>
+        <div class="srow block">
+          <details class="more"><summary>Install the phone app (recommended)</summary>
             <p class="small muted">Full screen, screen always on, finds your PC by itself, and shares the battery. On the phone open <span class="mono apk-url">/phone/PhoneDesk.apk</span> and install it (allow “unknown apps” for that browser once).</p>
           </details>
-          <details class="more">
-            <summary>Name not working?</summary>
-            <div class="urls" id="cn-urls"></div>
-          </details>
-        </section>
+        </div>
+        <div class="srow block">
+          <details class="more"><summary>Name not working? Other addresses</summary><div class="urls" id="cn-urls"></div></details>
+        </div>
+      </div>
 
-        <section class="card" aria-label="USB">
-          <div class="card-head"><h3>USB and cable-free</h3><span class="badge usb">Optional</span></div>
-          <div class="urls" id="cn-usb"></div>
-          <div class="row"><button class="btn" id="cn-usb-connect">Open on phone</button><button class="btn" id="cn-adb-install" hidden>Download ADB (≈7 MB)</button></div>
-          <label class="toggle-row">Link phones automatically<span class="switch"><input type="checkbox" id="cn-autousb"><span></span></span></label>
-          <details class="more">
-            <summary>How to set it up</summary>
-            <ol class="small steps">
-              <li>Phone: Settings → About phone → tap <i>Build number</i> 7 times.</li>
-              <li>Developer options → turn on <b>USB debugging</b>, plug in, accept the prompt.</li>
-              <li>No cable later? Turn on <b>Wireless debugging</b> too. PhoneDesk links over Wi-Fi by itself.</li>
-            </ol>
-          </details>
-        </section>
-
-        <section class="card" aria-label="Spotify">
-          <div class="card-head"><h3>Spotify</h3><span class="badge" id="sp-badge">Not connected</span></div>
-          <p class="small muted">Up next and a ♥ button on the phone.</p>
-          <div id="sp-setup">
-            <details class="more">
-              <summary>How to connect</summary>
+      <h2 class="group-h">USB and cable-free <span class="badge usb">Optional</span></h2>
+      <div class="sgroup">
+        <div class="srow block">
+          <div class="srow-head"><svg class="srow-ic" aria-hidden="true"><use href="#i-bolt"/></svg><div class="srow-t"><b>USB debugging</b><span>Opens PhoneDesk on a plugged-in phone by itself, and links it over Wi-Fi later</span></div></div>
+          <div class="srow-body"><div class="urls" id="cn-usb"></div><div class="row"><button class="btn" id="cn-usb-connect">Open on phone</button><button class="btn" id="cn-adb-install" hidden>Download ADB (≈7 MB)</button></div>
+            <details class="more"><summary>How to set it up</summary>
               <ol class="small steps">
-                <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> → <b>Create app</b>.</li>
-                <li>Add Redirect URI <span class="mono" id="sp-redirect">http://127.0.0.1:8765/spotify/callback</span> <button class="btn sm ghost" id="sp-copy">Copy</button> and tick <b>Web API</b>.</li>
-                <li>Paste the <b>Client ID</b> below.</li>
+                <li>Phone: Settings → About phone → tap <i>Build number</i> 7 times.</li>
+                <li>Developer options → turn on <b>USB debugging</b>, plug in, accept the prompt.</li>
+                <li>No cable later? Turn on <b>Wireless debugging</b> too. PhoneDesk links over Wi-Fi by itself.</li>
               </ol>
             </details>
-            <div class="row" style="margin-top:10px"><input type="text" id="sp-id" placeholder="Client ID" maxlength="32" style="flex:1;min-width:160px" class="mono"></div>
           </div>
-          <div class="row"><button class="btn primary" id="sp-connect">Connect Spotify</button><button class="btn" id="sp-disconnect" hidden>Disconnect</button><span class="small muted" id="sp-state"></span></div>
-        </section>
+        </div>
+        <label class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-bolt"/></svg><div class="srow-t"><b>Link phones automatically</b><span>Open PhoneDesk on a phone as soon as it is plugged in</span></div><div class="srow-c"><span class="switch"><input type="checkbox" id="cn-autousb"><span></span></span></div></label>
+      </div>
 
-        <section class="card" aria-label="Lyrics source">
-          <div class="card-head"><h3>Spicy Lyrics</h3><span class="badge" id="sl-badge">Off</span></div>
-          <p class="small muted">Word-by-word synced lyrics from the community, Apple Music and Spotify. LRCLIB stays as the fallback.</p>
-          <label class="field">Secret key<input type="password" id="sl-key" placeholder="sl_sk_…" maxlength="200" class="mono" autocomplete="off"></label>
-          <div class="row"><button class="btn primary" id="sl-save">Save and check</button><button class="btn ghost" id="sl-clear" hidden>Remove key</button><span class="small muted" id="sl-state"></span></div>
-          <details class="more">
-            <summary>Where do I get a key?</summary>
-            <ol class="small steps">
-              <li>Open <a href="https://developers.spicylyrics.org/dashboard/applications" target="_blank" rel="noopener">developers.spicylyrics.org</a> and sign in.</li>
-              <li>Create an application. Copy its <b>secret key</b> (shown once).</li>
-              <li>Paste it above. It stays on this PC; phones never see it.</li>
-            </ol>
-          </details>
-          <div class="small muted" id="sl-credit"></div>
-        </section>
-
-
-        <section class="card" aria-label="Advanced">
-          <h3>Advanced</h3>
-          <div class="row2">
-            <label class="field">Port<input type="number" id="cn-port" min="1024" max="65535"></label>
-            <label class="field">Network name<input type="text" id="cn-name" maxlength="40"></label>
+      <h2 class="group-h">Online services</h2>
+      <div class="sgroup">
+        <div class="srow block">
+          <div class="srow-head"><svg class="srow-ic" aria-hidden="true"><use href="#i-music"/></svg><div class="srow-t"><b>Spotify</b><span>Up next and a ♥ button on the phone</span></div><span class="badge" id="sp-badge">Not connected</span></div>
+          <div class="srow-body">
+            <div id="sp-setup">
+              <details class="more"><summary>How to connect</summary>
+                <ol class="small steps">
+                  <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> → <b>Create app</b>.</li>
+                  <li>Add Redirect URI <span class="mono" id="sp-redirect">http://127.0.0.1:8765/spotify/callback</span> <button class="btn sm ghost" id="sp-copy">Copy</button> and tick <b>Web API</b>.</li>
+                  <li>Paste the <b>Client ID</b> below.</li>
+                </ol>
+              </details>
+              <div class="row" style="margin-top:10px"><input type="text" id="sp-id" placeholder="Client ID" maxlength="32" style="flex:1;min-width:160px;max-width:420px" class="mono"></div>
+            </div>
+            <div class="row"><button class="btn primary" id="sp-connect">Connect Spotify</button><button class="btn" id="sp-disconnect" hidden>Disconnect</button><span class="small muted" id="sp-state"></span></div>
           </div>
-          <p class="small muted">Phones open <span class="mono" id="cn-name-ex">phonedesk.local</span>. Name and port apply after a restart.</p>
-          <div class="row"><button class="btn" id="cn-bridge">Restart media bridge</button><span class="small muted" id="cn-bridge-info"></span></div>
-          <div class="row"><button class="btn ghost" id="cn-onboard">Run setup again</button></div>
-        </section>
+        </div>
+        <div class="srow block">
+          <div class="srow-head"><svg class="srow-ic" aria-hidden="true"><use href="#i-note"/></svg><div class="srow-t"><b>Spicy Lyrics</b><span>Word-by-word synced lyrics from the community, Apple Music and Spotify. LRCLIB stays as the fallback.</span></div><span class="badge" id="sl-badge">Off</span></div>
+          <div class="srow-body">
+            <div class="row"><input type="password" id="sl-key" placeholder="Secret key (sl_sk_…)" maxlength="200" class="mono" autocomplete="off" aria-label="Secret key" style="flex:1;min-width:200px;max-width:420px"><button class="btn primary" id="sl-save">Save and check</button><button class="btn ghost" id="sl-clear" hidden>Remove key</button><span class="small muted" id="sl-state"></span></div>
+            <details class="more"><summary>Where do I get a key?</summary>
+              <ol class="small steps">
+                <li>Open <a href="https://developers.spicylyrics.org/dashboard/applications" target="_blank" rel="noopener">developers.spicylyrics.org</a> and sign in.</li>
+                <li>Create an application. Copy its <b>secret key</b> (shown once).</li>
+                <li>Paste it above. It stays on this PC; phones never see it.</li>
+              </ol>
+            </details>
+            <div class="small muted" id="sl-credit"></div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="group-h">Advanced</h2>
+      <div class="sgroup">
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-globe"/></svg><div class="srow-t"><b>Network name</b><span>Phones open <span class="mono" id="cn-name-ex">phonedesk.local</span>. Applies after a restart.</span></div><div class="srow-c"><input type="text" id="cn-name" maxlength="40" aria-label="Network name" style="width:200px"></div></div>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-code"/></svg><div class="srow-t"><b>Port</b><span>Applies after a restart</span></div><div class="srow-c"><input type="number" id="cn-port" min="1024" max="65535" aria-label="Port" style="width:120px"></div></div>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-music"/></svg><div class="srow-t"><b>Media bridge</b><span id="cn-bridge-info"></span></div><div class="srow-c"><button class="btn" id="cn-bridge">Restart media bridge</button></div></div>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-power"/></svg><div class="srow-t"><b>First-run setup</b><span>Walk through connecting a phone again</span></div><div class="srow-c"><button class="btn" id="cn-onboard">Run setup again</button></div></div>
       </div>
     </section>
 
     <!-- =============================== UPDATES =============================== -->
     <section class="view" id="v-updates" aria-label="Updates">
       <div class="head"><div><h1>Updates</h1><p>Keep PhoneDesk current. New versions come from GitHub Releases.</p></div></div>
-      <div class="grid">
-    <section class="card" aria-label="Updates">
-      <div class="card-head"><h3>Updates</h3><span class="badge" id="up-badge">–</span></div>
-      <p class="small muted" id="up-text">Checking…</p>
-      <p class="small up-links"><a id="up-notes" href="#" target="_blank" rel="noopener">What's new</a><a id="up-all" href="#" target="_blank" rel="noopener">All releases</a></p>
-      <div class="row"><button class="btn primary" id="up-download" hidden>Download update</button><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div>
-      <label class="toggle-row">Check automatically<span class="switch"><input type="checkbox" id="up-auto"><span></span></span></label>
-        <label class="toggle-row">Download updates automatically<span class="switch"><input type="checkbox" id="up-autodl"><span></span></span></label>
-      <label class="field">GitHub repository<input type="text" id="up-repo" placeholder="icdmkg2/phonedesk" maxlength="100" class="mono"><span class="hint">Official releases. Leave it empty to use them; turn off <i>Check automatically</i> to stop updates.</span></label>
-    </section>
-        <section class="card" id="up-notes-card" aria-label="What is in this update" hidden>
-          <div class="card-head"><h3 id="up-notes-title">What's new</h3></div>
-          <div class="up-notes" id="up-notes-body"></div>
-        </section>
+      <div class="sgroup">
+        <div class="srow up-main"><svg class="srow-ic" aria-hidden="true"><use href="#i-power"/></svg><div class="srow-t"><b>PhoneDesk <span class="badge" id="up-badge">–</span></b><span id="up-text">Checking…</span><span class="up-links"><a id="up-notes" href="#" target="_blank" rel="noopener">What's new</a><a id="up-all" href="#" target="_blank" rel="noopener">All releases</a></span></div><div class="srow-c"><button class="btn primary" id="up-download" hidden>Download update</button><button class="btn primary" id="up-install" hidden>Install update</button><button class="btn" id="up-check">Check now</button></div></div>
+        <div class="srow block" id="up-notes-card" aria-label="What is in this update" hidden><div class="srow-head"><svg class="srow-ic" aria-hidden="true"><use href="#i-list"/></svg><div class="srow-t"><b id="up-notes-title">What's new</b></div></div><div class="srow-body up-notes" id="up-notes-body"></div></div>
+      </div>
+
+      <h2 class="group-h">Update settings</h2>
+      <div class="sgroup">
+        <label class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-clock"/></svg><div class="srow-t"><b>Check automatically</b><span>Look for a new version every few hours</span></div><div class="srow-c"><span class="switch"><input type="checkbox" id="up-auto"><span></span></span></div></label>
+        <label class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-power"/></svg><div class="srow-t"><b>Download updates automatically</b><span>You choose when to install</span></div><div class="srow-c"><span class="switch"><input type="checkbox" id="up-autodl"><span></span></span></div></label>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-code"/></svg><div class="srow-t"><b>GitHub repository</b><span>Official releases. Leave it empty to use them; turn off Check automatically to stop updates.</span></div><div class="srow-c"><input type="text" id="up-repo" placeholder="icdmkg2/phonedesk" maxlength="100" class="mono" aria-label="GitHub repository" style="width:240px"></div></div>
       </div>
     </section>
 
@@ -513,8 +490,9 @@
       <div class="head"><div><h1>Activity</h1><p>What happened recently. Newest first.</p></div>
         <div class="row"><a class="btn" id="ac-diag" href="/api/diagnostics" download title="Logs, settings without secrets, and system info in one zip">Save diagnostics</a><a class="btn ghost" href="https://github.com/icdmkg2/phonedesk/issues/new/choose" target="_blank" rel="noopener">Report a problem</a></div>
       </div>
-      <ul class="feed full" id="ac-feed"></ul>
-      <details id="ac-tech"><summary>Technical log</summary><pre class="logs" id="ac-logs" style="margin-top:12px"></pre></details>
+      <div class="sgroup"><ul class="feed full" id="ac-feed"></ul></div>
+      <h2 class="group-h">Technical log</h2>
+      <div class="sgroup"><div class="srow block"><details id="ac-tech"><summary>Show the technical log</summary><pre class="logs" id="ac-logs" style="margin-top:12px"></pre></details></div></div>
     </section>
   </main>
 </div>
