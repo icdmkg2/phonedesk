@@ -14,8 +14,10 @@ The PhoneDesk window now looks and works like Windows 11 Settings, and the phone
 ### Added
 
 - **Windows widget style for the phone.** In Phone display, under Widget style, pick Windows: pages sit on a deep blue
-  desktop and widgets are dark Mica-style cards with small corners and a thin light edge, in Segoe UI, with the page
-  dots in a small taskbar-style bar. Classic stays the default; iOS is still there too.
+  desktop with a soft blue bloom, and widgets are dark Mica-style cards with small corners and a thin light edge, in
+  Windows blue, with the page dots in a small taskbar-style bar. Weather shows its place, the temperature, the sky and
+  the next four days, like the Windows weather widget; World clock lists each place with how many hours ahead or
+  behind it is, like the Windows Clock app; Forecast has a title row too. Classic stays the default; iOS is still there.
 
 ![A page in the Windows widget style](docs/changelog/1.14.0/phone-windows-style.png)
 

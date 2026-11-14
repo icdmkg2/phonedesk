@@ -1413,6 +1413,85 @@
 
   /* ---- iOS look: widgets laid out like iPhone home-screen widgets ---- */
   function isIos() { return state.config.look === 'ios'; }
+  function isWin() { return state.config.look === 'windows'; }
+
+  // ---------------------------------------------------------------- Windows widget style: widgets like the Windows 11 widgets board
+  var WN_IC = {
+    weather: '<path d="M7 17.5h9.5a3.5 3.5 0 0 0 .3-7 5 5 0 0 0-9.7 1.4A2.9 2.9 0 0 0 7 17.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+    clock: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    pin: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/>',
+  };
+  function wnHead(icon, title, right) {
+    return '<div class="wn-h"><svg viewBox="0 0 24 24" aria-hidden="true">' + WN_IC[icon] + '</svg><span>' + escHtml(title) + '</span>' + (right ? '<em>' + right + '</em>' : '') + '</div>';
+  }
+  function wnDays(n) {
+    var days = wFresh() && weather.days ? weather.days.slice(0, n) : [];
+    return days.map(function (x, i) {
+      var p = String(x.d).split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2]);
+      return '<div class="wn-day"><span>' + escHtml(i === 0 ? 'Today' : dt.toLocaleDateString(undefined, { weekday: 'short' })) + '</span>' + wxIcon(x.code, true) + '<b>' + x.hi + '°</b><i>' + x.lo + '°</i></div>';
+    }).join('');
+  }
+  function winWeather() {
+    var el = wEl('weather'), last = null;
+    el.classList.add('wn');
+    return {
+      el: el,
+      update: function () {
+        var w = wFresh() ? weather : null;
+        var unit = state.config.weatherUnit === 'f' ? 'F' : 'C';
+        var html = w ? wnHead('pin', w.city || 'Weather') +
+          '<div class="wn-now">' + wxIcon(w.code, w.day) + '<b class="wn-temp">' + w.temp + '<small>°' + unit + '</small></b><div class="wn-cond"><span>' + WX_TEXT(w.code) + '</span><span>H ' + w.hi + '° · L ' + w.lo + '°</span></div></div>' +
+          '<div class="wn-days">' + wnDays(4) + '</div>' : null;
+        if (html === last) return; last = html;
+        if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
+      },
+      resize: function (w, h) { wScale(el, w, h, 230, 190, 9, 24); el.classList.toggle('wn-short', h < w * 0.62); },
+    };
+  }
+  function winForecast() {
+    var el = wEl('forecast'), last = null;
+    el.classList.add('wn');
+    return {
+      el: el,
+      update: function () {
+        var d = wnDays(5), html = d ? wnHead('weather', 'Forecast', wFresh() && weather.city ? escHtml(weather.city) : '') + '<div class="wn-days wn-days-big">' + d + '</div>' : null;
+        if (html === last) return; last = html;
+        if (html) el.innerHTML = html; else wEmpty(el, 'No forecast yet');
+      },
+      resize: function (w, h) { wScale(el, w, h, 340, 150, 9, 24); },
+    };
+  }
+  // Like the Windows Clock app's world clock: one row per place with how far ahead or behind it is
+  function winWorld(wd) {
+    var o = wd.opts || {}, el = wEl('worldclock');
+    el.classList.add('wn');
+    var zones = String(o.zones || '').split(/[;\n]/).map(function (p) { var kv = p.split('='); return { name: (kv[0] || '').trim(), zone: (kv[1] || kv[0] || '').trim() }; }).filter(function (z) { return z.zone; }).slice(0, 4);
+    if (!zones.length) { wEmpty(el, 'Add places like London=Europe/London'); return { el: el, update: function () {} }; }
+    el.innerHTML = wnHead('clock', 'World clock') + '<div class="wn-zones">' + zones.map(function () { return '<div class="wn-z"><div><b></b><span></span></div><strong></strong></div>'; }).join('') + '</div>';
+    var cells = el.querySelectorAll('.wn-z');
+    return {
+      el: el,
+      update: function () {
+        var now = new Date(Date.now() + state.clockOffset);
+        var localUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+        zones.forEach(function (z, i) {
+          var c = cells[i], t = '?', rel = 'Unknown time zone';
+          try {
+            var f = {}; new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false, timeZone: z.zone }).formatToParts(now).forEach(function (p) { f[p.type] = +p.value; });
+            var diff = Math.round((Date.UTC(f.year, f.month - 1, f.day, f.hour % 24, f.minute) - localUtc) / 1800000) / 2;
+            var dayDiff = Date.UTC(f.year, f.month - 1, f.day) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+            var day = dayDiff === 0 ? 'Today' : dayDiff > 0 ? 'Tomorrow' : 'Yesterday';
+            var hrs = Math.abs(diff), hl = (hrs % 1 ? hrs.toFixed(1) : hrs) + (hrs === 1 ? ' hour' : ' hours');
+            rel = day + ', ' + (diff === 0 ? 'same time' : hl + (diff > 0 ? ' ahead' : ' behind'));
+            t = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit', hour12: !!o.hour12, timeZone: z.zone }).format(now);
+          } catch (e) { /* keep '?' */ }
+          setText(c.querySelector('b'), z.name || z.zone.split('/').pop().replace(/_/g, ' '));
+          setText(c.querySelector('span'), rel); setText(c.querySelector('strong'), t);
+        });
+      },
+      resize: function (w, h) { wScale(el, w, h, 270, 40 + 46 * zones.length, 9, 22); },
+    };
+  }
   var WX_TEXT = function (c) {
     if (c === 0) return 'Clear'; if (c <= 2) return 'Partly Cloudy'; if (c === 3) return 'Cloudy'; if (c === 45 || c === 48) return 'Fog';
     if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'Snow'; if (c >= 95) return 'Thunderstorm'; if (c >= 51 && c <= 57) return 'Drizzle'; return 'Rain';
@@ -1535,6 +1614,10 @@
   }
 
   function makeWidget(wd, live, pageId) {
+    if (isWin()) {
+      var wv = { weather: winWeather, forecast: winForecast, worldclock: winWorld }[wd.type];
+      if (wv) return wv(wd);
+    }
     if (isIos()) {
       var io = { weather: iosWeather, forecast: iosForecast, devices: iosDevices, worldclock: iosWorld, agenda: iosAgenda }[wd.type];
       if (io) return io(wd);
