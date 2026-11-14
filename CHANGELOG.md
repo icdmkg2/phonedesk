@@ -16,8 +16,10 @@ A new look for the PhoneDesk window on your PC, made to feel at home in Windows 
 - **The PC window looks like Windows 11 Settings.** A quiet dark window, a plain sidebar where the selected page is
   marked by a small blue bar, large page titles, and settings in flat rounded cards with Windows-style buttons, text
   boxes and switches. It uses Segoe UI, like Windows itself.
-- **A new Overview:** Now playing and your phone (or the code to connect one) side by side at the top, then PC stats,
-  the phone address and recent activity.
+- **One column of settings rows on every page**, like Windows Settings: each setting is a full-width row with its
+  icon, name and description on the left and its switch or choice on the right, grouped under small headings. Phone
+  display is regrouped into Music, Look, Clock and calendar, Night and screen care, Notifications, Screens and Widgets,
+  with the live preview at the top.
 
 ![The Overview page of the PhoneDesk window](docs/changelog/1.14.0/dashboard-overview.png)
 
