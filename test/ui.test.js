@@ -304,6 +304,36 @@ async function t(name, fn) {
       assert.ok(later >= 60 && later <= 63, 'a real position is followed (shows ' + later + 's)');
       await ctx.close();
     });
+    await t('a new song whose length the player tells only later still runs from the start (Firefox-based browsers)', async () => {
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript(() => {
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (JSON.parse(e.data).t === 'media') e.stopImmediatePropagation(); } catch (x) {} } });
+            this.addEventListener('open', () => {
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+              const started = Date.now();
+              const media = (dur) => ({ t: 'media', d: { active: true, title: 'New song', artist: 'Band', app: 'Zen', status: 'Playing', position: 0, duration: dur, updated: started } });
+              d(media(0)); // a new song: playing, at 0:00, no length yet
+              setTimeout(() => d(media(0)), 1000);
+              setTimeout(() => d(media(215)), 3500); // the length arrives later; the position report is still the old 0:00
+            });
+          }
+        };
+      });
+      await ctx.addInitScript(() => localStorage.setItem('pd.screen', JSON.stringify('media')));
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/phone/'); await sleep(3200);
+      const secs = (t) => { const [m, s] = t.split(':').map(Number); return m * 60 + s; };
+      const before = secs(await pg.locator('#m-pos').innerText());
+      assert.ok(before >= 2, 'the song runs before its length is known (shows ' + before + 's)');
+      await sleep(1500);
+      const after = secs(await pg.locator('#m-pos').innerText());
+      assert.ok(after >= before, 'the length arriving does not send it back to the start (' + before + 's, then ' + after + 's)');
+      await ctx.close();
+    });
     await t('the new widgets work: weather with the next hours, the month calendar, and quick toggles that tell the PC', async () => {
       const w = require('../server/widgets');
       const page = w.sanitizePages([{ name: 'New', widgets: [

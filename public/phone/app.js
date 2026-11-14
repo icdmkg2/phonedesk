@@ -238,7 +238,8 @@
     $('ly-music').classList.toggle('paused', !m || m.status !== 'Playing');
     if (!m || !m.active) { pc.at = 0; return; }
     var now = Date.now() + state.clockOffset, playing = m.status === 'Playing';
-    var key = (m.app || '') + '|' + (m.title || '') + '|' + (m.artist || '') + '|' + Math.round(m.duration || 0);
+    // the song, without its length: some players (Firefox-based) report the length only later, which isn't a new song
+    var key = (m.app || '') + '|' + (m.title || '') + '|' + (m.artist || '');
     var lag = playing && m.updated ? Math.max(0, now - m.updated) / 1000 : 0;
     var changed = key !== pc.key || playing !== pc.playing || !pc.at;
     if (changed && lag > 3) lag = 0; // a stale timestamp right after play/resume: trust the position as of now
@@ -264,8 +265,10 @@
   }
   function currentPos() {
     var m = state.media;
-    if (!m.active || !m.duration) return 0;
-    return Math.min(Math.max(0, pcPos(Date.now() + state.clockOffset)), m.duration);
+    if (!m.active) return 0;
+    // the clock runs even before the player tells the song's length (Firefox-based browsers often say 0 until a pause)
+    var p = Math.max(0, pcPos(Date.now() + state.clockOffset));
+    return m.duration > 0 ? Math.min(p, m.duration) : p;
   }
 
   function renderMedia() {

@@ -13,6 +13,9 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Fixed
 
+- **A new song no longer sits on its intro until you pause and play.** Firefox-based browsers often tell Windows a new
+  song's length only after a pause; until then PhoneDesk held the position (and the lyrics) at the start, and when the
+  length arrived it could jump back to the start. The song now runs from the first second either way.
 - **Lyrics of music videos are no longer out of time.** A music video on YouTube Music is often a different length
   from the song (an intro, an outro), and PhoneDesk used to show the song's timed lyrics anyway, so every line came at
   the wrong moment. Lyrics from a version more than 6 seconds longer or shorter now show their words with estimated
