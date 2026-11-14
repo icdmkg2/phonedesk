@@ -621,6 +621,7 @@
     $('ds-night-clock').checked = c.nightClock !== false;
     $('ds-burn').checked = c.burnIn !== false;
     $('ds-batt').checked = c.showBattery !== false;
+    $('ds-resync').checked = c.autoResync !== false;
     $('ds-wx').checked = c.weather !== false;
     $('ds-wx-row').hidden = c.weather === false;
     if (document.activeElement !== $('ds-wx-city')) $('ds-wx-city').value = c.weatherCity || '';
@@ -1532,15 +1533,17 @@
     const q = find.value.trim().toLowerCase();
     if (!q) { findClose(); return; }
     if (!findIndex) findIndex = buildFindIndex();
-    const words = q.split(/\s+/), seen = new Set();
-    findHits = findIndex.filter((x) => words.every((w) => x.text.includes(w)))
-      .map((x) => ({ x, score: (x.title.toLowerCase().startsWith(q) ? 0 : x.title.toLowerCase().includes(q) ? 1 : 2) - (x.el ? 0 : 0.5) }))
+    const words = q.replace(/[^a-z0-9\u0080-\uffff]+/g, ' ').trim().split(/\s+/).filter(Boolean), seen = new Set();
+    // every typed word must be the start of a word (so "as" finds "Ask…", not "phones"); titles count more than descriptions
+    const starts = (text, w) => (' ' + text).replace(/[^a-z0-9\u0080-\uffff]+/g, ' ').includes(' ' + w);
+    findHits = findIndex.filter((x) => words.every((w) => starts(x.text, w)))
+      .map((x) => { const tl = x.title.toLowerCase(); return { x, score: (tl.startsWith(q) ? 0 : words.every((w) => starts(tl, w)) ? 1 : 3) - (x.el ? 0 : 0.5) }; })
       .sort((a, b) => a.score - b.score).map((h) => h.x)
       .filter((x) => { const k = x.view + '|' + x.title; if (seen.has(k)) return false; seen.add(k); return true; })
       .slice(0, 8);
     findSel = 0;
     findList.innerHTML = findHits.length
-      ? findHits.map((h, i) => '<button type="button" role="option" class="find-i' + (i === findSel ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(h.title) + '</b><span>' + esc(h.el ? h.page + (h.desc ? ' · ' + h.desc : '') : 'Page') + '</span></button>').join('')
+      ? findHits.map((h, i) => '<button type="button" role="option" class="find-i' + (i === findSel ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(h.title) + '</b><span>' + esc(h.el ? h.page : 'Page') + '</span></button>').join('')
       : '<div class="find-none">No setting matches “' + esc(find.value.trim()) + '”</div>';
     findList.hidden = false; find.setAttribute('aria-expanded', 'true');
   }
@@ -1570,4 +1573,44 @@
   findList.addEventListener('mousedown', (e) => { const b = e.target.closest('.find-i'); if (b) { e.preventDefault(); findGo(findHits[+b.dataset.i]); } });
   find.addEventListener('blur', () => setTimeout(findClose, 150));
   document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); find.focus(); find.select(); } });
+
+  // ---------------------------------------------------------------- Hide these apps on the phone (the ignore list)
+  let hideSeen = { now: '', apps: [] };
+  const hideName = (tok) => {
+    const c = state.config || {};
+    const seen = hideSeen.apps.find((a) => a.token === tok);
+    return (seen && seen.name) || (c.ignoreNames && c.ignoreNames[tok]) || (tok === 'discord' ? 'Discord' : tok);
+  };
+  function renderHide() {
+    const c = state.config; if (!c || !$('ds-hide-list')) return;
+    const list = c.ignoreApps || [];
+    $('ds-hide-list').innerHTML = list.length ? list.map((tok) => {
+      const seen = hideSeen.apps.find((a) => a.token === tok);
+      return '<span class="app-chip">' + (seen && seen.icon ? '<img src="' + esc(seen.icon) + '" alt="">' : '') + esc(hideName(tok)) + '<button type="button" data-rm="' + esc(tok) + '" aria-label="Show ' + esc(hideName(tok)) + ' again">×</button></span>';
+    }).join('') : '<span class="small muted">No apps hidden.</span>';
+    const now = hideSeen.apps.find((a) => a.token === hideSeen.now);
+    $('ds-hide-now').hidden = !now || list.includes(now.token);
+    if (now) $('ds-hide-now').textContent = 'Hide ' + now.name + ' (playing now)';
+    const pick = hideSeen.apps.filter((a) => !list.includes(a.token));
+    $('ds-hide-pick').innerHTML = '<option value="">' + (pick.length ? 'Add an app that played…' : 'Apps show up here once they play') + '</option>' + pick.map((a) => '<option value="' + esc(a.token) + '">' + esc(a.name || a.token) + '</option>').join('');
+    $('ds-hide-pick').disabled = !pick.length;
+  }
+  async function loadHide() { try { hideSeen = await api('media-apps'); } catch (e) { /* keep the last list */ } renderHide(); }
+  function hideAdd(tok) {
+    const c = state.config; if (!tok || (c.ignoreApps || []).includes(tok)) return;
+    const names = Object.assign({}, c.ignoreNames || {}); names[tok] = hideName(tok);
+    saveConfig({ ignoreApps: (c.ignoreApps || []).concat(tok), ignoreNames: names }).then(renderHide);
+  }
+  $('ds-hide-now').addEventListener('click', () => hideAdd(hideSeen.now));
+  $('ds-hide-pick').addEventListener('change', (e) => { hideAdd(e.target.value); e.target.value = ''; });
+  $('ds-hide-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rm]'); if (!b) return;
+    saveConfig({ ignoreApps: (state.config.ignoreApps || []).filter((x) => x !== b.dataset.rm) }).then(renderHide);
+  });
+  document.querySelector('.nav[data-view="display"]').addEventListener('click', loadHide);
+  setInterval(() => { if ($('v-display').classList.contains('on')) loadHide(); }, 5000);
+  loadHide();
+
+  // ---------------------------------------------------------------- Keep lyrics in time after a skip (Firefox-based browsers)
+  $('ds-resync').addEventListener('change', (e) => saveConfig({ autoResync: e.target.checked }));
 })();

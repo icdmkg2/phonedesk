@@ -60,7 +60,16 @@ function pick(list, duration) {
   const synced = items.filter((x) => x.syncedLyrics).sort(byDiff);
   if (synced.length && (!duration || diff(synced[0]) <= 6)) return synced[0];
   const close = items.sort(byDiff);
-  if (close.length && (!duration || diff(close[0]) <= 12)) return close[0];
+  if (close.length && (!duration || diff(close[0]) <= 12)) {
+    const x = close[0];
+    // A different cut of the song (a music video with an intro or outro, a radio edit...): its line timings would be
+    // off by seconds, so use only its words, which the phone then paces over the song (estimated timing).
+    if (x.syncedLyrics && duration && diff(x) > 6) {
+      const words = x.plainLyrics || parseLrc(x.syncedLyrics).map((l) => l.text).join('\n');
+      return Object.assign({}, x, { syncedLyrics: null, plainLyrics: words });
+    }
+    return x;
+  }
   return null;
 }
 
@@ -69,10 +78,11 @@ async function lookup(artist, title, album, duration) {
   const withAlbum = new URLSearchParams(base);
   if (album) withAlbum.set('album_name', album);
   if (duration > 0) withAlbum.set('duration', String(Math.round(duration)));
-  // 1) exact match with album and length, 2) without the album, 3) searches
-  let r = toResult(await getJson('https://lrclib.net/api/get?' + withAlbum));
+  // 1) exact match with album and length, 2) without the album, 3) searches. The exact match needs the length: without
+  // it (a player that hasn't said it yet) go straight to the searches.
+  let r = duration > 0 ? toResult(await getJson('https://lrclib.net/api/get?' + withAlbum)) : null;
   if (r && r.lines.length) return r;
-  if (album) {
+  if (album && duration > 0) {
     const q = new URLSearchParams(base);
     if (duration > 0) q.set('duration', String(Math.round(duration)));
     r = toResult(await getJson('https://lrclib.net/api/get?' + q));
@@ -83,8 +93,29 @@ async function lookup(artist, title, album, duration) {
   return toResult(found);
 }
 
+// Only a title (YouTube Music in Chrome gives no artist): LRCLIB's search by the title, picked by the song's length,
+// which must be known and close, or a song of the same name by someone else would come up.
+const titleCache = new Map();
+function byTitle(title, duration) {
+  if (!(duration > 0)) return Promise.resolve(null);
+  const key = title.toLowerCase() + '|' + Math.round(duration / 3);
+  if (titleCache.has(key)) return titleCache.get(key);
+  const p = (async () => {
+    const list = (await getJson('https://lrclib.net/api/search?' + new URLSearchParams({ track_name: title }))) || [];
+    const close = list.filter((x) => x && x.duration > 0 && Math.abs(x.duration - duration) <= 3 && (x.syncedLyrics || x.plainLyrics));
+    const found = pick(close, duration);
+    const r = toResult(found);
+    if (r && found.artistName) r.artist = String(found.artistName).slice(0, 120);
+    return r;
+  })().catch((e) => { log.warn('lyrics lookup failed: ' + e.message); titleCache.delete(key); return null; });
+  titleCache.set(key, p);
+  if (titleCache.size > 200) titleCache.delete(titleCache.keys().next().value);
+  return p;
+}
+
 module.exports = {
-  parseLrc, // for tests
+  byTitle, // for tests
+  parseLrc, pick, // for tests
   /** Resolves to { synced, lines:[{t,text,...}], credit } or null. Never throws. `cfg` is the PhoneDesk config. */
   find(media, cfg) {
     let artist = clean(media.artist);
@@ -93,8 +124,10 @@ module.exports = {
       const m = title.match(/^(.+?)\s+[-–—|]\s+(.+)$/);
       if (m) { artist = m[1].trim(); title = m[2].trim(); }
     }
-    if (!artist || !title) return Promise.resolve(null);
-    const key = (artist + '|' + title).toLowerCase() + ((cfg && cfg.spicyKey) ? '|s' : '');
+    if (!title) return Promise.resolve(null);
+    if (!artist) return byTitle(title, media.duration || 0); // a browser that gives only the song's title
+    // the length is part of the key: the song and its music video are different cuts with different timings
+    const key = (artist + '|' + title).toLowerCase() + '|' + Math.round((media.duration || 0) / 3) + ((cfg && cfg.spicyKey) ? '|s' : '');
     if (cache.has(key)) return cache.get(key);
     let transient = false;
     const run = async () => {

@@ -138,6 +138,7 @@
   }
 
   function send(obj) {
+    if (obj && obj.t === 'cmd' && (obj.a === 'seek' || obj.a === 'prev' || obj.a === 'next')) jumpOkUntil = Date.now() + 4000; // the song position may jump now
     if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; }
     return false;
   }
@@ -231,24 +232,60 @@
   // A smooth playback clock. Players report their position only every few seconds and the timestamps are a little
   // off, so extrapolating straight from each report makes the song position jump back and forth. Instead keep our own
   // running clock and nudge it toward each report; a real jump (seek, new song, play/pause) resets it at once.
-  var pc = { pos: 0, at: 0, playing: false, key: '' };
+  var pc = { pos: 0, at: 0, playing: false, key: '' }, jumpOkUntil = 0;
   function pcPos(now) { return pc.pos + (pc.playing ? (now - pc.at) / 1000 : 0); }
   function mediaClock(m) {
     $('ly-music').classList.toggle('paused', !m || m.status !== 'Playing');
     if (!m || !m.active) { pc.at = 0; return; }
     var now = Date.now() + state.clockOffset, playing = m.status === 'Playing';
-    var key = (m.app || '') + '|' + (m.title || '') + '|' + (m.artist || '') + '|' + Math.round(m.duration || 0);
+    // the song, without its length: some players (Firefox-based) report the length only later, which isn't a new song
+    var key = (m.app || '') + '|' + (m.title || '') + '|' + (m.artist || '');
     var lag = playing && m.updated ? Math.max(0, now - m.updated) / 1000 : 0;
     var changed = key !== pc.key || playing !== pc.playing || !pc.at;
     if (changed && lag > 3) lag = 0; // a stale timestamp right after play/resume: trust the position as of now
     var rep = (m.position || 0) + lag, cur = pcPos(now);
-    if (changed || Math.abs(rep - cur) > 1.2) pc = { pos: rep, at: now, playing: playing, key: key };
-    else { pc.pos = cur + (rep - cur) * 0.4; pc.at = now; }
+    // Some players (Firefox and Firefox-based browsers like Zen, with YouTube Music and others) keep reporting the song
+    // at 0:00 while it plays and only send the real position after a pause or a seek. Following those reports kept the
+    // bar and the lyrics stuck at the start (issue #14). While the same song keeps playing, a report that snaps back to
+    // the very start is ignored and our own clock runs on, unless the jump is real: the song looped (it was near its
+    // end) or the phone just asked for previous, next or a seek.
+    // The same position again with a newer timestamp means the player isn't moving its position at all (that's the
+    // repeated 0:00): keep our clock. A report that snaps back to the start mid-song is ignored too, and so is a stale
+    // timestamp that would run past the end.
+    var frozen = m.position === pc.lastPos && m.updated !== pc.lastUpd && Date.now() > jumpOkUntil;
+    var bogusStart = rep < 1.5 && cur > 2.5 && Date.now() > jumpOkUntil && !(m.duration && cur > m.duration - 3);
+    var bogusEnd = m.duration && rep > m.duration + 2;
+    var hadPlace = pc.lastPos > 1.5; // the player had told a real place in the song before this report
+    pc.lastPos = m.position; pc.lastUpd = m.updated;
+    if (!changed && playing && (frozen || bogusStart || bogusEnd)) {
+      // A fresh 0:00 mid-song is what Firefox-based browsers (Zen...) send after you skip within the song: the real
+      // place is unknown until a pause and play. Keep the clock, and say how to get back in sync.
+      if (bogusStart && hadPlace && m.updated !== pc.prevUpd) setPosLost(true);
+      pc.pos = cur; pc.at = now; pc.prevUpd = m.updated;
+      return;
+    }
+    if (changed || Math.abs(rep - cur) > 1.2) pc = { pos: rep, at: now, playing: playing, key: key, lastPos: m.position, lastUpd: m.updated, prevUpd: m.updated };
+    else { pc.pos = cur + (rep - cur) * 0.4; pc.at = now; pc.prevUpd = m.updated; }
+    setPosLost(false);
+  }
+  var posLost = false, posLostTimer = 0;
+  function setPosLost(v) {
+    if (v === posLost) return;
+    posLost = v;
+    var e = $('ly-lost'); if (!e) return;
+    clearTimeout(posLostTimer);
+    if (!v) { e.hidden = true; return; }
+    // the PC pauses and plays the browser by itself to fix it (Keep lyrics in time after a skip): only say something
+    // if the real place still hasn't come a few seconds later
+    if (state.config.autoResync === false) e.hidden = false;
+    else posLostTimer = setTimeout(function () { if (posLost) e.hidden = false; }, 3000);
   }
   function currentPos() {
     var m = state.media;
-    if (!m.active || !m.duration) return 0;
-    return Math.min(Math.max(0, pcPos(Date.now() + state.clockOffset)), m.duration);
+    if (!m.active) return 0;
+    // the clock runs even before the player tells the song's length (Firefox-based browsers often say 0 until a pause)
+    var p = Math.max(0, pcPos(Date.now() + state.clockOffset));
+    return m.duration > 0 ? Math.min(p, m.duration) : p;
   }
 
   function renderMedia() {

@@ -53,6 +53,7 @@ const state = {
 const bridge = new Bridge(path.join(__dirname, 'bridge-win.ps1'));
 bridge.on('message', (m) => {
   if (m.t === 'media') {
+    tidyBrowserMedia(m);
     // A new track: drop the old picture right away instead of showing it on the next song.
     const key = m.active ? [m.app, m.title, m.artist].join('|') : '';
     if (key !== trackKey) {
@@ -66,14 +67,13 @@ bridge.on('message', (m) => {
         broadcast({ t: 'recent', d: state.recent });
       }
       if (m.active) {
-        const wanted = key;
-        lyrics.find(m, config.get()).then((l) => {
-          if (trackKey !== wanted) return;
-          state.lyrics = l ? Object.assign({ key: wanted }, l) : { key: wanted, none: true, lines: [] };
-          broadcast({ t: 'lyrics', d: state.lyrics });
-        });
+        findLyrics(m, key);
         if (/spotify/i.test(m.app || '')) spotify.kick(config.get());
       }
+    } else if (m.active && lyricsNoLength && m.duration > 0) {
+      // Firefox-based browsers tell a new song's length only after a moment (or a pause): the first lookup had none,
+      // which finds no lyrics or those of another version. Look again now that the length is known.
+      findLyrics(m, key);
     }
     if (typeof m.art === 'string') {
       if (m.art) setArt(Buffer.from(m.art, 'base64'));
@@ -93,6 +93,7 @@ bridge.on('message', (m) => {
     }
     delete m.art;
     delete m.t;
+    if (m.active && !m.artist && fillArtist && fillArtist.key === trackKey) m.artist = fillArtist.artist;
     // Keep the art id stable across position updates of the same track.
     m.art = state.art ? '/art/' + state.art.id : '';
     const rawApp = m.app;
@@ -100,10 +101,12 @@ bridge.on('message', (m) => {
     const ic = appIcons.get(rawApp);
     m.appIcon = ic ? '/appicon/' + ic.id : '';
     m.game = !!(ic && ic.game);
-    m.site = siteOf(rawApp, m.title);
-    m.app = m.site === 'youtube' ? 'YouTube' : ic && ic.name && ic.name.length <= 24 ? ic.name : prettyApp(rawApp);
+    m.site = siteOf(rawApp, m.title, m.siteName || (lastBrowserSong && lastBrowserSong.app === rawApp ? lastBrowserSong.siteName : ''));
+    delete m.siteName;
+    m.app = m.site === 'youtube' ? 'YouTube' : m.site === 'ytmusic' ? 'YouTube Music' : ic && ic.name && ic.name.length <= 24 ? ic.name : prettyApp(rawApp);
     if (m.site === 'youtube') m.title = String(m.title || '').replace(/\s+-\s+YouTube( Music)?$/i, '');
     state.media = m;
+    if (m.active && rawApp) seenApps.set(rawApp, { token: appToken(rawApp), name: m.app, icon: m.appIcon || '' });
     broadcast({ t: 'media', d: state.media });
   } else if (m.t === 'appicon') {
     const buf = Buffer.from(m.png || '', 'base64');
@@ -141,10 +144,52 @@ bridge.on('message', (m) => {
   } else if (m.t === 'ready') {
     log.info('media bridge ready');
     bridge.send('ignore ' + config.get().ignoreApps.join(','));
+    bridge.send('resync ' + (config.get().autoResync ? '1' : '0'));
   }
 });
 
 let trackKey = '';
+// Apps seen playing this run, for "Hide these apps" in the PC window: raw id -> { token, name, icon }
+const seenApps = new Map();
+/** The part of a player's id that stays the same and survives the ignore list's cleaning (lower case, [a-z0-9._-]). */
+function appToken(raw) {
+  let s = String(raw || '').toLowerCase();
+  if (s.includes('!')) s = s.split('!')[0].split('_')[0]; // a Store app: its package name
+  else if (/[\\/]/.test(s)) s = s.split(/[\\/]/).pop().replace(/\.exe$/, ''); // a path: the program
+  else s = s.replace(/\.exe$/, '');
+  return s.replace(/[^a-z0-9._-]/g, '').slice(0, 60);
+}
+let fillArtist = null; // { key, artist }: an artist found for a song whose player gave none
+let lyricsNoLength = false; // the current song's lyrics were looked up before its length was known
+let lyricsSeq = 0;
+function findLyrics(m, key) {
+  lyricsNoLength = !(m.duration > 0);
+  const seq = ++lyricsSeq;
+  lyrics.find(m, config.get()).then((l) => {
+    if (trackKey !== key) return;
+    // a song without an artist (a browser that gives only the title) gets the one the lyrics were found under
+    if (l && l.artist && state.media && state.media.active && !state.media.artist) {
+      state.media = Object.assign({}, state.media, { artist: l.artist });
+      fillArtist = { key, artist: l.artist }; // the browser keeps sending the song without it
+      broadcast({ t: 'media', d: state.media });
+      // and now that the artist is known, the cover too (such a browser gives none)
+      if (!state.art && config.get().artLookup) {
+        artwork.find(state.media).then((buf) => {
+          if (!buf || trackKey !== key || state.art) return;
+          setArt(buf);
+          state.media = Object.assign({}, state.media, { art: '/art/' + state.art.id });
+          broadcast({ t: 'media', d: state.media });
+        });
+      }
+    }
+    // an older lookup (made before the length was known) only fills in while the newer one has found nothing yet
+    if (seq !== lyricsSeq && (!l || (state.lyrics && state.lyrics.key === key && !state.lyrics.none))) return;
+    // a second lookup (now with the length) that finds nothing keeps what the first one found
+    if (!l && state.lyrics && state.lyrics.key === key && !state.lyrics.none) return;
+    state.lyrics = l ? Object.assign({ key }, l) : { key, none: true, lines: [] };
+    broadcast({ t: 'lyrics', d: state.lyrics });
+  });
+}
 const appIcons = new Map(); // app id -> { id, buf, name, game }
 
 function iconUrl(app) { const ic = appIcons.get(app); return ic ? '/appicon/' + ic.id : ''; }
@@ -176,10 +221,26 @@ function onNotification(n) {
   setTimeout(deliver, 1200);
 }
 
-const BROWSERS = /chrome|msedge|firefox|308046b0af4a39cb|6f193ccc56814779|opera|brave|vivaldi|zen/i;
+const BROWSERS = /chrome|msedge|firefox|308046b0af4a39cb|6f193ccc56814779|opera|brave|vivaldi|zen|^[0-9a-f]{16}$/i;
+// Some browsers (Chrome with YouTube Music) give Windows the tab title instead of the song: "Song (feat. X) | YouTube
+// Music", no artist; and while paused just "YouTube Music". Make that the song, and keep the song through a pause.
+let lastBrowserSong = null; // { app, title, artist, album }
+function tidyBrowserMedia(m) {
+  if (!m.active || !BROWSERS.test(String(m.app || ''))) return;
+  const t = String(m.title || '').trim();
+  if (/^(YouTube( Music)?|Spotify|SoundCloud|Deezer|Tidal)$/i.test(t)) {
+    // only the site's name (the tab title of a paused player): it's still the song from before
+    if (lastBrowserSong && lastBrowserSong.app === m.app) Object.assign(m, { title: lastBrowserSong.title, artist: lastBrowserSong.artist, album: lastBrowserSong.album, site: lastBrowserSong.site });
+    return;
+  }
+  const sm = /^(.*?)\s+[|\-–—]\s+(YouTube Music|YouTube|SoundCloud|Spotify|Deezer)$/i.exec(t);
+  if (sm && !m.artist) { m.title = sm[1].trim(); m.siteName = sm[2]; }
+  lastBrowserSong = { app: m.app, title: m.title, artist: m.artist || '', album: m.album || '', siteName: m.siteName || '' };
+}
 // What a browser tab is playing, judged by the tab title.
-function siteOf(app, title) {
+function siteOf(app, title, siteName) {
   if (!BROWSERS.test(String(app || ''))) return '';
+  if (/^YouTube Music$/i.test(siteName || '')) return 'ytmusic';
   if (/-\s*YouTube( Music)?$/i.test(String(title || ''))) return 'youtube';
   return '';
 }
@@ -206,6 +267,7 @@ function prettyApp(id) {
   if (s.includes('zunemusic') || s.includes('media player')) return 'Media Player';
   if (s.includes('vlc')) return 'VLC';
   if (s.includes('discord')) return 'Discord';
+  if (/^[0-9a-f]{16}$/.test(s)) return 'Browser'; // a Firefox-family browser the bridge could not name yet (the icon lookup names it)
   return String(id).replace(/\.exe$/i, '').split(/[!\\/]/).pop();
 }
 
@@ -353,6 +415,11 @@ async function handleApi(req, res, url) {
       return send(res, 200, svg, 'image/svg+xml');
     }
     if (p === '/api/config' && req.method === 'GET') return send(res, 200, config.get());
+    if (p === '/api/media-apps' && req.method === 'GET') { // apps seen playing, newest first, and which one plays now
+      const now = state.mediaRaw ? appToken(state.mediaRaw) : '';
+      const list = [...seenApps.values()].reverse().filter((a, i, l) => a.token && l.findIndex((b) => b.token === a.token) === i);
+      return send(res, 200, { now, apps: list });
+    }
     if (p === '/api/diagnostics' && req.method === 'GET') {
       const z = require('./diagnostics').build({
         version: VERSION, config: config.get(), log, update: updater.status(), bridge: bridge.status ? bridge.status() : null,
@@ -387,6 +454,7 @@ async function handleApi(req, res, url) {
       broadcast({ t: 'config', d: publicConfig() });
       if (next.autoUsb !== before.autoUsb) adb.setAuto(next.autoUsb, next.port);
       if (next.ignoreApps.join(',') !== before.ignoreApps.join(',')) bridge.send('ignore ' + next.ignoreApps.join(','));
+      if (next.autoResync !== before.autoResync) bridge.send('resync ' + (next.autoResync ? '1' : '0'));
       if (next.calendarUrl !== before.calendarUrl) calendar.reload(next);
       if (next.weather !== before.weather || next.weatherCity !== before.weatherCity || next.weatherUnit !== before.weatherUnit) weather.reload(next);
       return send(res, 200, next);
@@ -633,6 +701,7 @@ function publicConfig() {
     notes: c.notes,
     photos: photoList().length,
     doubleTapPlay: c.doubleTapPlay,
+    autoResync: c.autoResync,
     look: c.look,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,

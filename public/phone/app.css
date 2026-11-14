@@ -1368,3 +1368,27 @@ body.look-ios .qt.on span { color: rgba(0, 0, 0, .55); }
 body.look-win .qt { border-radius: 6px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .07); }
 body.look-win .qt.on { background: var(--wn); color: #000; border-color: transparent; }
 body.look-win .qt.on span { color: rgba(0, 0, 0, .7); }
+
+/* Burn-in protection moves the screens a few pixels; the lyrics screen has its own background, so it reaches past its
+   edges, or the wallpaper behind (the bright album blur in the iOS style) shows as thin lines along them. */
+#s-lyrics::before { content: ""; position: absolute; inset: -24px; z-index: -1; background: inherit; pointer-events: none; }
+/* iOS style, Classic Now playing: the app name is a small pill, not a bar across the screen */
+body.look-ios:not(.ns-imm) .meta .app { display: inline-flex; width: fit-content; max-width: 100%; padding: 4px 10px 4px 8px; border-radius: 999px; }
+
+/* after a skip in a Firefox-based browser the place in the song is unknown until a pause and play: say so */
+.ly-lost { position: absolute; z-index: 5; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 200px);
+  padding: 7px 14px 7px 10px; border-radius: 999px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); animation: fadein .3s ease-out; }
+.ly-lost[hidden] { display: none; }
+.ly-lost svg { width: 16px; height: 16px; flex: none; opacity: .85; }
+
+/* Notifications and toasts stay readable over the bright wallpapers of the iOS and Windows styles */
+body.look-ios .nbanner { background: rgba(28, 28, 32, .92); color: #fff; border: 0; border-radius: 22px; padding: 12px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 0 0 .5px rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6); }
+body.look-ios .nbanner * { color: inherit; }
+body.look-ios .nbanner .nb-time { background: #0a84ff; }
+body.look-win .nbanner { background: #2b2b2e; color: #fff; border: 1px solid rgba(255, 255, 255, .08); border-top-color: rgba(255, 255, 255, .16); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .4); }
+body.look-win .nbanner .nb-time { background: var(--wn); }
+body.look-ios .toast, body.look-win .toast { background: rgba(245, 245, 247, .96); color: #111; }
+body.look-ios .nbanner .nb-app, body.look-ios .nbanner .nb-body { opacity: .72; }
+body.look-win .nbanner .nb-ic { color: var(--wn); }

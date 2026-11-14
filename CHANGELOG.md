@@ -7,6 +7,64 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.14.1] — 2026-11-14
+
+Synced lyrics and the song position keep time with Firefox and with music videos, and Zen shows its own name.
+
+### Added
+
+- **Lyrics catch up by themselves after a skip** in Zen, Firefox and similar browsers: these only say where a song is
+  after a pause, so when you skip within a song PhoneDesk pauses and plays it for a split second and the lyrics land in
+  the right place. On by default; turn it off in Phone display, under Music (“Keep lyrics in time after a skip”), and
+  the lyrics screen says “Skipped in the song? Pause and play to sync the lyrics” instead.
+- **Hide apps from the phone:** in Phone display, under Music, choose apps that never show as playing (voice chat,
+  games, a browser playing videos), so the phone keeps showing your music. Hide the app that is playing now with one
+  click, or pick any app that played since PhoneDesk started. Discord is hidden from the start, as before.
+
+### Fixed
+
+- **YouTube Music in Chrome works.** Chrome hands Windows the tab title instead of the song (“Friday (feat. …) |
+  YouTube Music”, no artist; “YouTube Music” while paused), so PhoneDesk had a song with no artist and no lyrics, and a
+  pause looked like a new song. The site's name is now taken off the title (the source reads YouTube Music), a pause
+  keeps the song, and a song with no artist is looked up by its title and length; the artist and the cover are then
+  filled in from what is found.
+- **The app that is playing is the one shown.** With one app paused (Zen) and another playing (YouTube Music in
+  Chrome), the phone kept showing the paused one, because Windows still called it the current app; so the song playing
+  had no lyrics and no controls on the phone. Now whatever is playing wins, and with two playing the phone stays on the
+  one it shows.
+- **Notifications are readable in the iOS and Windows styles.** The banner was see-through over the bright wallpaper,
+  so its text disappeared; it is now a solid frosted (iOS) or Mica-dark (Windows) banner, and the small pop-up messages
+  are too.
+- **Skipping within a song in a Firefox-based browser no longer throws the lyrics back to the start.** After a skip,
+  Zen and Firefox tell Windows the song is at 0:00 (with a fresh time stamp) and only send the real place after a pause
+  and play. PhoneDesk keeps the lyrics going and shows “Skipped in the song? Pause and play to sync the lyrics” until the
+  real place arrives; one pause and play in the browser puts the lyrics back in time.
+- **Lyrics are found when a song starts in a Firefox-based browser.** The lyrics were looked up the moment a new song
+  appeared, before the browser had said how long it is, so the exact lookup failed and nothing tried again; PhoneDesk now
+  searches without the length at first and looks again (for the right version) as soon as the length is known.
+- **No more coloured lines around the lyrics screen in the iOS style.** Burn-in protection moves the screens a few
+  pixels now and then, which uncovered a sliver of the album wallpaper along the lyrics screen's edges; its background
+  now reaches past them. In the iOS style with the Classic Now playing layout, the app name is a small pill again
+  instead of a bar across the screen.
+- In the PC window: drop-down lists were white with white text, so their choices looked empty; Find a setting only
+  matches the start of words and its box and results look like Windows Settings; the expandable rows (“Install the
+  phone app”, “How to set it up”) lost a stray line and open with a chevron on the right.
+- **A new song no longer sits on its intro until you pause and play.** Firefox-based browsers often tell Windows a new
+  song's length only after a pause; until then PhoneDesk held the position (and the lyrics) at the start, and when the
+  length arrived it could jump back to the start. The song now runs from the first second either way.
+- **Lyrics of music videos are no longer out of time.** A music video on YouTube Music is often a different length
+  from the song (an intro, an outro), and PhoneDesk used to show the song's timed lyrics anyway, so every line came at
+  the wrong moment. Lyrics from a version more than 6 seconds longer or shorter now show their words with estimated
+  timing instead (like lyrics that have no timings), and the song and its video no longer share cached lyrics.
+- **Zen and other Firefox-based browsers show their own name and icon** as the source, instead of a code like
+  “F0DC299D809B9700”. These browsers name themselves to Windows by a code of their install folder; PhoneDesk now looks
+  that code up to find the browser.
+- **The song position and the lyrics no longer stay stuck at 0:00 with Firefox** (and Firefox-based browsers like Zen)
+  playing YouTube Music or another site ([#14](https://github.com/icdmkg2/phonedesk/issues/14)). Firefox keeps telling
+  Windows the song is at 0:00 while it plays and only sends the real position after a pause or a seek; PhoneDesk now
+  keeps its own clock running through those reports instead of following them back to the start, and ignores a sudden
+  jump back to 0:00 in the middle of a song. A real seek, previous or next still moves it at once.
+
 ## [1.14.0] — 2026-11-14
 
 The PhoneDesk window now looks and works like Windows 11 Settings, and the phone has a Windows widget style.

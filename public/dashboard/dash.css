@@ -775,3 +775,52 @@ select { height: 32px; padding: 0 28px 0 10px; line-height: 30px; font-size: 13p
 .find-none { padding: 10px; font-size: 13px; color: var(--muted); }
 @keyframes found { 0%, 60% { box-shadow: inset 0 0 0 2px var(--accent); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
 .found { animation: found 1.8s ease-out; }
+
+/* Find a setting: a flyout in the app's card style, inside the sidebar */
+.find-list { left: 0; right: 0; top: 40px; background: var(--card); border: 1px solid rgba(255, 255, 255, .08); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, .45); padding: 4px; gap: 2px; }
+.find-i { position: relative; padding: 7px 10px 7px 14px; border-radius: 4px; }
+.find-i b { font-size: 13px; }
+.find-i span { font-size: 11px; }
+.find-i:hover { background: rgba(255, 255, 255, .05); }
+.find-i.on { background: rgba(255, 255, 255, .07); }
+.find-i.on::before { content: ""; position: absolute; left: 3px; top: 50%; width: 3px; height: 14px; margin-top: -7px; border-radius: 2px; background: var(--accent); }
+.find input { background: rgba(255, 255, 255, .06); }
+.find input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; cursor: pointer;
+  background: no-repeat center / 10px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 1l8 8M9 1L1 9' stroke='%23ABABAB' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+
+/* expandable rows ("Install the phone app", "How to set it up"...): no divider line, a Windows-style chevron */
+details.more { border-top: 0; padding-top: 0; }
+details.more > summary { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; color: var(--fg); padding: 2px 0; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: none; }
+details.more > summary::after { content: ""; width: 8px; height: 8px; margin-left: auto; margin-right: 4px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg) translate(-2px, -2px); transition: transform .15s; }
+details.more[open] > summary::after { transform: rotate(225deg) translate(-2px, -2px); }
+.srow-body details.more > summary, .card details.more > summary { color: var(--accent-text); font-size: 13px; }
+.srow-body details.more > summary::after, .card details.more > summary::after { margin-left: 4px; width: 6px; height: 6px; border-color: var(--accent-text); }
+.srow.block:has(> details.more) { min-height: 56px; justify-content: center; }
+.srow.block > details.more > summary { min-height: 28px; cursor: pointer; }
+
+/* the search box itself, like the one in Windows 11 Settings */
+.find { margin: 2px 4px 14px; }
+.find > svg { left: auto; right: 10px; width: 14px; height: 14px; margin-top: -7px; color: var(--fg2); }
+.find input { height: 32px; padding: 0 30px 0 11px; border-radius: 4px; font-size: 14px; color: var(--fg);
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08); border-bottom-color: rgba(255, 255, 255, .42); }
+.find input::placeholder { color: var(--muted); }
+.find input:hover { background: rgba(255, 255, 255, .085); }
+.find input:focus, .find input:focus-visible { outline: none; background: #1f1f22; border-color: rgba(255, 255, 255, .08); border-bottom: 2px solid var(--accent); padding-bottom: 0; }
+.find input::-webkit-search-cancel-button { margin-right: 2px; }
+.find:has(input:not(:placeholder-shown)) > svg { display: none; }
+
+/* dropdowns: a dark list with readable text (the native list was white with white text) */
+select { color-scheme: dark; font-weight: 400; background-color: rgba(255, 255, 255, .06); }
+select option, select optgroup { background-color: #2b2b2e; color: #fff; font-weight: 400; }
+select option:checked { background-color: #3a3a3e; color: #fff; }
+select:focus, select:focus-visible { outline: none; border-bottom: 2px solid var(--accent); }
+
+/* Hide these apps on the phone */
+.chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.app-chip { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 10px; border-radius: 4px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08); font-size: 13px; }
+.app-chip img { width: 16px; height: 16px; object-fit: contain; }
+.app-chip button { width: 22px; height: 22px; border: 0; border-radius: 3px; background: none; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.app-chip button:hover { background: rgba(255, 255, 255, .08); color: var(--fg); }
+#ds-hide-pick { width: auto; min-width: 220px; }

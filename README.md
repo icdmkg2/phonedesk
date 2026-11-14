@@ -110,6 +110,22 @@ Swipe between them; pick and order them in *Phone display*.
 
 PC notifications (Discord, WhatsApp, mail…) pop up on the phone for a few seconds. *Private* mode shows only which app.
 
+## Music players: what works
+
+PhoneDesk shows what any app tells Windows' media controls. Some players tell Windows less than others:
+
+| Player | Song, cover, controls | Lyrics in time | Notes |
+|---|---|---|---|
+| Spotify (desktop app) | ✅ | ✅ | Full support, plus Up next and ♥ once Spotify is connected (below). |
+| Other desktop players (Media Player, …) | ✅ | Usually | Depends on the app telling Windows where the song is. |
+| YouTube Music in **Zen, Firefox** (or LibreWolf, Floorp, Waterfox) | ✅ | ✅ mostly | These browsers name themselves to Windows by a code of their install folder; PhoneDesk looks it up to show the browser's own name and icon. They also tell the song's place only after a pause: a new song's length can come a moment late, and a **skip within a song** arrives as “0:00”. PhoneDesk keeps the lyrics running and, after a skip, pauses and plays the browser for a split second so the lyrics land in the right place (*Phone display → Music → Keep lyrics in time after a skip*; with it off, the lyrics screen asks you to pause and play once). |
+| YouTube Music in **Chrome** (or Edge) | ✅ song, cover found online | ✅ when found | Chrome gives Windows the tab title instead of the song (“Song \| YouTube Music”, no artist; “YouTube Music” while paused). PhoneDesk takes the song from the title, keeps it through a pause, and finds the lyrics, the artist and the cover by the title and the song's length. A song that isn't found that way gets no lyrics: there is nothing else to go on. |
+| YouTube in a browser | ✅ (title, cover found online) | When found | Music videos are often longer than the song; lyrics from a version more than 6 s off are shown with estimated timing instead of wrong timings. |
+
+If an app shows up that isn't music (voice chat, a game, a browser playing videos), hide it in *Phone display → Music →
+Hide these apps on the phone*. When two apps play, the one already on the phone stays; a playing app always wins over a
+paused one.
+
 ## Spotify (optional)
 
 Spotify only lets registered apps read your queue and library, so this needs a free developer app (two minutes):

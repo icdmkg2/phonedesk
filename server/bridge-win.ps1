@@ -173,24 +173,68 @@ function Test-Ignored($s) {
   return $false
 }
 
-# Windows' "current" session, unless it's an ignored app; then the best other one
-# (something playing first, else the first non-ignored session).
+# Which app to show. Something that is playing wins: Windows' "current" session can be a paused app (Zen paused while
+# Chrome plays YouTube Music), and showing that left the phone on the wrong, paused song. Among apps that play, keep
+# the one shown before (no flipping between two), then Windows' current one, then any. With nothing playing: Windows'
+# current one, else the one shown before, else the first. Ignored apps never count.
+$script:shownApp = ''
 function Get-Session {
   $cur = $mgr.GetCurrentSession()
-  if ($cur -and -not (Test-Ignored $cur)) { return $cur }
-  $fallback = $null
+  if ($cur -and (Test-Ignored $cur)) { $cur = $null }
+  $playing = @(); $all = @()
   foreach ($s in $mgr.GetSessions()) {
     if (Test-Ignored $s) { continue }
-    if (([string]$s.GetPlaybackInfo().PlaybackStatus) -eq 'Playing') { return $s }
-    if ($null -eq $fallback) { $fallback = $s }
+    $all += $s
+    if (([string]$s.GetPlaybackInfo().PlaybackStatus) -eq 'Playing') { $playing += $s }
   }
-  return $fallback
+  $pick = $null
+  if ($playing.Count -gt 0) {
+    $pick = $playing | Where-Object { $_.SourceAppUserModelId -eq $script:shownApp } | Select-Object -First 1
+    if (-not $pick -and $cur) { $pick = $playing | Where-Object { $_.SourceAppUserModelId -eq $cur.SourceAppUserModelId } | Select-Object -First 1 }
+    if (-not $pick) { $pick = $playing[0] }
+  } elseif ($cur) { $pick = $cur }
+  else {
+    $pick = $all | Where-Object { $_.SourceAppUserModelId -eq $script:shownApp } | Select-Object -First 1
+    if (-not $pick -and $all.Count -gt 0) { $pick = $all[0] }
+  }
+  if ($pick) { $script:shownApp = [string]$pick.SourceAppUserModelId }
+  return $pick
 }
 
 # ---------------------------------------------------------------- the playing app's icon + name
 $GameDirs = '\\steamapps\\common\\|\\Epic Games\\|\\GOG Galaxy\\Games\\|\\GOG Games\\|\\XboxGames\\|\\Riot Games\\|\\Battle\.net\\|\\EA Games\\|\\Ubisoft Game Launcher\\games\\|\\Rockstar Games\\'
 $KnownAumid = @{ 'chrome' = 'chrome'; 'msedge' = 'msedge'; '308046b0af4a39cb' = 'firefox'; '6f193ccc56814779' = 'firefox'; 'opera' = 'opera'; 'brave' = 'brave' }
 $IconSent = @{}
+
+# Firefox and browsers built on it (Zen, LibreWolf, Floorp, Waterfox...) name their media session with a hash of the
+# install folder ("F0DC299D809B9700"), not the program. They keep that hash in the registry as
+# ...\<Vendor>\<Product>\TaskBarIDs: { "<install folder>" = "<hash>" }. Find the folder and the browser's exe in it.
+function Find-HashedBrowser([string]$hash) {
+  $roots = @('HKCU:\Software', 'HKLM:\Software', 'HKLM:\Software\WOW6432Node')
+  foreach ($r in $roots) {
+    $keys = @(Get-ChildItem -LiteralPath $r -ErrorAction SilentlyContinue | ForEach-Object {
+      Get-ChildItem -LiteralPath $_.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -eq 'TaskBarIDs' }
+      Get-ChildItem -LiteralPath $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem -LiteralPath $_.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -eq 'TaskBarIDs' } }
+    })
+    foreach ($k in $keys) {
+      $item = Get-Item -LiteralPath $k.PSPath -ErrorAction SilentlyContinue
+      if (-not $item) { continue }
+      foreach ($folder in $item.GetValueNames()) {
+        if (("" + $item.GetValue($folder)) -ne $hash -or -not (Test-Path -LiteralPath $folder)) { continue }
+        $exe = Get-ChildItem -LiteralPath $folder -Filter *.exe -ErrorAction SilentlyContinue |
+          Where-Object { $_.Name -notmatch '(?i)updat|uninst|helper|crash|plugin|ping|private|agent|maintenance|notification|minidump|wow_' } |
+          Sort-Object Length -Descending | Select-Object -First 1
+        if ($exe) { return $exe.FullName }
+      }
+    }
+  }
+  # Not in the registry: a Firefox-family browser that is running
+  foreach ($n in @('zen', 'firefox', 'librewolf', 'floorp', 'waterfox', 'mullvadbrowser')) {
+    $p = Get-Process -Name $n -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
+    if ($p) { return $p.Path }
+  }
+  return $null
+}
 
 function Find-AppInfo([string]$aumid) {
   try {
@@ -226,10 +270,11 @@ function Find-AppInfo([string]$aumid) {
       $names.Add($tok); if ($tok -match 'Desktop$') { $names.Add($tok -replace 'Desktop$', '') }
     }
     $path = $null
-    foreach ($n in $names) {
+    if ($aumid -match '^[0-9A-Fa-f]{16}$' -and -not $KnownAumid.ContainsKey($key)) { $path = Find-HashedBrowser $aumid.ToUpper() }
+    if (-not $path) { foreach ($n in $names) {
       $p = Get-Process -Name $n -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
       if ($p) { $path = $p.Path; break }
-    }
+    } }
     if (-not $path) {
       # Not running: look for a Start menu shortcut with that name and use its target.
       $menus = @("$env:ProgramData\Microsoft\Windows\Start Menu\Programs", "$env:APPDATA\Microsoft\Windows\Start Menu\Programs")
@@ -305,6 +350,36 @@ function Invoke-Toggle([string]$what) {
   Send-Toggles
 }
 
+# ---------------------------------------------------------------- resync after a skip (Firefox-based browsers)
+# After a skip within a song, Firefox and browsers built on it (Zen, LibreWolf...) tell Windows the song is at 0:00 and
+# give the real place only after a pause and play. Seeing that (a real place, then a fresh 0:00 in the same song while
+# it plays), pause and play the browser at once so the phone gets the real place. Off with the 'resync 0' command.
+$script:AutoResync = $true
+$script:rsTrack = ''; $script:rsPos = 0; $script:rsUpd = 0; $script:rsAt = [DateTime]::MinValue; $script:rsTrackAt = [DateTime]::UtcNow
+function Test-FirefoxFamily([string]$aumid) {
+  $k = $aumid.ToLower()
+  return ($k -match '^[0-9a-f]{16}$') -or ($KnownAumid.ContainsKey($k) -and $KnownAumid[$k] -eq 'firefox') -or ($k -match 'firefox|zen|librewolf|floorp|waterfox')
+}
+function Test-Resync($s, [string]$trackKey, [double]$pos, [long]$rawUpd, [string]$status) {
+  $now = [DateTime]::UtcNow
+  if ($trackKey -ne $script:rsTrack) { $script:rsTrack = $trackKey; $script:rsTrackAt = $now; $script:rsPos = $pos; $script:rsUpd = $rawUpd; return }
+  $jumpedToStart = ($status -eq 'Playing') -and ($script:rsPos -gt 1.5) -and ($pos -lt 0.5) -and ($rawUpd -ne $script:rsUpd)
+  $script:rsPos = $pos; $script:rsUpd = $rawUpd
+  if (-not $script:AutoResync -or -not $jumpedToStart) { return }
+  if (($now - $script:rsTrackAt).TotalSeconds -lt 4 -or ($now - $script:rsAt).TotalSeconds -lt 6) { return }
+  if (-not (Test-FirefoxFamily ([string]$s.SourceAppUserModelId))) { return }
+  $script:rsAt = $now
+  Log "resync: $($s.SourceAppUserModelId) jumped to 0:00 mid-song; pause and play to get the real place"
+  $b = [bool]
+  try {
+    [void](Await ($s.TryPauseAsync()) $b)
+    Start-Sleep -Milliseconds 120
+    [void](Await ($s.TryPlayAsync()) $b)
+  } catch { Log "resync failed: $($_.Exception.Message)" }
+  $script:forceMedia = $true
+  $script:fastUntil = [DateTime]::UtcNow.AddSeconds(2)
+}
+
 function Invoke-Cmd([string]$line) {
   $parts = $line.Split(' ', 2)
   $cmd = $parts[0]
@@ -319,6 +394,7 @@ function Invoke-Cmd([string]$line) {
     'appmute' { [PdMixer]::Set([uint32]$arg, -1, 2); $script:forceMixer = $true; return }
     'icon' { Send-AppIcon $arg; return }
     'mixer' { $script:forceMixer = $true; $script:mixerForced = $true; return }
+    'resync' { $script:AutoResync = ($arg -eq '1'); return }
     'ignore' { $script:Ignored = @($arg.ToLower().Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }); $script:forceMedia = $true; return }
   }
   $s = Get-Session
@@ -704,6 +780,26 @@ while ($true) {
         $artist = if ($props) { $props.Artist } else { '' }
         $album = if ($props) { $props.AlbumTitle } else { '' }
         $trackKey = "$($s.SourceAppUserModelId)|$title|$artist|$album"
+        # When was this position true? Some players (Firefox-based browsers like Zen) move the position after a seek
+        # but keep the old time stamp, or give none at all, so the phone would think the song is far ahead of where it
+        # is. Then use the moment we first saw that position.
+        $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        $rawUpd = $upd
+        $sameTrack = ($trackKey -eq $script:tlTrack)
+        if ($tl.LastUpdatedTime.Year -lt 2000 -or $upd -gt $nowMs + 60000) {
+          # no real time stamp: when this position (and play state) first showed up
+          $pk = "$trackKey|$([math]::Round($pos, 1))|$status"
+          if ($pk -ne $script:tlSeenKey) { $script:tlSeenKey = $pk; $script:tlSeenAt = $nowMs }
+          $upd = $script:tlSeenAt
+        } elseif ($sameTrack -and $rawUpd -eq $script:tlRawUpd -and [math]::Abs($pos - $script:tlRawPos) -gt 0.5) {
+          # the position jumped but its time stamp did not: it is new as of now (and stays so while it holds)
+          $script:tlFixPos = $pos; $script:tlFixUpd = $nowMs; $upd = $nowMs
+        } elseif ($sameTrack -and $rawUpd -eq $script:tlRawUpd -and $pos -eq $script:tlFixPos) {
+          $upd = $script:tlFixUpd
+        }
+        if (-not ($sameTrack -and $rawUpd -eq $script:tlRawUpd -and $pos -eq $script:tlFixPos)) { if ($rawUpd -ne $script:tlRawUpd -or -not $sameTrack) { $script:tlFixPos = $null } }
+        $script:tlTrack = $trackKey; $script:tlRawUpd = $rawUpd; $script:tlRawPos = $pos
+        Test-Resync $s $trackKey $pos $rawUpd $status
         $key = "$trackKey|$status|$([math]::Round($pos,1))|$upd|$([math]::Round($dur))|$($pi.IsShuffleActive)|$($pi.AutoRepeatMode)"
         $needArt = ($trackKey -ne $lastTrackKey) -and ($artTries -lt 8)
         if ($trackKey -ne $artTrack) { $artTrack = $trackKey; $artTries = 0; $needArt = $true }
