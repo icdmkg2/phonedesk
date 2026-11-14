@@ -37,6 +37,8 @@ The PhoneDesk window now looks and works like Windows 11 Settings, and the phone
 
 ### Fixed
 
+- The music note shown when a song has no album cover is redrawn as one solid note; it looked broken, with thin
+  disconnected lines and seams on the newer styles.
 - The pill that names the music app on the phone always has an icon now: the app's own icon from Windows, or a music
   note when Windows doesn't give one.
 - The release workflow no longer fails when GitHub won't create a page for an older version that shipped inside a later one.

@@ -279,7 +279,7 @@
   // The playing app's own icon (Spotify, a game...) or a video icon for YouTube in a browser.
   var lastAppIcon = null;
   // when Windows gives no icon for the player, the pill still gets one: a music note
-  var NOTE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18.5V6.8a1 1 0 0 1 .8-1l8-1.6a1 1 0 0 1 1.2 1v11.3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="6.5" cy="18.5" r="2.5" fill="currentColor"/><circle cx="16.5" cy="16.5" r="2.5" fill="currentColor"/></svg>';
+  var NOTE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.4 5.5 19 3.1v3.3L7.4 8.8zM7.4 5.6h1.9v12H7.4zM17.1 3.4H19v12h-1.9zM2.893 18.694a3.2 2.5 -20 1 1 6.014 -2.188a3.2 2.5 -20 1 1 -6.014 2.188zM12.593 16.494a3.2 2.5 -20 1 1 6.014 -2.188a3.2 2.5 -20 1 1 -6.014 2.188z"/></svg>';
   function setAppIcon(src) {
     if (src === lastAppIcon) return;
     lastAppIcon = src;
