@@ -335,6 +335,7 @@ async function t(name, fn) {
       await ctx.close();
     });
     await t('a skip that a Firefox-based browser reports as a fresh 0:00 is flagged until a pause and play brings the real time', async () => {
+      await api('config', { autoResync: false }); // the note shows at once when the PC doesn't fix it by itself
       const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
       await ctx.addInitScript(() => {
         const P = window.WebSocket;
@@ -368,6 +369,7 @@ async function t(name, fn) {
       const p = secs(await pg.locator('#m-pos').innerText());
       assert.ok(p >= 95 && p <= 97, 'and the real place is followed (shows ' + p + 's)');
       await ctx.close();
+      await api('config', { autoResync: true });
     });
     await t('the new widgets work: weather with the next hours, the month calendar, and quick toggles that tell the PC', async () => {
       const w = require('../server/widgets');

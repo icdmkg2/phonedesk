@@ -106,6 +106,8 @@ function sanitize(c) {
   }
   out.name = String(c.name || 'phonedesk').toLowerCase().replace(/\.local$/, '').replace(/[^a-z0-9-]/g, '').slice(0, 40) || 'phonedesk';
   out.autoUsb = c.autoUsb !== false;
+  // after a skip in a Firefox-based browser, pause and play it at once so the phone learns the real place in the song
+  out.autoResync = c.autoResync !== false;
   out.clock24 = c.clock24 !== false;
   out.theme = ['dark', 'black', 'light'].includes(c.theme) ? c.theme : 'dark';
   out.accent = typeof c.accent === 'string' && /^(auto|#[0-9a-f]{6})$/i.test(c.accent) ? c.accent : 'auto';

@@ -141,6 +141,7 @@ bridge.on('message', (m) => {
   } else if (m.t === 'ready') {
     log.info('media bridge ready');
     bridge.send('ignore ' + config.get().ignoreApps.join(','));
+    bridge.send('resync ' + (config.get().autoResync ? '1' : '0'));
   }
 });
 
@@ -418,6 +419,7 @@ async function handleApi(req, res, url) {
       broadcast({ t: 'config', d: publicConfig() });
       if (next.autoUsb !== before.autoUsb) adb.setAuto(next.autoUsb, next.port);
       if (next.ignoreApps.join(',') !== before.ignoreApps.join(',')) bridge.send('ignore ' + next.ignoreApps.join(','));
+      if (next.autoResync !== before.autoResync) bridge.send('resync ' + (next.autoResync ? '1' : '0'));
       if (next.calendarUrl !== before.calendarUrl) calendar.reload(next);
       if (next.weather !== before.weather || next.weatherCity !== before.weatherCity || next.weatherUnit !== before.weatherUnit) weather.reload(next);
       return send(res, 200, next);
@@ -664,6 +666,7 @@ function publicConfig() {
     notes: c.notes,
     photos: photoList().length,
     doubleTapPlay: c.doubleTapPlay,
+    autoResync: c.autoResync,
     look: c.look,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,

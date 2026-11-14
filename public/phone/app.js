@@ -268,11 +268,17 @@
     else { pc.pos = cur + (rep - cur) * 0.4; pc.at = now; pc.prevUpd = m.updated; }
     setPosLost(false);
   }
-  var posLost = false;
+  var posLost = false, posLostTimer = 0;
   function setPosLost(v) {
     if (v === posLost) return;
     posLost = v;
-    var e = $('ly-lost'); if (e) e.hidden = !v;
+    var e = $('ly-lost'); if (!e) return;
+    clearTimeout(posLostTimer);
+    if (!v) { e.hidden = true; return; }
+    // the PC pauses and plays the browser by itself to fix it (Keep lyrics in time after a skip): only say something
+    // if the real place still hasn't come a few seconds later
+    if (state.config.autoResync === false) e.hidden = false;
+    else posLostTimer = setTimeout(function () { if (posLost) e.hidden = false; }, 3000);
   }
   function currentPos() {
     var m = state.media;

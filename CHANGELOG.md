@@ -13,12 +13,19 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Added
 
+- **Lyrics catch up by themselves after a skip** in Zen, Firefox and similar browsers: these only say where a song is
+  after a pause, so when you skip within a song PhoneDesk pauses and plays it for a split second and the lyrics land in
+  the right place. On by default; turn it off in Phone display, under Music (“Keep lyrics in time after a skip”), and
+  the lyrics screen says “Skipped in the song? Pause and play to sync the lyrics” instead.
 - **Hide apps from the phone:** in Phone display, under Music, choose apps that never show as playing (voice chat,
   games, a browser playing videos), so the phone keeps showing your music. Hide the app that is playing now with one
   click, or pick any app that played since PhoneDesk started. Discord is hidden from the start, as before.
 
 ### Fixed
 
+- **Notifications are readable in the iOS and Windows styles.** The banner was see-through over the bright wallpaper,
+  so its text disappeared; it is now a solid frosted (iOS) or Mica-dark (Windows) banner, and the small pop-up messages
+  are too.
 - **Skipping within a song in a Firefox-based browser no longer throws the lyrics back to the start.** After a skip,
   Zen and Firefox tell Windows the song is at 0:00 (with a fresh time stamp) and only send the real place after a pause
   and play. PhoneDesk keeps the lyrics going and shows “Skipped in the song? Pause and play to sync the lyrics” until the

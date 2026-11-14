@@ -336,6 +336,36 @@ function Invoke-Toggle([string]$what) {
   Send-Toggles
 }
 
+# ---------------------------------------------------------------- resync after a skip (Firefox-based browsers)
+# After a skip within a song, Firefox and browsers built on it (Zen, LibreWolf...) tell Windows the song is at 0:00 and
+# give the real place only after a pause and play. Seeing that (a real place, then a fresh 0:00 in the same song while
+# it plays), pause and play the browser at once so the phone gets the real place. Off with the 'resync 0' command.
+$script:AutoResync = $true
+$script:rsTrack = ''; $script:rsPos = 0; $script:rsUpd = 0; $script:rsAt = [DateTime]::MinValue; $script:rsTrackAt = [DateTime]::UtcNow
+function Test-FirefoxFamily([string]$aumid) {
+  $k = $aumid.ToLower()
+  return ($k -match '^[0-9a-f]{16}$') -or ($KnownAumid.ContainsKey($k) -and $KnownAumid[$k] -eq 'firefox') -or ($k -match 'firefox|zen|librewolf|floorp|waterfox')
+}
+function Test-Resync($s, [string]$trackKey, [double]$pos, [long]$rawUpd, [string]$status) {
+  $now = [DateTime]::UtcNow
+  if ($trackKey -ne $script:rsTrack) { $script:rsTrack = $trackKey; $script:rsTrackAt = $now; $script:rsPos = $pos; $script:rsUpd = $rawUpd; return }
+  $jumpedToStart = ($status -eq 'Playing') -and ($script:rsPos -gt 1.5) -and ($pos -lt 0.5) -and ($rawUpd -ne $script:rsUpd)
+  $script:rsPos = $pos; $script:rsUpd = $rawUpd
+  if (-not $script:AutoResync -or -not $jumpedToStart) { return }
+  if (($now - $script:rsTrackAt).TotalSeconds -lt 4 -or ($now - $script:rsAt).TotalSeconds -lt 6) { return }
+  if (-not (Test-FirefoxFamily ([string]$s.SourceAppUserModelId))) { return }
+  $script:rsAt = $now
+  Log "resync: $($s.SourceAppUserModelId) jumped to 0:00 mid-song; pause and play to get the real place"
+  $b = [bool]
+  try {
+    [void](Await ($s.TryPauseAsync()) $b)
+    Start-Sleep -Milliseconds 120
+    [void](Await ($s.TryPlayAsync()) $b)
+  } catch { Log "resync failed: $($_.Exception.Message)" }
+  $script:forceMedia = $true
+  $script:fastUntil = [DateTime]::UtcNow.AddSeconds(2)
+}
+
 function Invoke-Cmd([string]$line) {
   $parts = $line.Split(' ', 2)
   $cmd = $parts[0]
@@ -350,6 +380,7 @@ function Invoke-Cmd([string]$line) {
     'appmute' { [PdMixer]::Set([uint32]$arg, -1, 2); $script:forceMixer = $true; return }
     'icon' { Send-AppIcon $arg; return }
     'mixer' { $script:forceMixer = $true; $script:mixerForced = $true; return }
+    'resync' { $script:AutoResync = ($arg -eq '1'); return }
     'ignore' { $script:Ignored = @($arg.ToLower().Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }); $script:forceMedia = $true; return }
   }
   $s = Get-Session
@@ -754,6 +785,7 @@ while ($true) {
         }
         if (-not ($sameTrack -and $rawUpd -eq $script:tlRawUpd -and $pos -eq $script:tlFixPos)) { if ($rawUpd -ne $script:tlRawUpd -or -not $sameTrack) { $script:tlFixPos = $null } }
         $script:tlTrack = $trackKey; $script:tlRawUpd = $rawUpd; $script:tlRawPos = $pos
+        Test-Resync $s $trackKey $pos $rawUpd $status
         $key = "$trackKey|$status|$([math]::Round($pos,1))|$upd|$([math]::Round($dur))|$($pi.IsShuffleActive)|$($pi.AutoRepeatMode)"
         $needArt = ($trackKey -ne $lastTrackKey) -and ($artTries -lt 8)
         if ($trackKey -ne $artTrack) { $artTrack = $trackKey; $artTries = 0; $needArt = $true }

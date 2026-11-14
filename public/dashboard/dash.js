@@ -621,6 +621,7 @@
     $('ds-night-clock').checked = c.nightClock !== false;
     $('ds-burn').checked = c.burnIn !== false;
     $('ds-batt').checked = c.showBattery !== false;
+    $('ds-resync').checked = c.autoResync !== false;
     $('ds-wx').checked = c.weather !== false;
     $('ds-wx-row').hidden = c.weather === false;
     if (document.activeElement !== $('ds-wx-city')) $('ds-wx-city').value = c.weatherCity || '';
@@ -1609,4 +1610,7 @@
   document.querySelector('.nav[data-view="display"]').addEventListener('click', loadHide);
   setInterval(() => { if ($('v-display').classList.contains('on')) loadHide(); }, 5000);
   loadHide();
+
+  // ---------------------------------------------------------------- Keep lyrics in time after a skip (Firefox-based browsers)
+  $('ds-resync').addEventListener('change', (e) => saveConfig({ autoResync: e.target.checked }));
 })();
