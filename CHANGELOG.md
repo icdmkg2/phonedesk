@@ -13,6 +13,9 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Fixed
 
+- **Lyrics are found when a song starts in a Firefox-based browser.** The lyrics were looked up the moment a new song
+  appeared, before the browser had said how long it is, so the exact lookup failed and nothing tried again; PhoneDesk now
+  searches without the length at first and looks again (for the right version) as soon as the length is known.
 - **No more coloured lines around the lyrics screen in the iOS style.** Burn-in protection moves the screens a few
   pixels now and then, which uncovered a sliver of the album wallpaper along the lyrics screen's edges; its background
   now reaches past them. In the iOS style with the Classic Now playing layout, the app name is a small pill again

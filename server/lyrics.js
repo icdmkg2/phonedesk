@@ -78,10 +78,11 @@ async function lookup(artist, title, album, duration) {
   const withAlbum = new URLSearchParams(base);
   if (album) withAlbum.set('album_name', album);
   if (duration > 0) withAlbum.set('duration', String(Math.round(duration)));
-  // 1) exact match with album and length, 2) without the album, 3) searches
-  let r = toResult(await getJson('https://lrclib.net/api/get?' + withAlbum));
+  // 1) exact match with album and length, 2) without the album, 3) searches. The exact match needs the length: without
+  // it (a player that hasn't said it yet) go straight to the searches.
+  let r = duration > 0 ? toResult(await getJson('https://lrclib.net/api/get?' + withAlbum)) : null;
   if (r && r.lines.length) return r;
-  if (album) {
+  if (album && duration > 0) {
     const q = new URLSearchParams(base);
     if (duration > 0) q.set('duration', String(Math.round(duration)));
     r = toResult(await getJson('https://lrclib.net/api/get?' + q));

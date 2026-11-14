@@ -66,14 +66,13 @@ bridge.on('message', (m) => {
         broadcast({ t: 'recent', d: state.recent });
       }
       if (m.active) {
-        const wanted = key;
-        lyrics.find(m, config.get()).then((l) => {
-          if (trackKey !== wanted) return;
-          state.lyrics = l ? Object.assign({ key: wanted }, l) : { key: wanted, none: true, lines: [] };
-          broadcast({ t: 'lyrics', d: state.lyrics });
-        });
+        findLyrics(m, key);
         if (/spotify/i.test(m.app || '')) spotify.kick(config.get());
       }
+    } else if (m.active && lyricsNoLength && m.duration > 0) {
+      // Firefox-based browsers tell a new song's length only after a moment (or a pause): the first lookup had none,
+      // which finds no lyrics or those of another version. Look again now that the length is known.
+      findLyrics(m, key);
     }
     if (typeof m.art === 'string') {
       if (m.art) setArt(Buffer.from(m.art, 'base64'));
@@ -145,6 +144,21 @@ bridge.on('message', (m) => {
 });
 
 let trackKey = '';
+let lyricsNoLength = false; // the current song's lyrics were looked up before its length was known
+let lyricsSeq = 0;
+function findLyrics(m, key) {
+  lyricsNoLength = !(m.duration > 0);
+  const seq = ++lyricsSeq;
+  lyrics.find(m, config.get()).then((l) => {
+    if (trackKey !== key) return;
+    // an older lookup (made before the length was known) only fills in while the newer one has found nothing yet
+    if (seq !== lyricsSeq && (!l || (state.lyrics && state.lyrics.key === key && !state.lyrics.none))) return;
+    // a second lookup (now with the length) that finds nothing keeps what the first one found
+    if (!l && state.lyrics && state.lyrics.key === key && !state.lyrics.none) return;
+    state.lyrics = l ? Object.assign({ key }, l) : { key, none: true, lines: [] };
+    broadcast({ t: 'lyrics', d: state.lyrics });
+  });
+}
 const appIcons = new Map(); // app id -> { id, buf, name, game }
 
 function iconUrl(app) { const ic = appIcons.get(app); return ic ? '/appicon/' + ic.id : ''; }
