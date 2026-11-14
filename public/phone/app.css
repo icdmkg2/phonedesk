@@ -1368,3 +1368,9 @@ body.look-ios .qt.on span { color: rgba(0, 0, 0, .55); }
 body.look-win .qt { border-radius: 6px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .07); }
 body.look-win .qt.on { background: var(--wn); color: #000; border-color: transparent; }
 body.look-win .qt.on span { color: rgba(0, 0, 0, .7); }
+
+/* Burn-in protection moves the screens a few pixels; the lyrics screen has its own background, so it reaches past its
+   edges, or the wallpaper behind (the bright album blur in the iOS style) shows as thin lines along them. */
+#s-lyrics::before { content: ""; position: absolute; inset: -24px; z-index: -1; background: inherit; pointer-events: none; }
+/* iOS style, Classic Now playing: the app name is a small pill, not a bar across the screen */
+body.look-ios:not(.ns-imm) .meta .app { display: inline-flex; width: fit-content; max-width: 100%; padding: 4px 10px 4px 8px; border-radius: 999px; }

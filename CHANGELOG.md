@@ -13,6 +13,10 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Fixed
 
+- **No more coloured lines around the lyrics screen in the iOS style.** Burn-in protection moves the screens a few
+  pixels now and then, which uncovered a sliver of the album wallpaper along the lyrics screen's edges; its background
+  now reaches past them. In the iOS style with the Classic Now playing layout, the app name is a small pill again
+  instead of a bar across the screen.
 - In the PC window: drop-down lists were white with white text, so their choices looked empty; Find a setting only
   matches the start of words and its box and results look like Windows Settings; the expandable rows (“Install the
   phone app”, “How to set it up”) lost a stray line and open with a chevron on the right.
