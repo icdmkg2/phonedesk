@@ -1257,3 +1257,114 @@ body.look-ios .np-top > *, body.look-ios .app { background: rgba(255, 255, 255, 
 .io-ring > span .bt-ic { width: 1.1em; height: 1.1em; color: rgba(255, 255, 255, .7); }
 .io-ring .io-icon { display: grid; place-items: center; }
 .io-ring .io-icon .bt-ic { width: 1.5em; height: 1.5em; color: rgba(255, 255, 255, .85); }
+
+/* ---------------------------------------------------------------- Windows widget style (look: 'windows')
+   Like the Windows 11 widgets board: a deep blue desktop with a soft blue bloom, widgets on dark Mica-style cards with
+   8px corners, a thin light top edge and a small title row, Segoe UI (Inter on phones without it), and Windows blue. */
+body.look-win {
+  --radius: 8px; --card: rgba(40, 40, 46, .84); --line: rgba(255, 255, 255, .08);
+  --fg: #fff; --fg2: rgba(255, 255, 255, .76); --fg3: rgba(255, 255, 255, .5); --wn: #4cc2ff;
+  font-family: "Segoe UI Variable Text", "Segoe UI", "PD Inter", system-ui, sans-serif;
+}
+body.look-win #bg { opacity: 0; }
+body.look-win #wall {
+  display: block; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23c9e1ff'/%3E%3Cstop offset='.45' stop-color='%234d8dff'/%3E%3Cstop offset='1' stop-color='%23123fb8'/%3E%3C/linearGradient%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='6'/%3E%3C/filter%3E%3C/defs%3E%3Cg filter='url(%23b)' fill='url(%23a)' transform='translate(500 270)'%3E%3Cellipse rx='150' ry='54' cx='95' opacity='0.55' transform='rotate(-150)'/%3E%3Cellipse rx='150' ry='54' cx='95' opacity='0.7' transform='rotate(-110)'/%3E%3Cellipse rx='150' ry='54' cx='95' opacity='0.8' transform='rotate(-70)'/%3E%3Cellipse rx='150' ry='54' cx='95' opacity='0.9' transform='rotate(-30)'/%3E%3Cellipse rx='150' ry='54' cx='95' opacity='0.75' transform='rotate(10)'/%3E%3Cellipse rx='150' ry='54' cx='95' opacity='0.6' transform='rotate(50)'/%3E%3Cellipse rx='150' ry='54' cx='95' opacity='0.45' transform='rotate(90)'/%3E%3C/g%3E%3C/svg%3E") 62% 55% / 120% auto no-repeat,
+    radial-gradient(55% 75% at 62% 55%, rgba(40, 110, 255, .55), transparent 70%),
+    radial-gradient(70% 80% at 10% 100%, rgba(20, 40, 120, .5), transparent 70%),
+    linear-gradient(160deg, #0c1838, #071029 55%, #040919) !important;
+}
+body.look-win .screen.page { padding: 40px 16px 36px; }
+body.look-win .wgrid { gap: 10px; }
+body.look-win .wg { background: var(--card); border: 1px solid var(--line); border-top-color: rgba(255, 255, 255, .16); border-radius: 8px; padding: 12px 14px; box-shadow: 0 8px 22px rgba(0, 0, 0, .32); }
+body.look-win .wg.look-clear, body.look-win .wg-clock { background: none; border-color: transparent; box-shadow: none; }
+body.look-win .wg-clock .w-time { font-weight: 600; letter-spacing: -.01em; text-shadow: 0 2px 12px rgba(0, 0, 0, .35); }
+body.look-win .card, body.look-win .st-hist, body.look-win .agenda, body.look-win .fc-d, body.look-win .key { border-radius: 8px; }
+body.look-win .card, body.look-win .key { background: var(--card); border: 1px solid var(--line); border-top-color: rgba(255, 255, 255, .14); }
+body.look-win #dots { bottom: 6px; left: 50%; right: auto; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; background: rgba(30, 30, 36, .86); border: 1px solid var(--line); border-top-color: rgba(255, 255, 255, .14); }
+body.look-win #dots button.on::after { background: var(--wn); }
+body.look-win .w-bar i, body.look-win .dv-b i { background: var(--wn) !important; }
+
+/* the Windows widgets: a title row, then the content */
+.wg.wn { justify-content: flex-start; gap: .7em; padding: .85em 1em; }
+.wn-h { display: flex; align-items: center; gap: .45em; font-size: .8em; color: var(--fg2); font-weight: 600; min-width: 0; }
+.wn-h svg { width: 1.15em; height: 1.15em; flex: none; color: var(--wn, #4cc2ff); }
+.wn-h span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wn-h em { margin-left: auto; font-style: normal; font-weight: 400; color: var(--fg3); white-space: nowrap; }
+.wn-now { display: flex; align-items: center; gap: .6em; min-width: 0; }
+.wn-now svg { width: 2.8em; height: 2.8em; flex: none; }
+.wn-temp { font-size: 2.9em; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.wn-temp small { font-size: .38em; font-weight: 400; color: var(--fg2); vertical-align: top; margin-left: .1em; }
+.wn-cond { display: flex; flex-direction: column; gap: .15em; min-width: 0; margin-left: .3em; }
+.wn-cond span:first-child { font-weight: 600; }
+.wn-cond span { font-size: .92em; color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wn-days { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .3em; margin-top: auto; padding-top: .6em; border-top: 1px solid var(--line); }
+.wn-short .wn-days { display: none; }
+.wn-day { display: flex; flex-direction: column; align-items: center; gap: .2em; font-size: .85em; min-width: 0; }
+.wn-day span { color: var(--fg2); white-space: nowrap; }
+.wn-day svg { width: 1.7em; height: 1.7em; }
+.wn-day b { font-weight: 600; }
+.wn-day i { font-style: normal; color: var(--fg3); }
+.wn-days-big { border-top: 0; padding-top: 0; flex: 1; align-items: center; }
+.wn-days-big .wn-day { font-size: 1em; gap: .35em; }
+.wn-days-big .wn-day svg { width: 2.1em; height: 2.1em; }
+.wn-zones { display: flex; flex-direction: column; flex: 1; justify-content: space-evenly; }
+.wn-z { display: flex; align-items: center; justify-content: space-between; gap: .8em; padding: .35em 0; min-width: 0; }
+.wn-z + .wn-z { border-top: 1px solid var(--line); }
+.wn-z > div { display: flex; flex-direction: column; min-width: 0; }
+.wn-z b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wn-z span { font-size: .8em; color: var(--fg3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wn-z strong { font-size: 1.55em; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.wg.wn { display: flex !important; flex-direction: column !important; align-items: stretch !important; grid-template-columns: none !important; }
+body.look-win .wg, body.look-win .screen:not(.page) { --accent: var(--wn); }
+
+/* weather extras: a details line and the next hours (every style) */
+.wx-det { display: flex; flex-wrap: wrap; gap: .25em .9em; margin-top: .55em; font-size: .78em; color: var(--fg2); }
+.wx-sun { display: inline-flex; align-items: center; gap: .25em; }
+.wx-sun svg { width: 1.2em; height: 1.2em; color: #ffcc4d; }
+.wx-hours { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .2em; margin-top: .6em; padding-top: .55em; border-top: 1px solid var(--line); }
+.wx-h { display: flex; flex-direction: column; align-items: center; gap: .15em; font-size: .78em; min-width: 0; }
+.wx-h span { color: var(--fg2); white-space: nowrap; }
+.wx-h svg { width: 1.8em; height: 1.8em; }
+.wx-h b { font-weight: 600; }
+.wx-h i { font-style: normal; font-size: .85em; color: #5ac8fa; min-height: 1.1em; }
+.fc-r { font-size: .75em; color: #5ac8fa; }
+.wg-weather:has(.wx-hours), .wg-weather:has(.wx-det) { justify-content: flex-start; }
+
+/* Month calendar */
+.wg-month { justify-content: flex-start; gap: .5em; }
+.mo-h { font-weight: 700; font-size: 1.05em; }
+.mo-g { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto repeat(var(--rows), minmax(0, 1fr)); text-align: center; min-height: 0; }
+.mo-wd { font-size: .72em; color: var(--fg3); font-weight: 600; padding-bottom: .3em; }
+.mo-d { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; font-size: .86em; }
+.mo-d b { font-weight: 500; width: 1.9em; height: 1.9em; line-height: 1.9em; border-radius: 50%; font-variant-numeric: tabular-nums; }
+.mo-d.out b { color: var(--fg3); opacity: .55; }
+.mo-d.today b { background: var(--accent); color: #fff; font-weight: 700; }
+.mo-d i { display: flex; gap: .15em; height: .35em; margin-top: .05em; }
+.mo-d u { width: .3em; height: .3em; border-radius: 50%; background: var(--fg2); text-decoration: none; }
+.mo-d.today u { background: var(--accent); }
+body.look-ios .wg-month .mo-h { color: #ff453a; text-transform: uppercase; font-size: .8em; letter-spacing: .04em; }
+body.look-ios .mo-d.today b { background: #ff453a; }
+body.look-ios .mo-d.today u { background: #ff453a; }
+body.look-win .mo-d b { border-radius: 50%; }
+body.look-win .mo-d.today b { background: var(--wn); color: #000; }
+body.look-win .wg-month .mo-h { font-weight: 600; }
+
+/* Quick toggles */
+.wg-toggles { display: grid; gap: .5em; padding: .6em; align-content: stretch; }
+.qt { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: .15em; min-width: 0; min-height: 0; padding: .6em .75em; border: 0; border-radius: calc(var(--radius) * .7); background: rgba(127, 127, 127, .16); color: var(--fg); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, transform .1s; }
+.qt:active { transform: scale(.97); }
+.qt svg { width: 1.5em; height: 1.5em; margin-bottom: .2em; }
+.qt b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.qt span { font-size: .8em; color: var(--fg2); }
+.qt.on { background: var(--accent); color: #fff; }
+.qt.on span { color: rgba(255, 255, 255, .85); }
+.qt.na { opacity: .45; cursor: default; }
+body.look-ios .qt { border-radius: 1.1em; background: rgba(255, 255, 255, .14); gap: .1em; }
+body.look-ios .qt svg { width: 2.1em; height: 2.1em; padding: .45em; border-radius: 50%; background: rgba(255, 255, 255, .2); margin-bottom: .35em; }
+body.look-ios .qt.on { background: rgba(255, 255, 255, .92); color: #111; }
+body.look-ios .qt.on svg { background: #0a84ff; color: #fff; }
+body.look-ios .qt.on span { color: rgba(0, 0, 0, .55); }
+body.look-win .qt { border-radius: 6px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .07); }
+body.look-win .qt.on { background: var(--wn); color: #000; border-color: transparent; }
+body.look-win .qt.on span { color: rgba(0, 0, 0, .7); }

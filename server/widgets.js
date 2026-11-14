@@ -27,9 +27,16 @@ const WIDGETS = {
     name: 'Clock', desc: 'The time, as digits or a clock face', defW: 6, defH: 3, minW: 2, minH: 1,
     opts: [T('face', 'Face', 'select', { options: ['digital', 'analog', 'big'], default: 'digital' }), T('date', 'Show the date', 'boolean', { default: true }), T('seconds', 'Show seconds', 'boolean', { default: false })],
   },
-  weather: { name: 'Weather', desc: 'Current conditions and the high and low', defW: 3, defH: 2, minW: 2, minH: 1, opts: [] },
+  weather: {
+    name: 'Weather', desc: 'Current conditions and the high and low, with the next hours and more if you like', defW: 3, defH: 2, minW: 2, minH: 1,
+    opts: [T('hourly', 'Show the next hours', 'boolean', { default: false }), T('details', 'Show feels like, rain, wind, sunrise and sunset', 'boolean', { default: false })],
+  },
   forecast: { name: '5-day forecast', desc: 'The next five days', defW: 6, defH: 2, minW: 4, minH: 1, opts: [] },
   agenda: { name: 'Calendar agenda', desc: 'Your next events', defW: 4, defH: 4, minW: 3, minH: 2, opts: [T('count', 'Events to show', 'number', { default: 4, min: 1, max: 8 })] },
+  month: {
+    name: 'Month calendar', desc: 'This month at a glance, with a dot on each day that has events', defW: 4, defH: 4, minW: 3, minH: 3,
+    opts: [T('weekStart', 'Weeks start on', 'select', { options: ['monday', 'sunday'], default: 'monday' })],
+  },
   nowplaying: {
     name: 'Now playing', desc: 'What is playing: cover, source, title, progress and controls', defW: 5, defH: 3, minW: 2, minH: 1,
     opts: [T('cover', 'Show the cover', 'boolean', { default: true }), T('source', 'Show the app it plays in', 'boolean', { default: true }), T('progress', 'Show the progress bar', 'boolean', { default: true }), T('controls', 'Show the controls', 'boolean', { default: true }), T('upnext', 'Show what plays next (Spotify)', 'boolean', { default: true })],
@@ -41,6 +48,10 @@ const WIDGETS = {
   stats: {
     name: 'PC stats', desc: 'CPU, memory, GPU, network, disks and the busiest apps, with graphs', defW: 6, defH: 3, minW: 2, minH: 1,
     opts: [T('metric', 'Show', 'select', { options: ['all', 'cpu', 'memory', 'gpu', 'network', 'disks', 'apps'], default: 'all' }), T('graph', 'Show graphs', 'boolean', { default: true })],
+  },
+  toggles: {
+    name: 'Quick toggles', desc: 'Tap tiles for the PC: sound, microphone, Wi-Fi, Bluetooth and dark mode', defW: 4, defH: 2, minW: 2, minH: 1,
+    opts: [T('sound', 'Sound', 'boolean', { default: true }), T('mic', 'Microphone', 'boolean', { default: true }), T('wifi', 'Wi-Fi', 'boolean', { default: true }), T('bluetooth', 'Bluetooth', 'boolean', { default: true }), T('dark', 'Dark mode', 'boolean', { default: true })],
   },
   volume: { name: 'Volume', desc: 'The PC\'s volume, with a slider', defW: 4, defH: 1, minW: 3, minH: 1, opts: [] },
   shortcuts: {

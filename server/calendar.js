@@ -148,6 +148,25 @@ function upcoming(text, now) {
   return list.slice(0, MAX_EVENTS).map((e) => Object.assign(e, { title: e.title.slice(0, 100) }));
 }
 
+/** How many events each day has, for the month grid: { 'YYYY-MM-DD': n } from the first of this month for six weeks. */
+function busyDays(text, now) {
+  const n = new Date(now), from = new Date(n.getFullYear(), n.getMonth(), 1).getTime(), to = from + 42 * 86400000;
+  const out = {};
+  const key = (t) => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  for (const ev of parseIcs(text)) {
+    if ((ev.props.STATUS && /CANCELLED/i.test(ev.props.STATUS.value))) continue;
+    const start = parseDate(ev.props.DTSTART);
+    if (!start) continue;
+    const end = parseDate(ev.props.DTEND);
+    const dur = end ? Math.max(0, end.t - start.t) : start.allDay ? 86400000 : 0;
+    for (const t of occurrences(ev, start, from - dur, to)) {
+      // an event over several days marks each of them (an all-day event's end is the next midnight)
+      for (let d = t; d < Math.max(t + 1, t + dur) && d < to; d += 86400000) if (d >= from) out[key(d)] = (out[key(d)] || 0) + 1;
+    }
+  }
+  return out;
+}
+
 /* ---------------------------------------------------------------- fetching */
 async function fetchIcs(url) {
   const ctl = new AbortController();
@@ -179,14 +198,14 @@ async function refresh(cfg) {
 function recompute() {
   if (!lastText) return;
   try {
-    latest = { events: upcoming(lastText, Date.now()), error: lastError, at: Date.now() };
+    latest = { events: upcoming(lastText, Date.now()), busy: busyDays(lastText, Date.now()), error: lastError, at: Date.now() };
     onUpdate(latest);
   } catch (e) { log.warn('calendar: could not read the file: ' + e.message); }
 }
 
 module.exports = {
   latest: () => latest,
-  upcoming, // for tests
+  upcoming, busyDays, // for tests
   start(getConfig, cb) {
     onUpdate = cb;
     clearInterval(timer);

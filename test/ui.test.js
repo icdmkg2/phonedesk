@@ -274,6 +274,67 @@ async function t(name, fn) {
       await api('config', { pages: before.pages, screens: before.screens, notes: [] });
     });
 
+    await t('the new widgets work: weather with the next hours, the month calendar, and quick toggles that tell the PC', async () => {
+      const w = require('../server/widgets');
+      const page = w.sanitizePages([{ name: 'New', widgets: [
+        { type: 'weather', x: 0, y: 0, w: 5, h: 4, opts: { hourly: true, details: true } },
+        { type: 'month', x: 5, y: 0, w: 3, h: 6 },
+        { type: 'toggles', x: 8, y: 0, w: 4, h: 3 },
+      ] }])[0];
+      const before = await api('config');
+      await api('config', { weather: true, pages: [...before.pages, page], screens: [...before.screens, 'page:' + page.id] });
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript(() => {
+        window.__sent = [];
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['weather', 'calendar', 'toggles', 'volume'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+            this.addEventListener('open', () => {
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+              setTimeout(() => {
+                const now = new Date(), key = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+                const hours = Array.from({ length: 12 }, (_, i) => ({ t: String(i).padStart(2, '0') + ':00', temp: 10 + i, code: 1, rain: i * 10, day: true }));
+                d({ t: 'weather', d: { at: Date.now(), city: 'Testville', unit: 'C', temp: 19, hi: 24, lo: 16, code: 2, day: true, feels: 18, rain: 20, wind: 12, sunrise: '06:21', sunset: '16:44', hours, days: [] } });
+                d({ t: 'calendar', d: { events: [], busy: { [key]: 2 }, at: Date.now() } });
+                d({ t: 'volume', d: { level: 0.5, muted: false } });
+                d({ t: 'toggles', d: { micMuted: true, dark: false, wifi: true, bluetooth: null } });
+              }, 50);
+            });
+          }
+          send(x) { try { window.__sent.push(JSON.parse(x)); } catch (e) {} return super.send(x); }
+        };
+      });
+      await ctx.addInitScript((s) => localStorage.setItem('pd.screen', JSON.stringify(s)), 'page:' + page.id);
+      const pg = await ctx.newPage();
+      const errors = []; pg.on('pageerror', (e) => errors.push(e.message));
+      await pg.goto(BASE + '/phone/'); await sleep(2500);
+      assert.deepStrictEqual(errors, []);
+      const on = '.screen.on ';
+      assert.strictEqual(await pg.locator(on + '.wg-weather .wx-h').count(), 8, 'eight hours in the weather widget');
+      assert.match(await pg.locator(on + '.wg-weather .wx-det').innerText(), /Feels 18°[\s\S]*Rain 20%[\s\S]*06:21[\s\S]*16:44/);
+      assert.ok(await pg.locator(on + '.mo-d:not(.out)').count() >= 28, 'every day of the month');
+      assert.strictEqual(await pg.locator(on + '.mo-d.today u').count(), 2, 'two dots on today (two events)');
+      assert.strictEqual(await pg.locator(on + '.qt').count(), 5, 'five toggles');
+      assert.ok(await pg.locator(on + '.qt[data-k="bluetooth"]').evaluate((b) => b.classList.contains('na')), 'a toggle the PC cannot read is shown as not available');
+      assert.ok(await pg.locator(on + '.qt[data-k="wifi"]').evaluate((b) => b.classList.contains('on')), 'Wi-Fi starts on');
+      await pg.locator(on + '.qt[data-k="wifi"]').click(); await sleep(200);
+      assert.ok(await pg.evaluate(() => window.__sent.some((m) => m.t === 'qt' && m.k === 'wifi')), 'the tap is sent to the PC');
+      assert.ok(await pg.locator(on + '.qt[data-k="wifi"]').evaluate((b) => !b.classList.contains('on')), 'the tile flips at once');
+      await ctx.close();
+      // the PC window: Find a setting
+      const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const dp = await dctx.newPage(); await dp.goto(BASE + '/'); await sleep(1500);
+      await dp.evaluate(() => { for (const id of ['onboard', 'whatsnew']) { const o = document.getElementById(id); if (o) o.hidden = true; } });
+      await dp.locator('#find').click(); await dp.keyboard.type('burn-in');
+      await sleep(200);
+      assert.match(await dp.locator('#find-list .find-i').first().innerText(), /Burn-in protection/);
+      await dp.keyboard.press('Enter'); await sleep(400);
+      assert.ok(await dp.evaluate(() => document.getElementById('v-display').classList.contains('on')), 'Enter opens Phone display');
+      await dctx.close();
+      await api('config', { pages: before.pages, screens: before.screens, weather: before.weather });
+    });
     await t('the iOS widget style draws its own tiles, and lyrics without word timings light a whole line at once', async () => {
       const w = require('../server/widgets');
       const page = w.sanitizePages([{ name: 'iOS', widgets: [
@@ -316,6 +377,11 @@ async function t(name, fn) {
       assert.ok(off < 1.5, 'the battery reading is ' + off.toFixed(1) + 'px off the ring centre');
       const lit = await pg.evaluate(() => [...document.querySelectorAll('.wg-lyrics .lw-c .lw-w')].map((s) => s.classList.contains('lit')));
       assert.ok(lit.length > 3 && lit.every(Boolean), 'every word of the sung line is lit: ' + JSON.stringify(lit));
+      // the Windows style: its own class, the iOS one off, and widgets on small-cornered cards
+      await api('config', { look: 'windows' }); await sleep(800);
+      assert.ok(await pg.evaluate(() => document.body.classList.contains('look-win') && !document.body.classList.contains('look-ios')), 'the Windows style is on');
+      assert.strictEqual(await pg.evaluate(() => getComputedStyle(document.querySelector('.screen.on .wg-devices')).borderTopLeftRadius), '8px', 'Windows widgets have 8px corners');
+      assert.deepStrictEqual(errors, []);
       await ctx.close();
       await api('config', { look: 'classic', pages: before.pages, screens: before.screens });
     });

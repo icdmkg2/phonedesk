@@ -27,11 +27,13 @@ interface IMMDeviceEnumerator { int f(); int GetDefaultAudioEndpoint(int dataFlo
 [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorComObject { }
 
 public static class PdAudio {
-  static IAudioEndpointVolume Vol() {
+  static IAudioEndpointVolume Vol() { return Vol(0); }
+  // flow 0 = speakers (render), 1 = microphone (capture)
+  static IAudioEndpointVolume Vol(int flow) {
     // Created by CLSID each time; a plain `new ... as` cast fails now and then with "Unable to cast ... MMDeviceEnumeratorComObject".
     var en = (IMMDeviceEnumerator)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")));
     IMMDevice dev = null;
-    Marshal.ThrowExceptionForHR(en.GetDefaultAudioEndpoint(0, 1, out dev));
+    Marshal.ThrowExceptionForHR(en.GetDefaultAudioEndpoint(flow, flow == 1 ? 0 : 1, out dev));
     IAudioEndpointVolume epv = null;
     var id = typeof(IAudioEndpointVolume).GUID;
     Marshal.ThrowExceptionForHR(dev.Activate(ref id, 23, 0, out epv));
@@ -41,6 +43,8 @@ public static class PdAudio {
   public static void SetVolume(float v) { if (v < 0) v = 0; if (v > 1) v = 1; Marshal.ThrowExceptionForHR(Vol().SetMasterVolumeLevelScalar(v, Guid.Empty)); }
   public static bool GetMute() { bool m = false; Marshal.ThrowExceptionForHR(Vol().GetMute(out m)); return m; }
   public static void SetMute(bool m) { Marshal.ThrowExceptionForHR(Vol().SetMute(m, Guid.Empty)); }
+  public static bool GetMicMute() { bool m = false; Marshal.ThrowExceptionForHR(Vol(1).GetMute(out m)); return m; }
+  public static void SetMicMute(bool m) { Marshal.ThrowExceptionForHR(Vol(1).SetMute(m, Guid.Empty)); }
 }
 
 public static class PdKeys {
@@ -256,6 +260,51 @@ function Send-AppIcon([string]$aumid) {
   if ($info) { Emit @{ t = 'appicon'; app = $aumid; png = $info.png; name = $info.name; game = $info.game } }
 }
 
+# ---------------------------------------------------------------- quick toggles (the Quick toggles widget)
+# Microphone mute, Wi-Fi and Bluetooth radios (Windows.Devices.Radios, no admin rights needed) and dark mode.
+# A toggle that can't be read on this PC is sent as $null and the phone shows it as unavailable.
+$PersonalizeKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+$script:radiosOk = $null
+function Get-Radio([string]$kind) {
+  if ($script:radiosOk -eq $false) { return $null }
+  try {
+    [void][Windows.Devices.Radios.Radio, Windows.System.Devices, ContentType = WindowsRuntime]
+    if ($null -eq $script:radiosOk) {
+      [void](Await ([Windows.Devices.Radios.Radio]::RequestAccessAsync()) ([Windows.Devices.Radios.RadioAccessStatus]))
+      $script:radiosOk = $true
+    }
+    $all = Await ([Windows.Devices.Radios.Radio]::GetRadiosAsync()) ([System.Collections.Generic.IReadOnlyList[Windows.Devices.Radios.Radio]])
+    foreach ($r in $all) { if ([string]$r.Kind -eq $kind) { return $r } }
+  } catch { $script:radiosOk = $false; Log "radios unavailable: $($_.Exception.Message)" }
+  return $null
+}
+function Send-Toggles {
+  $mic = $null; try { $mic = [PdAudio]::GetMicMute() } catch { }
+  $dark = $null; try { $dark = ((Get-ItemProperty -Path $PersonalizeKey -Name AppsUseLightTheme -ErrorAction Stop).AppsUseLightTheme -eq 0) } catch { }
+  $wifi = $null; $r = Get-Radio 'WiFi'; if ($r) { $wifi = ([string]$r.State -eq 'On') }
+  $bt = $null; $r = Get-Radio 'Bluetooth'; if ($r) { $bt = ([string]$r.State -eq 'On') }
+  Emit @{ t = 'toggles'; micMuted = $mic; dark = $dark; wifi = $wifi; bluetooth = $bt }
+}
+function Invoke-Toggle([string]$what) {
+  switch ($what) {
+    'mic' { [PdAudio]::SetMicMute(-not [PdAudio]::GetMicMute()) }
+    'dark' {
+      $light = (Get-ItemProperty -Path $PersonalizeKey -Name AppsUseLightTheme -ErrorAction SilentlyContinue).AppsUseLightTheme
+      $next = if ($light -eq 0) { 1 } else { 0 }
+      Set-ItemProperty -Path $PersonalizeKey -Name AppsUseLightTheme -Value $next -Type DWord
+      Set-ItemProperty -Path $PersonalizeKey -Name SystemUsesLightTheme -Value $next -Type DWord
+    }
+    { $_ -eq 'wifi' -or $_ -eq 'bluetooth' } {
+      $r = Get-Radio $(if ($what -eq 'wifi') { 'WiFi' } else { 'Bluetooth' })
+      if ($r) {
+        $to = if ([string]$r.State -eq 'On') { [Windows.Devices.Radios.RadioState]::Off } else { [Windows.Devices.Radios.RadioState]::On }
+        [void](Await ($r.SetStateAsync($to)) ([Windows.Devices.Radios.RadioAccessStatus]) 5000)
+      }
+    }
+  }
+  Send-Toggles
+}
+
 function Invoke-Cmd([string]$line) {
   $parts = $line.Split(' ', 2)
   $cmd = $parts[0]
@@ -264,6 +313,7 @@ function Invoke-Cmd([string]$line) {
     'ping' { Emit @{ t = 'pong' }; return }
     'volume' { [PdAudio]::SetVolume([float]::Parse($arg, [Globalization.CultureInfo]::InvariantCulture)); $script:forceVol = $true; return }
     'mute' { [PdAudio]::SetMute(-not [PdAudio]::GetMute()); $script:forceVol = $true; return }
+    'qt' { try { Invoke-Toggle $arg } catch { Log "toggle $arg failed: $($_.Exception.Message)"; Send-Toggles }; return }
     'keys' { Send-Combo $arg; return }
     'appvol' { $a = $arg.Split(' '); [PdMixer]::Set([uint32]$a[0], [float]::Parse($a[1], [Globalization.CultureInfo]::InvariantCulture), -1); $script:forceMixer = $true; return }
     'appmute' { [PdMixer]::Set([uint32]$arg, -1, 2); $script:forceMixer = $true; return }
@@ -706,6 +756,8 @@ while ($true) {
   if ($tick % 8 -eq 5) { try { Send-Net } catch { } }
   # --- busiest apps and CPU temperature, every ~4s ---
   if ($tick % 16 -eq 3) { try { Send-Sys } catch { if ($tick % 480 -eq 3) { Log "app stats failed: $($_.Exception.Message)" } } }
+  # --- quick toggles, every ~5s ---
+  if ($tick % 20 -eq 7) { try { Send-Toggles } catch { } }
   # --- Bluetooth batteries: start a read once a minute, collect it when it is done ---
   if ($tick % 120 -eq 9) { try { Start-Bt } catch { } }
   try { Poll-Bt } catch { }

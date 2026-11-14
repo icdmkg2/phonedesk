@@ -191,6 +191,7 @@
       case 'spotify': state.spotify = m.d; renderSpotify(); break;
       case 'notify': queueNotification(m.d); relayAddons('notification', m.d && { app: m.d.app, title: m.d.title, body: m.d.body }, 'notifications'); break;
       case 'bt': state.bt = Array.isArray(m.d) ? m.d : []; renderPage(); break;
+      case 'toggles': state.toggles = m.d || null; renderPage(); break;
       case 'recent': state.recent = Array.isArray(m.d) ? m.d : []; renderPage(); break;
       case 'addon': toAddon(m.id, 'message', m.d); widgetsOf(m.id).forEach(function (k) { toWidget(k, 'message', m.d); }); break;
     }
@@ -264,7 +265,7 @@
       swapText(el.title, m.title || 'Unknown title');
       swapText(el.artist, m.artist || m.album || '');
       swapText(el.app, (m.game ? 'Game · ' : '') + (m.app || ''));
-      setAppIcon(m.site === 'youtube' ? 'video' : m.appIcon || '');
+      setAppIcon(m.site === 'youtube' ? 'video' : m.appIcon || (m.app ? 'note' : ''));
       setArt(m.art || '');
     }
     if (Date.now() > optimisticUntil) setHref(el.playIc, isPlaying() ? '#i-pause' : '#i-play');
@@ -278,10 +279,13 @@
   var VIDEO_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="4.5" width="21" height="15" rx="4.5" fill="#FF0033"/><path d="M10 9v6l5.2-3z" fill="#fff"/></svg>';
   // The playing app's own icon (Spotify, a game...) or a video icon for YouTube in a browser.
   var lastAppIcon = null;
+  // when Windows gives no icon for the player, the pill still gets one: a music note
+  var NOTE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.4 5.5 19 3.1v3.3L7.4 8.8zM7.4 5.6h1.9v12H7.4zM17.1 3.4H19v12h-1.9zM2.893 18.694a3.2 2.5 -20 1 1 6.014 -2.188a3.2 2.5 -20 1 1 -6.014 2.188zM12.593 16.494a3.2 2.5 -20 1 1 6.014 -2.188a3.2 2.5 -20 1 1 -6.014 2.188z"/></svg>';
   function setAppIcon(src) {
     if (src === lastAppIcon) return;
     lastAppIcon = src;
     if (!src) { el.appIc.innerHTML = ''; return; }
+    if (src === 'note') { el.appIc.innerHTML = NOTE_ICON; return; }
     if (src === 'video') { el.appIc.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="4.5" width="21" height="15" rx="4.5" fill="#FF0033"/><path d="M10 9v6l5.2-3z" fill="#fff"/></svg>'; return; }
     var img = new Image();
     img.alt = '';
@@ -600,7 +604,7 @@
     days.forEach(function (x, i) {
       var p = String(x.d).split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2]);
       var name = i === 0 ? 'Today' : dt.toLocaleDateString(undefined, { weekday: 'short' });
-      html += '<div class="fc-d"><span class="fc-n">' + escHtml(name) + '</span>' + wxIcon(x.code, true) + '<span class="fc-t"><b>' + x.hi + '°</b> ' + x.lo + '°</span></div>';
+      html += '<div class="fc-d"><span class="fc-n">' + escHtml(name) + '</span>' + wxIcon(x.code, true) + '<span class="fc-t"><b>' + x.hi + '°</b> ' + x.lo + '°</span>' + (x.rain >= 30 ? '<span class="fc-r">' + x.rain + '%</span>' : '') + '</div>';
     });
     if (html !== fcKey) { fcKey = html; box.innerHTML = html; }
   }
@@ -887,16 +891,38 @@
       },
     };
   }
-  function wWeather() {
-    var el = wEl('weather'), last = null;
+  // Weather extras, shared by every style: a details line and the next hours
+  var SUN_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M7.5 18a4.5 4.5 0 0 1 9 0M12 4v5M9.5 6.5 12 4l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var SUN_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M7.5 18a4.5 4.5 0 0 1 9 0M12 4v5M9.5 6.5 12 9l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function wxExtras(o, w) {
+    var html = '';
+    if (o.details) {
+      var bits = [];
+      if (w.feels != null) bits.push('<span>Feels ' + w.feels + '°</span>');
+      if (w.rain != null) bits.push('<span>Rain ' + w.rain + '%</span>');
+      if (w.wind != null) bits.push('<span>Wind ' + (state.config.weatherUnit === 'f' ? Math.round(w.wind * 0.621) + ' mph' : w.wind + ' km/h') + '</span>');
+      if (w.sunrise) bits.push('<span class="wx-sun">' + SUN_UP + w.sunrise + '</span>');
+      if (w.sunset) bits.push('<span class="wx-sun">' + SUN_DOWN + w.sunset + '</span>');
+      if (bits.length) html += '<div class="wx-det">' + bits.join('') + '</div>';
+    }
+    if (o.hourly && w.hours && w.hours.length) {
+      html += '<div class="wx-hours">' + w.hours.slice(0, 8).map(function (x, i) {
+        return '<div class="wx-h"><span>' + (i === 0 ? 'Now' : escHtml(x.t)) + '</span>' + wxIcon(x.code, x.day) + '<b>' + x.temp + '°</b>' + (x.rain != null && x.rain >= 20 ? '<i>' + x.rain + '%</i>' : '<i></i>') + '</div>';
+      }).join('') + '</div>';
+    }
+    return html;
+  }
+  function wxExtraH(o) { return (o.details ? 30 : 0) + (o.hourly ? 78 : 0); }
+  function wWeather(wd) {
+    var o = (wd && wd.opts) || {}, el = wEl('weather'), last = null;
     return {
       el: el,
       update: function () {
-        var w = wFresh() ? weather : null, html = w ? '<div class="w-wxrow">' + wxIcon(w.code, w.day) + '<b>' + w.temp + '°</b></div><div class="w-sub">' + escHtml(w.city || '') + '</div><div class="w-sub">H ' + w.hi + '° · L ' + w.lo + '°</div>' : null;
+        var w = wFresh() ? weather : null, html = w ? '<div class="w-wxrow">' + wxIcon(w.code, w.day) + '<b>' + w.temp + '°</b></div><div class="w-sub">' + escHtml(w.city || '') + '</div><div class="w-sub">H ' + w.hi + '° · L ' + w.lo + '°</div>' + wxExtras(o, w) : null;
         if (html === last) return; last = html;
         if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
       },
-      resize: function (w, h) { wScale(el, w, h, 150, 98, 10, 30); },
+      resize: function (w, h) { wScale(el, w, h, o.hourly ? 300 : 150, 98 + wxExtraH(o), 10, 30); },
     };
   }
   function wForecast() {
@@ -981,11 +1007,12 @@
         mqSet(titleBox, m.active ? (m.title || 'Unknown title') : 'Nothing playing');
         mqSet(artistBox, m.active ? (m.artist || m.album || '') : 'Play something on your PC');
         if (srcN) {
-          var name = m.active ? (m.game ? 'Game · ' : '') + (m.app || '') : '', icon = m.active ? (m.site === 'youtube' ? 'video' : m.appIcon || '') : '';
+          var name = m.active ? (m.game ? 'Game · ' : '') + (m.app || '') : '', icon = m.active ? (m.site === 'youtube' ? 'video' : m.appIcon || (m.app ? 'note' : '')) : '';
           setText(srcN, name); el.classList.toggle('no-src', !name);
           if (icon !== lastIcon) {
             lastIcon = icon; srcIc.textContent = '';
             if (icon === 'video') srcIc.innerHTML = VIDEO_ICON;
+            else if (icon === 'note') srcIc.innerHTML = NOTE_ICON;
             else if (icon) { var im = new Image(); im.alt = ''; im.onerror = function () { srcIc.textContent = ''; }; im.src = pcUrl(icon); srcIc.appendChild(im); }
           }
         }
@@ -1229,7 +1256,77 @@
     return { el: el, update: function () {}, resize: function (w, h) { p.style.fontSize = Math.max(10, Math.min(h * size, w * size * .8)) + 'px'; } };
   }
 
-  // World clock: up to four places, "Name=Area/City; …"
+  // This month as a grid: today marked, a dot under each day with events (from the calendar in Phone display)
+  // Quick toggles: tiles like Windows quick settings. Sound is the volume mute; the others come from the bridge, and a
+  // tile this PC can't read is shown dimmed. A tap flips the tile at once and the PC's answer settles it.
+  var QT = {
+    sound: { label: 'Sound', on: 'On', off: 'Muted', ic: '<path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.2 3.4a.8.8 0 0 0 1.3-.6V5.7a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z" fill="currentColor"/><path d="M16.5 9a4.2 4.2 0 0 1 0 6M19 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
+    mic: { label: 'Microphone', on: 'On', off: 'Muted', ic: '<rect x="9" y="3.5" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
+    wifi: { label: 'Wi-Fi', on: 'On', off: 'Off', ic: '<path d="M3 9.5a13 13 0 0 1 18 0M6 12.8a8.5 8.5 0 0 1 12 0M9 16a4 4 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/>' },
+    bluetooth: { label: 'Bluetooth', on: 'On', off: 'Off', ic: '<path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>' },
+    dark: { label: 'Dark mode', on: 'On', off: 'Off', ic: '<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" fill="currentColor"/>' },
+  };
+  function qtState(k) {
+    var t = state.toggles || {};
+    if (k === 'sound') return state.volume ? !state.volume.muted : null;
+    if (k === 'mic') return t.micMuted == null ? null : !t.micMuted;
+    return t[k] == null ? null : !!t[k];
+  }
+  function wToggles(wd, live) {
+    var o = wd.opts || {}, el = wEl('toggles'), last = '', pending = {};
+    var keys = ['sound', 'mic', 'wifi', 'bluetooth', 'dark'].filter(function (k) { return o[k] !== false; });
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('.qt'); if (!b) return;
+      e.stopPropagation();
+      if (!live || b.classList.contains('na')) return;
+      var k = b.getAttribute('data-k'), cur = qtState(k);
+      pending[k] = { v: !cur, until: Date.now() + 4000 }; // show the new state right away
+      send({ t: 'qt', k: k }); api.update();
+    });
+    var api = {
+      el: el,
+      update: function () {
+        var html = keys.map(function (k) {
+          var d = QT[k], v = qtState(k), p = pending[k];
+          if (p && Date.now() < p.until && v !== p.v) v = p.v; else delete pending[k];
+          var na = v == null;
+          return '<button type="button" class="qt' + (v ? ' on' : '') + (na ? ' na' : '') + '" data-k="' + k + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + d.ic + '</svg><b>' + d.label + '</b><span>' + (na ? 'Not available' : v ? d.on : d.off) + '</span></button>';
+        }).join('');
+        if (html !== last) { last = html; el.innerHTML = html; }
+      },
+      resize: function (w, h) {
+        var n = keys.length || 1, cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * w / h / 1.1))));
+        var rows = Math.ceil(n / cols);
+        el.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))'; el.style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
+        el.style.setProperty('--wf', Math.max(9, Math.min(h / rows * .17, w / cols * .12)).toFixed(1) + 'px');
+      },
+    };
+    return api;
+  }
+  function wMonth(wd) {
+    var o = wd.opts || {}, el = wEl('month'), last = '';
+    var sun = o.weekStart === 'sunday';
+    return {
+      el: el,
+      update: function () {
+        var now = new Date(Date.now() + state.clockOffset), y = now.getFullYear(), m = now.getMonth(), today = now.getDate();
+        var busy = (agenda && agenda.busy) || {};
+        var first = new Date(y, m, 1), lead = (first.getDay() - (sun ? 0 : 1) + 7) % 7, inMonth = new Date(y, m + 1, 0).getDate();
+        var heads = '', i, names = [];
+        for (i = 0; i < 7; i++) names.push(new Date(2026, 1, (sun ? 1 : 2) + i).toLocaleDateString(undefined, { weekday: 'narrow' })); // 1 Feb 2026 is a Sunday
+        heads = names.map(function (n) { return '<span class="mo-wd">' + escHtml(n) + '</span>'; }).join('');
+        var rows = Math.ceil((lead + inMonth) / 7), cells = '';
+        for (i = 0; i < rows * 7; i++) {
+          var d = new Date(y, m, 1 - lead + i), out = d.getMonth() !== m;
+          var k = d.getFullYear() + '-' + wPad2(d.getMonth() + 1) + '-' + wPad2(d.getDate()), n = busy[k] || 0;
+          cells += '<span class="mo-d' + (out ? ' out' : '') + (!out && d.getDate() === today ? ' today' : '') + '"><b>' + d.getDate() + '</b><i>' + (n ? '<u></u>' + (n > 1 ? '<u></u>' : '') + (n > 2 ? '<u></u>' : '') : '') + '</i></span>';
+        }
+        var html = '<div class="mo-h">' + escHtml(now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })) + '</div><div class="mo-g" style="--rows:' + rows + '">' + heads + cells + '</div>';
+        if (html !== last) { last = html; el.innerHTML = html; }
+      },
+      resize: function (w, h) { wScale(el, w, h, 230, 220, 8, 24); },
+    };
+  }
   function wWorld(wd) {
     var o = wd.opts || {}, el = wEl('worldclock');
     var zones = String(o.zones || '').split(/[;\n]/).map(function (p) { var kv = p.split('='); return { name: (kv[0] || '').trim(), zone: (kv[1] || kv[0] || '').trim() }; })
@@ -1413,6 +1510,85 @@
 
   /* ---- iOS look: widgets laid out like iPhone home-screen widgets ---- */
   function isIos() { return state.config.look === 'ios'; }
+  function isWin() { return state.config.look === 'windows'; }
+
+  // ---------------------------------------------------------------- Windows widget style: widgets like the Windows 11 widgets board
+  var WN_IC = {
+    weather: '<path d="M7 17.5h9.5a3.5 3.5 0 0 0 .3-7 5 5 0 0 0-9.7 1.4A2.9 2.9 0 0 0 7 17.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+    clock: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    pin: '<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/>',
+  };
+  function wnHead(icon, title, right) {
+    return '<div class="wn-h"><svg viewBox="0 0 24 24" aria-hidden="true">' + WN_IC[icon] + '</svg><span>' + escHtml(title) + '</span>' + (right ? '<em>' + right + '</em>' : '') + '</div>';
+  }
+  function wnDays(n) {
+    var days = wFresh() && weather.days ? weather.days.slice(0, n) : [];
+    return days.map(function (x, i) {
+      var p = String(x.d).split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2]);
+      return '<div class="wn-day"><span>' + escHtml(i === 0 ? 'Today' : dt.toLocaleDateString(undefined, { weekday: 'short' })) + '</span>' + wxIcon(x.code, true) + '<b>' + x.hi + '°</b><i>' + x.lo + '°</i></div>';
+    }).join('');
+  }
+  function winWeather(wd) {
+    var o = (wd && wd.opts) || {}, el = wEl('weather'), last = null;
+    el.classList.add('wn');
+    return {
+      el: el,
+      update: function () {
+        var w = wFresh() ? weather : null;
+        var unit = state.config.weatherUnit === 'f' ? 'F' : 'C';
+        var html = w ? wnHead('pin', w.city || 'Weather') +
+          '<div class="wn-now">' + wxIcon(w.code, w.day) + '<b class="wn-temp">' + w.temp + '<small>°' + unit + '</small></b><div class="wn-cond"><span>' + WX_TEXT(w.code) + '</span><span>H ' + w.hi + '° · L ' + w.lo + '°</span></div></div>' +
+          wxExtras(o, w) + (o.hourly ? '' : '<div class="wn-days">' + wnDays(4) + '</div>') : null;
+        if (html === last) return; last = html;
+        if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
+      },
+      resize: function (w, h) { wScale(el, w, h, o.hourly ? 320 : 230, (o.hourly ? 112 : 190) + wxExtraH(o), 9, 24); el.classList.toggle('wn-short', !o.hourly && h < w * 0.62); },
+    };
+  }
+  function winForecast() {
+    var el = wEl('forecast'), last = null;
+    el.classList.add('wn');
+    return {
+      el: el,
+      update: function () {
+        var d = wnDays(5), html = d ? wnHead('weather', 'Forecast', wFresh() && weather.city ? escHtml(weather.city) : '') + '<div class="wn-days wn-days-big">' + d + '</div>' : null;
+        if (html === last) return; last = html;
+        if (html) el.innerHTML = html; else wEmpty(el, 'No forecast yet');
+      },
+      resize: function (w, h) { wScale(el, w, h, 340, 150, 9, 24); },
+    };
+  }
+  // Like the Windows Clock app's world clock: one row per place with how far ahead or behind it is
+  function winWorld(wd) {
+    var o = wd.opts || {}, el = wEl('worldclock');
+    el.classList.add('wn');
+    var zones = String(o.zones || '').split(/[;\n]/).map(function (p) { var kv = p.split('='); return { name: (kv[0] || '').trim(), zone: (kv[1] || kv[0] || '').trim() }; }).filter(function (z) { return z.zone; }).slice(0, 4);
+    if (!zones.length) { wEmpty(el, 'Add places like London=Europe/London'); return { el: el, update: function () {} }; }
+    el.innerHTML = wnHead('clock', 'World clock') + '<div class="wn-zones">' + zones.map(function () { return '<div class="wn-z"><div><b></b><span></span></div><strong></strong></div>'; }).join('') + '</div>';
+    var cells = el.querySelectorAll('.wn-z');
+    return {
+      el: el,
+      update: function () {
+        var now = new Date(Date.now() + state.clockOffset);
+        var localUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+        zones.forEach(function (z, i) {
+          var c = cells[i], t = '?', rel = 'Unknown time zone';
+          try {
+            var f = {}; new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false, timeZone: z.zone }).formatToParts(now).forEach(function (p) { f[p.type] = +p.value; });
+            var diff = Math.round((Date.UTC(f.year, f.month - 1, f.day, f.hour % 24, f.minute) - localUtc) / 1800000) / 2;
+            var dayDiff = Date.UTC(f.year, f.month - 1, f.day) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+            var day = dayDiff === 0 ? 'Today' : dayDiff > 0 ? 'Tomorrow' : 'Yesterday';
+            var hrs = Math.abs(diff), hl = (hrs % 1 ? hrs.toFixed(1) : hrs) + (hrs === 1 ? ' hour' : ' hours');
+            rel = day + ', ' + (diff === 0 ? 'same time' : hl + (diff > 0 ? ' ahead' : ' behind'));
+            t = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit', hour12: !!o.hour12, timeZone: z.zone }).format(now);
+          } catch (e) { /* keep '?' */ }
+          setText(c.querySelector('b'), z.name || z.zone.split('/').pop().replace(/_/g, ' '));
+          setText(c.querySelector('span'), rel); setText(c.querySelector('strong'), t);
+        });
+      },
+      resize: function (w, h) { wScale(el, w, h, 270, 40 + 46 * zones.length, 9, 22); },
+    };
+  }
   var WX_TEXT = function (c) {
     if (c === 0) return 'Clear'; if (c <= 2) return 'Partly Cloudy'; if (c === 3) return 'Cloudy'; if (c === 45 || c === 48) return 'Fog';
     if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'Snow'; if (c >= 95) return 'Thunderstorm'; if (c >= 51 && c <= 57) return 'Drizzle'; return 'Rain';
@@ -1425,19 +1601,19 @@
     // the number sits in a box that is exactly the ring's size, so it is centred on the ring whatever its font size
     return '<div class="io-ring" style="--rc:' + color + '"><div class="io-dial"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + r + '" class="io-rt"/>' + (v > 0 ? '<circle cx="50" cy="50" r="' + r + '" class="io-rv" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '"/>' : '') + '</svg><b>' + (inner != null ? inner : '<i>' + Math.round(v) + '<small>%</small></i>') + '</b></div>' + (label ? '<span>' + (labelIcon || '') + escHtml(label) + '</span>' : '') + '</div>';
   }
-  function iosWeather() {
-    var el = wEl('weather'), last = null;
+  function iosWeather(wd) {
+    var o = (wd && wd.opts) || {}, el = wEl('weather'), last = null;
     el.classList.add('io-sky');
     return {
       el: el,
       update: function () {
         var w = wFresh() ? weather : null;
-        var html = w ? '<div class="iw-top"><span class="iw-city">' + escHtml(w.city || 'Weather') + '</span><b class="iw-temp">' + w.temp + '°</b></div><div class="iw-bot">' + wxIcon(w.code, w.day) + '<span class="iw-cond">' + WX_TEXT(w.code) + '</span><span class="iw-hl">H:' + w.hi + '° L:' + w.lo + '°</span></div>' : null;
+        var html = w ? '<div class="iw-top"><span class="iw-city">' + escHtml(w.city || 'Weather') + '</span><b class="iw-temp">' + w.temp + '°</b></div><div class="iw-bot">' + wxIcon(w.code, w.day) + '<span class="iw-cond">' + WX_TEXT(w.code) + '</span><span class="iw-hl">H:' + w.hi + '° L:' + w.lo + '°</span></div>' + wxExtras(o, w) : null;
         if (html === last) return; last = html;
         el.setAttribute('data-sky', w ? skyOf(w.code, w.day) : 'cloudy');
         if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
       },
-      resize: function (w, h) { wScale(el, w, h, 150, 140, 10, 26); el.classList.toggle('io-wide', w > h * 1.6); },
+      resize: function (w, h) { wScale(el, w, h, o.hourly ? 300 : 150, 140 + wxExtraH(o), 10, 26); el.classList.toggle('io-wide', w > h * 1.6 && !o.hourly && !o.details); },
     };
   }
   function iosForecast() {
@@ -1535,6 +1711,10 @@
   }
 
   function makeWidget(wd, live, pageId) {
+    if (isWin()) {
+      var wv = { weather: winWeather, forecast: winForecast, worldclock: winWorld }[wd.type];
+      if (wv) return wv(wd);
+    }
     if (isIos()) {
       var io = { weather: iosWeather, forecast: iosForecast, devices: iosDevices, worldclock: iosWorld, agenda: iosAgenda }[wd.type];
       if (io) return io(wd);
@@ -1545,6 +1725,7 @@
       case 'weather': return wWeather(wd);
       case 'forecast': return wForecast(wd);
       case 'agenda': return wAgenda(wd);
+      case 'month': return wMonth(wd);
       case 'nowplaying': return wNow(wd);
       case 'stats': return wStats(wd);
       case 'lyrics': return wLyrics(wd);
@@ -1555,6 +1736,7 @@
       case 'recent': return wRecent(wd);
       case 'devices': return wDevices(wd);
       case 'volume': return wVolume(wd);
+      case 'toggles': return wToggles(wd, live);
       case 'shortcuts': return wShortcuts(wd, live);
       case 'text': return wText(wd);
     }
@@ -1980,6 +2162,7 @@
     if (c.nowStyle === 'classic') closeLyrics(true);
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
     toggle(document.body, 'look-ios', c.look === 'ios');
+    toggle(document.body, 'look-win', c.look === 'windows');
     var meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', c.theme === 'light' ? '#f4f5f7' : c.theme === 'black' ? '#000000' : '#0e0f12');
     currentTint = '';
@@ -2352,7 +2535,7 @@
     setText($('ly-a'), m.active ? (m.artist || '') : '');
     if (lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
     setText($('ly-song'), m.active ? (m.title || '') + (m.artist ? ' — ' + m.artist : '') : '');
-    var ic = m.active ? (m.site === 'youtube' ? VIDEO_ICON : m.appIcon ? '<img src="' + pcUrl(m.appIcon) + '" alt="">' : '') : '';
+    var ic = m.active ? (m.site === 'youtube' ? VIDEO_ICON : m.appIcon ? '<img src="' + pcUrl(m.appIcon) + '" alt="">' : m.app ? NOTE_ICON : '') : '';
     if ($('ly-ic').getAttribute('data-ic') !== ic) { $('ly-ic').setAttribute('data-ic', ic); $('ly-ic').innerHTML = ic; }
     if (!lyr) setLyrics(null);
   }

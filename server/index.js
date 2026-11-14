@@ -44,6 +44,7 @@ const state = {
   gpu: null,
   lyrics: null,
   bt: [],      // Bluetooth devices that report a battery: [{ name, level }]
+  toggles: null, // Quick toggles from the bridge: { micMuted, dark, wifi, bluetooth }, each true/false/null
   recent: [],  // songs played lately, newest first: [{ title, artist, app, at }]
   mediaRaw: '', // the playing app's Windows id (e.g. Spotify.exe)
 };
@@ -130,6 +131,11 @@ bridge.on('message', (m) => {
       .slice(0, 16).map((x) => ({ name: String(x.name).slice(0, 60), level: +x.level >= 0 && +x.level <= 100 ? Math.round(+x.level) : -1, kind: KINDS.includes(x.kind) ? x.kind : '' }))
       .sort((a, b) => (b.level >= 0) - (a.level >= 0) || a.name.localeCompare(b.name));
     if (JSON.stringify(items) !== JSON.stringify(state.bt)) { state.bt = items; broadcast({ t: 'bt', d: items }); }
+  } else if (m.t === 'toggles') {
+    // the Quick toggles: true/false, or null when this PC can't read that one
+    const b = (v) => (v === true || v === false ? v : null);
+    const t = { micMuted: b(m.micMuted), dark: b(m.dark), wifi: b(m.wifi), bluetooth: b(m.bluetooth) };
+    if (JSON.stringify(t) !== JSON.stringify(state.toggles)) { state.toggles = t; broadcast({ t: 'toggles', d: t }); }
   } else if (m.t === 'log') {
     log.warn('[bridge] ' + m.msg);
   } else if (m.t === 'ready') {
@@ -696,6 +702,7 @@ wss.on('connection', (ws, req) => {
   sendTo(ws, { t: 'calendar', d: calendar.latest() });
   sendTo(ws, { t: 'spotify', d: spotify.latest() });
   sendTo(ws, { t: 'bt', d: state.bt });
+  if (state.toggles) sendTo(ws, { t: 'toggles', d: state.toggles });
   sendTo(ws, { t: 'recent', d: state.recent });
   if (role === 'dashboard') sendTo(ws, { t: 'update', d: updater.status() });
 
@@ -733,6 +740,10 @@ function handleClientMessage(client, m) {
       if (Number.isFinite(+m.v)) bridge.send('volume ' + Math.min(1, Math.max(0, +m.v)).toFixed(3));
       return;
     case 'mute': return bridge.send('mute');
+    case 'qt': // a Quick toggles tile: sound is the volume mute; the rest go to the bridge
+      if (m.k === 'sound') return bridge.send('mute');
+      if (['mic', 'wifi', 'bluetooth', 'dark'].includes(m.k)) bridge.send('qt ' + m.k);
+      return;
     case 'appvol':
       if (Number.isInteger(+m.pid) && Number.isFinite(+m.v)) bridge.send(`appvol ${+m.pid} ${Math.min(1, Math.max(0, +m.v)).toFixed(3)}`);
       return;

@@ -7,6 +7,56 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.14.0] — 2026-11-14
+
+The PhoneDesk window now looks and works like Windows 11 Settings, and the phone has a Windows widget style.
+
+### Added
+
+- **Find a setting** in the PC window: a search box at the top of the sidebar (or Ctrl+F) finds any setting on any page;
+  pick one and the page opens with that setting highlighted.
+
+  ![Finding the night settings](docs/changelog/1.14.0/dashboard-find.png)
+
+- **Quick toggles widget:** tap tiles for the PC like Windows quick settings: sound, microphone, Wi-Fi, Bluetooth and dark
+  mode, each showing whether it is on. Choose which tiles it shows. A tile the PC can't control is shown dimmed.
+- **Month calendar widget:** this month at a glance, today marked, with a dot for each event on a day (from the
+  calendar in Phone display). Weeks can start on Monday or Sunday.
+- **Weather details:** the Weather widget can show the next hours (with the chance of rain) and a line with how warm it
+  feels, the chance of rain, the wind, sunrise and sunset. The 5-day forecast shows the chance of rain on wet days.
+
+  ![The new widgets in the Windows style](docs/changelog/1.14.0/phone-new-widgets.png)
+
+- **Windows widget style for the phone.** In Phone display, under Widget style, pick Windows: pages sit on a deep blue
+  desktop with a soft blue bloom, and widgets are dark Mica-style cards with small corners and a thin light edge, in
+  Windows blue, with the page dots in a small taskbar-style bar. Weather shows its place, the temperature, the sky and
+  the next four days, like the Windows weather widget; World clock lists each place with how many hours ahead or
+  behind it is, like the Windows Clock app; Forecast has a title row too. Classic stays the default; iOS is still there.
+
+![A page in the Windows widget style](docs/changelog/1.14.0/phone-windows-style.png)
+
+### Changed
+
+- **The PC window looks like Windows 11 Settings.** A quiet dark window, a plain sidebar where the selected page is
+  marked by a small blue bar, large page titles, Windows-style buttons, text boxes and switches, in Segoe UI.
+- **Every page is one column of settings rows.** Each setting is a full-width row with its icon, name and description
+  on the left and its switch or choice on the right, grouped under small headings:
+  - Overview: your phone, Now playing with volume, PC stats, recent activity.
+  - Phone display: Music, Look, Clock and calendar, Night and screen care, Notifications, Screens, Widgets, with the
+    live preview at the top.
+  - Layouts: the pages, then the page's settings, the editor, adding widgets and the selected widget.
+  - Shortcuts, Addons, Connection (phones, connecting, USB, Spotify, Spicy Lyrics, Advanced), Updates and Activity.
+
+![The Overview page of the PhoneDesk window](docs/changelog/1.14.0/dashboard-overview.png)
+
+### Fixed
+
+- The music note shown when a song has no album cover is redrawn as one solid note; it looked broken, with thin
+  disconnected lines and seams on the newer styles.
+- The pill that names the music app on the phone always has an icon now: the app's own icon from Windows, or a music
+  note when Windows doesn't give one.
+- The release workflow no longer fails when GitHub won't create a page for an older version that shipped inside a later one.
+
 ## [1.13.0] — 2026-11-13
 
 An iOS-style look for your pages, and lyrics that stay in time.
