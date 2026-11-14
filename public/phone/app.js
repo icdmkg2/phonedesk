@@ -264,7 +264,7 @@
       swapText(el.title, m.title || 'Unknown title');
       swapText(el.artist, m.artist || m.album || '');
       swapText(el.app, (m.game ? 'Game · ' : '') + (m.app || ''));
-      setAppIcon(m.site === 'youtube' ? 'video' : m.appIcon || '');
+      setAppIcon(m.site === 'youtube' ? 'video' : m.appIcon || (m.app ? 'note' : ''));
       setArt(m.art || '');
     }
     if (Date.now() > optimisticUntil) setHref(el.playIc, isPlaying() ? '#i-pause' : '#i-play');
@@ -278,10 +278,13 @@
   var VIDEO_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="4.5" width="21" height="15" rx="4.5" fill="#FF0033"/><path d="M10 9v6l5.2-3z" fill="#fff"/></svg>';
   // The playing app's own icon (Spotify, a game...) or a video icon for YouTube in a browser.
   var lastAppIcon = null;
+  // when Windows gives no icon for the player, the pill still gets one: a music note
+  var NOTE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18.5V6.8a1 1 0 0 1 .8-1l8-1.6a1 1 0 0 1 1.2 1v11.3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="6.5" cy="18.5" r="2.5" fill="currentColor"/><circle cx="16.5" cy="16.5" r="2.5" fill="currentColor"/></svg>';
   function setAppIcon(src) {
     if (src === lastAppIcon) return;
     lastAppIcon = src;
     if (!src) { el.appIc.innerHTML = ''; return; }
+    if (src === 'note') { el.appIc.innerHTML = NOTE_ICON; return; }
     if (src === 'video') { el.appIc.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="4.5" width="21" height="15" rx="4.5" fill="#FF0033"/><path d="M10 9v6l5.2-3z" fill="#fff"/></svg>'; return; }
     var img = new Image();
     img.alt = '';
@@ -981,11 +984,12 @@
         mqSet(titleBox, m.active ? (m.title || 'Unknown title') : 'Nothing playing');
         mqSet(artistBox, m.active ? (m.artist || m.album || '') : 'Play something on your PC');
         if (srcN) {
-          var name = m.active ? (m.game ? 'Game · ' : '') + (m.app || '') : '', icon = m.active ? (m.site === 'youtube' ? 'video' : m.appIcon || '') : '';
+          var name = m.active ? (m.game ? 'Game · ' : '') + (m.app || '') : '', icon = m.active ? (m.site === 'youtube' ? 'video' : m.appIcon || (m.app ? 'note' : '')) : '';
           setText(srcN, name); el.classList.toggle('no-src', !name);
           if (icon !== lastIcon) {
             lastIcon = icon; srcIc.textContent = '';
             if (icon === 'video') srcIc.innerHTML = VIDEO_ICON;
+            else if (icon === 'note') srcIc.innerHTML = NOTE_ICON;
             else if (icon) { var im = new Image(); im.alt = ''; im.onerror = function () { srcIc.textContent = ''; }; im.src = pcUrl(icon); srcIc.appendChild(im); }
           }
         }
@@ -2436,7 +2440,7 @@
     setText($('ly-a'), m.active ? (m.artist || '') : '');
     if (lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
     setText($('ly-song'), m.active ? (m.title || '') + (m.artist ? ' — ' + m.artist : '') : '');
-    var ic = m.active ? (m.site === 'youtube' ? VIDEO_ICON : m.appIcon ? '<img src="' + pcUrl(m.appIcon) + '" alt="">' : '') : '';
+    var ic = m.active ? (m.site === 'youtube' ? VIDEO_ICON : m.appIcon ? '<img src="' + pcUrl(m.appIcon) + '" alt="">' : m.app ? NOTE_ICON : '') : '';
     if ($('ly-ic').getAttribute('data-ic') !== ic) { $('ly-ic').setAttribute('data-ic', ic); $('ly-ic').innerHTML = ic; }
     if (!lyr) setLyrics(null);
   }

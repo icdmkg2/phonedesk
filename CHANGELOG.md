@@ -37,6 +37,8 @@ The PhoneDesk window now looks and works like Windows 11 Settings, and the phone
 
 ### Fixed
 
+- The pill that names the music app on the phone always has an icon now: the app's own icon from Windows, or a music
+  note when Windows doesn't give one.
 - The release workflow no longer fails when GitHub won't create a page for an older version that shipped inside a later one.
 
 ## [1.13.0] — 2026-11-13
