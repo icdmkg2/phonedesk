@@ -1980,6 +1980,7 @@
     if (c.nowStyle === 'classic') closeLyrics(true);
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
     toggle(document.body, 'look-ios', c.look === 'ios');
+    toggle(document.body, 'look-win', c.look === 'windows');
     var meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', c.theme === 'light' ? '#f4f5f7' : c.theme === 'black' ? '#000000' : '#0e0f12');
     currentTint = '';

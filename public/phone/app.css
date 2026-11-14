@@ -1257,3 +1257,32 @@ body.look-ios .np-top > *, body.look-ios .app { background: rgba(255, 255, 255, 
 .io-ring > span .bt-ic { width: 1.1em; height: 1.1em; color: rgba(255, 255, 255, .7); }
 .io-ring .io-icon { display: grid; place-items: center; }
 .io-ring .io-icon .bt-ic { width: 1.5em; height: 1.5em; color: rgba(255, 255, 255, .85); }
+
+/* ---------------------------------------------------------------- Windows widget style (look: 'windows')
+   Like the Windows 11 widgets board: a deep blue desktop, widgets on Mica-dark cards with small corners and a thin
+   light edge, Segoe UI, a calm blue accent, and the page dots as a small taskbar-style pill. */
+body.look-win {
+  --radius: 8px; --card: rgba(38, 38, 44, .86); --line: rgba(255, 255, 255, .09);
+  --fg: #fff; --fg2: rgba(255, 255, 255, .74); --fg3: rgba(255, 255, 255, .46);
+  font-family: "Segoe UI Variable Text", "Segoe UI", "PD Inter", system-ui, sans-serif;
+}
+body.look-win #bg { opacity: 0; }
+body.look-win #wall {
+  display: block; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(42% 60% at 64% 46%, rgba(120, 170, 255, .55), transparent 70%),
+    radial-gradient(55% 80% at 70% 50%, rgba(40, 90, 230, .55), transparent 72%),
+    radial-gradient(60% 70% at 15% 100%, rgba(30, 50, 140, .45), transparent 70%),
+    linear-gradient(160deg, #0a1430, #08102a 55%, #050a1c) !important;
+}
+body.look-win .screen.page { padding: 40px 16px 34px; }
+body.look-win .wgrid { gap: 10px; }
+body.look-win .wg { background: var(--card); border: 1px solid var(--line); border-top-color: rgba(255, 255, 255, .14); border-radius: 8px; padding: 12px 14px; box-shadow: 0 8px 18px rgba(0, 0, 0, .28); }
+body.look-win .wg.look-clear { background: none; border-color: transparent; box-shadow: none; }
+body.look-win .wg-clock { background: none; border-color: transparent; box-shadow: none; }
+body.look-win .wg-clock .w-time { font-weight: 600; letter-spacing: -.01em; }
+body.look-win .card, body.look-win .st-hist, body.look-win .agenda, body.look-win .fc-d, body.look-win .key { border-radius: 8px; }
+body.look-win .card, body.look-win .key { background: var(--card); border: 1px solid var(--line); }
+body.look-win #dots { bottom: 6px; left: 50%; right: auto; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; background: rgba(32, 32, 38, .82); border: 1px solid var(--line); }
+body.look-win #dots button.on::after { background: #4cc2ff; }
+body.look-win .play, body.look-win .w-play { border-radius: 6px; }

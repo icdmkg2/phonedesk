@@ -7,19 +7,29 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
-## [1.14.0] — 2026-11-13
+## [1.14.0] — 2026-11-14
 
-A new look for the PhoneDesk window on your PC, made to feel at home in Windows 11.
+The PhoneDesk window now looks and works like Windows 11 Settings, and the phone has a Windows widget style.
+
+### Added
+
+- **Windows widget style for the phone.** In Phone display, under Widget style, pick Windows: pages sit on a deep blue
+  desktop and widgets are dark Mica-style cards with small corners and a thin light edge, in Segoe UI, with the page
+  dots in a small taskbar-style bar. Classic stays the default; iOS is still there too.
+
+![A page in the Windows widget style](docs/changelog/1.14.0/phone-windows-style.png)
 
 ### Changed
 
 - **The PC window looks like Windows 11 Settings.** A quiet dark window, a plain sidebar where the selected page is
-  marked by a small blue bar, large page titles, and settings in flat rounded cards with Windows-style buttons, text
-  boxes and switches. It uses Segoe UI, like Windows itself.
-- **One column of settings rows on every page**, like Windows Settings: each setting is a full-width row with its
-  icon, name and description on the left and its switch or choice on the right, grouped under small headings. Phone
-  display is regrouped into Music, Look, Clock and calendar, Night and screen care, Notifications, Screens and Widgets,
-  with the live preview at the top.
+  marked by a small blue bar, large page titles, Windows-style buttons, text boxes and switches, in Segoe UI.
+- **Every page is one column of settings rows.** Each setting is a full-width row with its icon, name and description
+  on the left and its switch or choice on the right, grouped under small headings:
+  - Overview: your phone, Now playing with volume, PC stats, recent activity.
+  - Phone display: Music, Look, Clock and calendar, Night and screen care, Notifications, Screens, Widgets, with the
+    live preview at the top.
+  - Layouts: the pages, then the page's settings, the editor, adding widgets and the selected widget.
+  - Shortcuts, Addons, Connection (phones, connecting, USB, Spotify, Spicy Lyrics, Advanced), Updates and Activity.
 
 ![The Overview page of the PhoneDesk window](docs/changelog/1.14.0/dashboard-overview.png)
 

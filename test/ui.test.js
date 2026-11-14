@@ -316,6 +316,11 @@ async function t(name, fn) {
       assert.ok(off < 1.5, 'the battery reading is ' + off.toFixed(1) + 'px off the ring centre');
       const lit = await pg.evaluate(() => [...document.querySelectorAll('.wg-lyrics .lw-c .lw-w')].map((s) => s.classList.contains('lit')));
       assert.ok(lit.length > 3 && lit.every(Boolean), 'every word of the sung line is lit: ' + JSON.stringify(lit));
+      // the Windows style: its own class, the iOS one off, and widgets on small-cornered cards
+      await api('config', { look: 'windows' }); await sleep(800);
+      assert.ok(await pg.evaluate(() => document.body.classList.contains('look-win') && !document.body.classList.contains('look-ios')), 'the Windows style is on');
+      assert.strictEqual(await pg.evaluate(() => getComputedStyle(document.querySelector('.screen.on .wg-devices')).borderTopLeftRadius), '8px', 'Windows widgets have 8px corners');
+      assert.deepStrictEqual(errors, []);
       await ctx.close();
       await api('config', { look: 'classic', pages: before.pages, screens: before.screens });
     });
