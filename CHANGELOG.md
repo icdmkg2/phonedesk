@@ -23,6 +23,11 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Fixed
 
+- **YouTube Music in Chrome works.** Chrome hands Windows the tab title instead of the song (“Friday (feat. …) |
+  YouTube Music”, no artist; “YouTube Music” while paused), so PhoneDesk had a song with no artist and no lyrics, and a
+  pause looked like a new song. The site's name is now taken off the title (the source reads YouTube Music), a pause
+  keeps the song, and a song with no artist is looked up by its title and length; the artist and the cover are then
+  filled in from what is found.
 - **The app that is playing is the one shown.** With one app paused (Zen) and another playing (YouTube Music in
   Chrome), the phone kept showing the paused one, because Windows still called it the current app; so the song playing
   had no lyrics and no controls on the phone. Now whatever is playing wins, and with two playing the phone stays on the

@@ -93,7 +93,28 @@ async function lookup(artist, title, album, duration) {
   return toResult(found);
 }
 
+// Only a title (YouTube Music in Chrome gives no artist): LRCLIB's search by the title, picked by the song's length,
+// which must be known and close, or a song of the same name by someone else would come up.
+const titleCache = new Map();
+function byTitle(title, duration) {
+  if (!(duration > 0)) return Promise.resolve(null);
+  const key = title.toLowerCase() + '|' + Math.round(duration / 3);
+  if (titleCache.has(key)) return titleCache.get(key);
+  const p = (async () => {
+    const list = (await getJson('https://lrclib.net/api/search?' + new URLSearchParams({ track_name: title }))) || [];
+    const close = list.filter((x) => x && x.duration > 0 && Math.abs(x.duration - duration) <= 3 && (x.syncedLyrics || x.plainLyrics));
+    const found = pick(close, duration);
+    const r = toResult(found);
+    if (r && found.artistName) r.artist = String(found.artistName).slice(0, 120);
+    return r;
+  })().catch((e) => { log.warn('lyrics lookup failed: ' + e.message); titleCache.delete(key); return null; });
+  titleCache.set(key, p);
+  if (titleCache.size > 200) titleCache.delete(titleCache.keys().next().value);
+  return p;
+}
+
 module.exports = {
+  byTitle, // for tests
   parseLrc, pick, // for tests
   /** Resolves to { synced, lines:[{t,text,...}], credit } or null. Never throws. `cfg` is the PhoneDesk config. */
   find(media, cfg) {
@@ -103,7 +124,8 @@ module.exports = {
       const m = title.match(/^(.+?)\s+[-–—|]\s+(.+)$/);
       if (m) { artist = m[1].trim(); title = m[2].trim(); }
     }
-    if (!artist || !title) return Promise.resolve(null);
+    if (!title) return Promise.resolve(null);
+    if (!artist) return byTitle(title, media.duration || 0); // a browser that gives only the song's title
     // the length is part of the key: the song and its music video are different cuts with different timings
     const key = (artist + '|' + title).toLowerCase() + '|' + Math.round((media.duration || 0) / 3) + ((cfg && cfg.spicyKey) ? '|s' : '');
     if (cache.has(key)) return cache.get(key);

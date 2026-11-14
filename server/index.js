@@ -53,6 +53,7 @@ const state = {
 const bridge = new Bridge(path.join(__dirname, 'bridge-win.ps1'));
 bridge.on('message', (m) => {
   if (m.t === 'media') {
+    tidyBrowserMedia(m);
     // A new track: drop the old picture right away instead of showing it on the next song.
     const key = m.active ? [m.app, m.title, m.artist].join('|') : '';
     if (key !== trackKey) {
@@ -92,6 +93,7 @@ bridge.on('message', (m) => {
     }
     delete m.art;
     delete m.t;
+    if (m.active && !m.artist && fillArtist && fillArtist.key === trackKey) m.artist = fillArtist.artist;
     // Keep the art id stable across position updates of the same track.
     m.art = state.art ? '/art/' + state.art.id : '';
     const rawApp = m.app;
@@ -99,8 +101,9 @@ bridge.on('message', (m) => {
     const ic = appIcons.get(rawApp);
     m.appIcon = ic ? '/appicon/' + ic.id : '';
     m.game = !!(ic && ic.game);
-    m.site = siteOf(rawApp, m.title);
-    m.app = m.site === 'youtube' ? 'YouTube' : ic && ic.name && ic.name.length <= 24 ? ic.name : prettyApp(rawApp);
+    m.site = siteOf(rawApp, m.title, m.siteName || (lastBrowserSong && lastBrowserSong.app === rawApp ? lastBrowserSong.siteName : ''));
+    delete m.siteName;
+    m.app = m.site === 'youtube' ? 'YouTube' : m.site === 'ytmusic' ? 'YouTube Music' : ic && ic.name && ic.name.length <= 24 ? ic.name : prettyApp(rawApp);
     if (m.site === 'youtube') m.title = String(m.title || '').replace(/\s+-\s+YouTube( Music)?$/i, '');
     state.media = m;
     if (m.active && rawApp) seenApps.set(rawApp, { token: appToken(rawApp), name: m.app, icon: m.appIcon || '' });
@@ -156,6 +159,7 @@ function appToken(raw) {
   else s = s.replace(/\.exe$/, '');
   return s.replace(/[^a-z0-9._-]/g, '').slice(0, 60);
 }
+let fillArtist = null; // { key, artist }: an artist found for a song whose player gave none
 let lyricsNoLength = false; // the current song's lyrics were looked up before its length was known
 let lyricsSeq = 0;
 function findLyrics(m, key) {
@@ -163,6 +167,21 @@ function findLyrics(m, key) {
   const seq = ++lyricsSeq;
   lyrics.find(m, config.get()).then((l) => {
     if (trackKey !== key) return;
+    // a song without an artist (a browser that gives only the title) gets the one the lyrics were found under
+    if (l && l.artist && state.media && state.media.active && !state.media.artist) {
+      state.media = Object.assign({}, state.media, { artist: l.artist });
+      fillArtist = { key, artist: l.artist }; // the browser keeps sending the song without it
+      broadcast({ t: 'media', d: state.media });
+      // and now that the artist is known, the cover too (such a browser gives none)
+      if (!state.art && config.get().artLookup) {
+        artwork.find(state.media).then((buf) => {
+          if (!buf || trackKey !== key || state.art) return;
+          setArt(buf);
+          state.media = Object.assign({}, state.media, { art: '/art/' + state.art.id });
+          broadcast({ t: 'media', d: state.media });
+        });
+      }
+    }
     // an older lookup (made before the length was known) only fills in while the newer one has found nothing yet
     if (seq !== lyricsSeq && (!l || (state.lyrics && state.lyrics.key === key && !state.lyrics.none))) return;
     // a second lookup (now with the length) that finds nothing keeps what the first one found
@@ -202,10 +221,26 @@ function onNotification(n) {
   setTimeout(deliver, 1200);
 }
 
-const BROWSERS = /chrome|msedge|firefox|308046b0af4a39cb|6f193ccc56814779|opera|brave|vivaldi|zen/i;
+const BROWSERS = /chrome|msedge|firefox|308046b0af4a39cb|6f193ccc56814779|opera|brave|vivaldi|zen|^[0-9a-f]{16}$/i;
+// Some browsers (Chrome with YouTube Music) give Windows the tab title instead of the song: "Song (feat. X) | YouTube
+// Music", no artist; and while paused just "YouTube Music". Make that the song, and keep the song through a pause.
+let lastBrowserSong = null; // { app, title, artist, album }
+function tidyBrowserMedia(m) {
+  if (!m.active || !BROWSERS.test(String(m.app || ''))) return;
+  const t = String(m.title || '').trim();
+  if (/^(YouTube( Music)?|Spotify|SoundCloud|Deezer|Tidal)$/i.test(t)) {
+    // only the site's name (the tab title of a paused player): it's still the song from before
+    if (lastBrowserSong && lastBrowserSong.app === m.app) Object.assign(m, { title: lastBrowserSong.title, artist: lastBrowserSong.artist, album: lastBrowserSong.album, site: lastBrowserSong.site });
+    return;
+  }
+  const sm = /^(.*?)\s+[|\-–—]\s+(YouTube Music|YouTube|SoundCloud|Spotify|Deezer)$/i.exec(t);
+  if (sm && !m.artist) { m.title = sm[1].trim(); m.siteName = sm[2]; }
+  lastBrowserSong = { app: m.app, title: m.title, artist: m.artist || '', album: m.album || '', siteName: m.siteName || '' };
+}
 // What a browser tab is playing, judged by the tab title.
-function siteOf(app, title) {
+function siteOf(app, title, siteName) {
   if (!BROWSERS.test(String(app || ''))) return '';
+  if (/^YouTube Music$/i.test(siteName || '')) return 'ytmusic';
   if (/-\s*YouTube( Music)?$/i.test(String(title || ''))) return 'youtube';
   return '';
 }
