@@ -735,6 +735,25 @@ while ($true) {
         $artist = if ($props) { $props.Artist } else { '' }
         $album = if ($props) { $props.AlbumTitle } else { '' }
         $trackKey = "$($s.SourceAppUserModelId)|$title|$artist|$album"
+        # When was this position true? Some players (Firefox-based browsers like Zen) move the position after a seek
+        # but keep the old time stamp, or give none at all, so the phone would think the song is far ahead of where it
+        # is. Then use the moment we first saw that position.
+        $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        $rawUpd = $upd
+        $sameTrack = ($trackKey -eq $script:tlTrack)
+        if ($tl.LastUpdatedTime.Year -lt 2000 -or $upd -gt $nowMs + 60000) {
+          # no real time stamp: when this position (and play state) first showed up
+          $pk = "$trackKey|$([math]::Round($pos, 1))|$status"
+          if ($pk -ne $script:tlSeenKey) { $script:tlSeenKey = $pk; $script:tlSeenAt = $nowMs }
+          $upd = $script:tlSeenAt
+        } elseif ($sameTrack -and $rawUpd -eq $script:tlRawUpd -and [math]::Abs($pos - $script:tlRawPos) -gt 0.5) {
+          # the position jumped but its time stamp did not: it is new as of now (and stays so while it holds)
+          $script:tlFixPos = $pos; $script:tlFixUpd = $nowMs; $upd = $nowMs
+        } elseif ($sameTrack -and $rawUpd -eq $script:tlRawUpd -and $pos -eq $script:tlFixPos) {
+          $upd = $script:tlFixUpd
+        }
+        if (-not ($sameTrack -and $rawUpd -eq $script:tlRawUpd -and $pos -eq $script:tlFixPos)) { if ($rawUpd -ne $script:tlRawUpd -or -not $sameTrack) { $script:tlFixPos = $null } }
+        $script:tlTrack = $trackKey; $script:tlRawUpd = $rawUpd; $script:tlRawPos = $pos
         $key = "$trackKey|$status|$([math]::Round($pos,1))|$upd|$([math]::Round($dur))|$($pi.IsShuffleActive)|$($pi.AutoRepeatMode)"
         $needArt = ($trackKey -ne $lastTrackKey) -and ($artTries -lt 8)
         if ($trackKey -ne $artTrack) { $artTrack = $trackKey; $artTries = 0; $needArt = $true }

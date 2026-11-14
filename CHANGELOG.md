@@ -13,6 +13,9 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Fixed
 
+- **Lyrics stay in time after you skip ahead or back in a song** in Firefox-based browsers. After a seek the browser
+  gives the new position with the old time stamp, so PhoneDesk thought the song was further along than it was; the new
+  position now counts from the moment it appears.
 - **Lyrics are found when a song starts in a Firefox-based browser.** The lyrics were looked up the moment a new song
   appeared, before the browser had said how long it is, so the exact lookup failed and nothing tried again; PhoneDesk now
   searches without the length at first and looks again (for the right version) as soon as the length is known.
