@@ -1532,15 +1532,17 @@
     const q = find.value.trim().toLowerCase();
     if (!q) { findClose(); return; }
     if (!findIndex) findIndex = buildFindIndex();
-    const words = q.split(/\s+/), seen = new Set();
-    findHits = findIndex.filter((x) => words.every((w) => x.text.includes(w)))
-      .map((x) => ({ x, score: (x.title.toLowerCase().startsWith(q) ? 0 : x.title.toLowerCase().includes(q) ? 1 : 2) - (x.el ? 0 : 0.5) }))
+    const words = q.replace(/[^a-z0-9\u0080-\uffff]+/g, ' ').trim().split(/\s+/).filter(Boolean), seen = new Set();
+    // every typed word must be the start of a word (so "as" finds "Ask…", not "phones"); titles count more than descriptions
+    const starts = (text, w) => (' ' + text).replace(/[^a-z0-9\u0080-\uffff]+/g, ' ').includes(' ' + w);
+    findHits = findIndex.filter((x) => words.every((w) => starts(x.text, w)))
+      .map((x) => { const tl = x.title.toLowerCase(); return { x, score: (tl.startsWith(q) ? 0 : words.every((w) => starts(tl, w)) ? 1 : 3) - (x.el ? 0 : 0.5) }; })
       .sort((a, b) => a.score - b.score).map((h) => h.x)
       .filter((x) => { const k = x.view + '|' + x.title; if (seen.has(k)) return false; seen.add(k); return true; })
       .slice(0, 8);
     findSel = 0;
     findList.innerHTML = findHits.length
-      ? findHits.map((h, i) => '<button type="button" role="option" class="find-i' + (i === findSel ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(h.title) + '</b><span>' + esc(h.el ? h.page + (h.desc ? ' · ' + h.desc : '') : 'Page') + '</span></button>').join('')
+      ? findHits.map((h, i) => '<button type="button" role="option" class="find-i' + (i === findSel ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(h.title) + '</b><span>' + esc(h.el ? h.page : 'Page') + '</span></button>').join('')
       : '<div class="find-none">No setting matches “' + esc(find.value.trim()) + '”</div>';
     findList.hidden = false; find.setAttribute('aria-expanded', 'true');
   }

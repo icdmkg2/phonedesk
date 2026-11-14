@@ -13,6 +13,9 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Fixed
 
+- In the PC window: drop-down lists were white with white text, so their choices looked empty; Find a setting only
+  matches the start of words and its box and results look like Windows Settings; the expandable rows (“Install the
+  phone app”, “How to set it up”) lost a stray line and open with a chevron on the right.
 - **A new song no longer sits on its intro until you pause and play.** Firefox-based browsers often tell Windows a new
   song's length only after a pause; until then PhoneDesk held the position (and the lyrics) at the start, and when the
   length arrived it could jump back to the start. The song now runs from the first second either way.
