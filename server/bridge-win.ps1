@@ -192,6 +192,36 @@ $GameDirs = '\\steamapps\\common\\|\\Epic Games\\|\\GOG Galaxy\\Games\\|\\GOG Ga
 $KnownAumid = @{ 'chrome' = 'chrome'; 'msedge' = 'msedge'; '308046b0af4a39cb' = 'firefox'; '6f193ccc56814779' = 'firefox'; 'opera' = 'opera'; 'brave' = 'brave' }
 $IconSent = @{}
 
+# Firefox and browsers built on it (Zen, LibreWolf, Floorp, Waterfox...) name their media session with a hash of the
+# install folder ("F0DC299D809B9700"), not the program. They keep that hash in the registry as
+# ...\<Vendor>\<Product>\TaskBarIDs: { "<install folder>" = "<hash>" }. Find the folder and the browser's exe in it.
+function Find-HashedBrowser([string]$hash) {
+  $roots = @('HKCU:\Software', 'HKLM:\Software', 'HKLM:\Software\WOW6432Node')
+  foreach ($r in $roots) {
+    $keys = @(Get-ChildItem -LiteralPath $r -ErrorAction SilentlyContinue | ForEach-Object {
+      Get-ChildItem -LiteralPath $_.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -eq 'TaskBarIDs' }
+      Get-ChildItem -LiteralPath $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem -LiteralPath $_.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -eq 'TaskBarIDs' } }
+    })
+    foreach ($k in $keys) {
+      $item = Get-Item -LiteralPath $k.PSPath -ErrorAction SilentlyContinue
+      if (-not $item) { continue }
+      foreach ($folder in $item.GetValueNames()) {
+        if (("" + $item.GetValue($folder)) -ne $hash -or -not (Test-Path -LiteralPath $folder)) { continue }
+        $exe = Get-ChildItem -LiteralPath $folder -Filter *.exe -ErrorAction SilentlyContinue |
+          Where-Object { $_.Name -notmatch '(?i)updat|uninst|helper|crash|plugin|ping|private|agent|maintenance|notification|minidump|wow_' } |
+          Sort-Object Length -Descending | Select-Object -First 1
+        if ($exe) { return $exe.FullName }
+      }
+    }
+  }
+  # Not in the registry: a Firefox-family browser that is running
+  foreach ($n in @('zen', 'firefox', 'librewolf', 'floorp', 'waterfox', 'mullvadbrowser')) {
+    $p = Get-Process -Name $n -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
+    if ($p) { return $p.Path }
+  }
+  return $null
+}
+
 function Find-AppInfo([string]$aumid) {
   try {
     if ($aumid -match '!') {
@@ -226,10 +256,11 @@ function Find-AppInfo([string]$aumid) {
       $names.Add($tok); if ($tok -match 'Desktop$') { $names.Add($tok -replace 'Desktop$', '') }
     }
     $path = $null
-    foreach ($n in $names) {
+    if ($aumid -match '^[0-9A-Fa-f]{16}$' -and -not $KnownAumid.ContainsKey($key)) { $path = Find-HashedBrowser $aumid.ToUpper() }
+    if (-not $path) { foreach ($n in $names) {
       $p = Get-Process -Name $n -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1
       if ($p) { $path = $p.Path; break }
-    }
+    } }
     if (-not $path) {
       # Not running: look for a Start menu shortcut with that name and use its target.
       $menus = @("$env:ProgramData\Microsoft\Windows\Start Menu\Programs", "$env:APPDATA\Microsoft\Windows\Start Menu\Programs")

@@ -9,10 +9,17 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 ## [1.14.1] — 2026-11-14
 
-Synced lyrics and the song position now keep time with Firefox.
+Synced lyrics and the song position keep time with Firefox and with music videos, and Zen shows its own name.
 
 ### Fixed
 
+- **Lyrics of music videos are no longer out of time.** A music video on YouTube Music is often a different length
+  from the song (an intro, an outro), and PhoneDesk used to show the song's timed lyrics anyway, so every line came at
+  the wrong moment. Lyrics from a version more than 6 seconds longer or shorter now show their words with estimated
+  timing instead (like lyrics that have no timings), and the song and its video no longer share cached lyrics.
+- **Zen and other Firefox-based browsers show their own name and icon** as the source, instead of a code like
+  “F0DC299D809B9700”. These browsers name themselves to Windows by a code of their install folder; PhoneDesk now looks
+  that code up to find the browser.
 - **The song position and the lyrics no longer stay stuck at 0:00 with Firefox** (and Firefox-based browsers like Zen)
   playing YouTube Music or another site ([#14](https://github.com/icdmkg2/phonedesk/issues/14)). Firefox keeps telling
   Windows the song is at 0:00 while it plays and only sends the real position after a pause or a seek; PhoneDesk now

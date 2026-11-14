@@ -60,7 +60,16 @@ function pick(list, duration) {
   const synced = items.filter((x) => x.syncedLyrics).sort(byDiff);
   if (synced.length && (!duration || diff(synced[0]) <= 6)) return synced[0];
   const close = items.sort(byDiff);
-  if (close.length && (!duration || diff(close[0]) <= 12)) return close[0];
+  if (close.length && (!duration || diff(close[0]) <= 12)) {
+    const x = close[0];
+    // A different cut of the song (a music video with an intro or outro, a radio edit...): its line timings would be
+    // off by seconds, so use only its words, which the phone then paces over the song (estimated timing).
+    if (x.syncedLyrics && duration && diff(x) > 6) {
+      const words = x.plainLyrics || parseLrc(x.syncedLyrics).map((l) => l.text).join('\n');
+      return Object.assign({}, x, { syncedLyrics: null, plainLyrics: words });
+    }
+    return x;
+  }
   return null;
 }
 
@@ -84,7 +93,7 @@ async function lookup(artist, title, album, duration) {
 }
 
 module.exports = {
-  parseLrc, // for tests
+  parseLrc, pick, // for tests
   /** Resolves to { synced, lines:[{t,text,...}], credit } or null. Never throws. `cfg` is the PhoneDesk config. */
   find(media, cfg) {
     let artist = clean(media.artist);
@@ -94,7 +103,8 @@ module.exports = {
       if (m) { artist = m[1].trim(); title = m[2].trim(); }
     }
     if (!artist || !title) return Promise.resolve(null);
-    const key = (artist + '|' + title).toLowerCase() + ((cfg && cfg.spicyKey) ? '|s' : '');
+    // the length is part of the key: the song and its music video are different cuts with different timings
+    const key = (artist + '|' + title).toLowerCase() + '|' + Math.round((media.duration || 0) / 3) + ((cfg && cfg.spicyKey) ? '|s' : '');
     if (cache.has(key)) return cache.get(key);
     let transient = false;
     const run = async () => {

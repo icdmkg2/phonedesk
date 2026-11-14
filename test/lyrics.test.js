@@ -20,5 +20,18 @@ t('nothing goes before the start of the song', () => {
   assert.deepStrictEqual(parseLrc('[offset:2000]\n[00:01.00]a').map((l) => l.t), [0]);
 });
 
+t('a version of a different length (a music video) gives only its words, not wrong timings', () => {
+  const lyrics = require('../server/lyrics');
+  const song = { duration: 200, syncedLyrics: '[00:10.00]One\n[00:20.00]Two', plainLyrics: 'One\nTwo' };
+  const timed = lyrics.pick([song], 202);
+  assert.ok(timed.syncedLyrics, 'within 6 s: the timings are kept');
+  const video = lyrics.pick([song], 210);
+  assert.strictEqual(video.syncedLyrics, null, '10 s longer: no timings');
+  assert.strictEqual(video.plainLyrics, 'One\nTwo');
+  const noPlain = lyrics.pick([{ duration: 200, syncedLyrics: '[00:10.00]One\n[00:20.00]Two' }], 191);
+  assert.strictEqual(noPlain.plainLyrics, 'One\nTwo', 'the words come from the timed text when there is no plain text');
+  assert.strictEqual(lyrics.pick([song], 230), null, 'half a minute off: not this song');
+});
+
 require('fs').rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
 process.exit(failed ? 1 : 0);

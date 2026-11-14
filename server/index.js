@@ -206,6 +206,7 @@ function prettyApp(id) {
   if (s.includes('zunemusic') || s.includes('media player')) return 'Media Player';
   if (s.includes('vlc')) return 'VLC';
   if (s.includes('discord')) return 'Discord';
+  if (/^[0-9a-f]{16}$/.test(s)) return 'Browser'; // a Firefox-family browser the bridge could not name yet (the icon lookup names it)
   return String(id).replace(/\.exe$/i, '').split(/[!\\/]/).pop();
 }
 
