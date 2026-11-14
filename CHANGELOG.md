@@ -23,6 +23,10 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Fixed
 
+- **The app that is playing is the one shown.** With one app paused (Zen) and another playing (YouTube Music in
+  Chrome), the phone kept showing the paused one, because Windows still called it the current app; so the song playing
+  had no lyrics and no controls on the phone. Now whatever is playing wins, and with two playing the phone stays on the
+  one it shows.
 - **Notifications are readable in the iOS and Windows styles.** The banner was see-through over the bright wallpaper,
   so its text disappeared; it is now a solid frosted (iOS) or Mica-dark (Windows) banner, and the small pop-up messages
   are too.

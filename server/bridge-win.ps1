@@ -173,18 +173,32 @@ function Test-Ignored($s) {
   return $false
 }
 
-# Windows' "current" session, unless it's an ignored app; then the best other one
-# (something playing first, else the first non-ignored session).
+# Which app to show. Something that is playing wins: Windows' "current" session can be a paused app (Zen paused while
+# Chrome plays YouTube Music), and showing that left the phone on the wrong, paused song. Among apps that play, keep
+# the one shown before (no flipping between two), then Windows' current one, then any. With nothing playing: Windows'
+# current one, else the one shown before, else the first. Ignored apps never count.
+$script:shownApp = ''
 function Get-Session {
   $cur = $mgr.GetCurrentSession()
-  if ($cur -and -not (Test-Ignored $cur)) { return $cur }
-  $fallback = $null
+  if ($cur -and (Test-Ignored $cur)) { $cur = $null }
+  $playing = @(); $all = @()
   foreach ($s in $mgr.GetSessions()) {
     if (Test-Ignored $s) { continue }
-    if (([string]$s.GetPlaybackInfo().PlaybackStatus) -eq 'Playing') { return $s }
-    if ($null -eq $fallback) { $fallback = $s }
+    $all += $s
+    if (([string]$s.GetPlaybackInfo().PlaybackStatus) -eq 'Playing') { $playing += $s }
   }
-  return $fallback
+  $pick = $null
+  if ($playing.Count -gt 0) {
+    $pick = $playing | Where-Object { $_.SourceAppUserModelId -eq $script:shownApp } | Select-Object -First 1
+    if (-not $pick -and $cur) { $pick = $playing | Where-Object { $_.SourceAppUserModelId -eq $cur.SourceAppUserModelId } | Select-Object -First 1 }
+    if (-not $pick) { $pick = $playing[0] }
+  } elseif ($cur) { $pick = $cur }
+  else {
+    $pick = $all | Where-Object { $_.SourceAppUserModelId -eq $script:shownApp } | Select-Object -First 1
+    if (-not $pick -and $all.Count -gt 0) { $pick = $all[0] }
+  }
+  if ($pick) { $script:shownApp = [string]$pick.SourceAppUserModelId }
+  return $pick
 }
 
 # ---------------------------------------------------------------- the playing app's icon + name
