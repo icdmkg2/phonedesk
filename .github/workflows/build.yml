@@ -41,6 +41,7 @@ jobs:
           node test/addons.test.js
           node test/widgets.test.js
           node test/lyrics.test.js
+          node test/data.test.js
           node registry/check.js --offline
 
       - name: The Windows media bridge parses

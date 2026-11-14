@@ -55,6 +55,11 @@
 <div class="shell">
   <nav class="side" aria-label="Sections">
     <div class="brand"><img src="/favicon.svg" alt="">PhoneDesk</div>
+    <div class="find" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15 15 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input type="search" id="find" placeholder="Find a setting" autocomplete="off" aria-label="Find a setting" aria-controls="find-list" aria-expanded="false">
+      <div class="find-list" id="find-list" role="listbox" hidden></div>
+    </div>
     <button class="nav on" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Overview</button>
     <div class="nav-group" role="presentation">Customize</div>
     <button class="nav" data-view="display"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6.5" width="19" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Phone display</button>

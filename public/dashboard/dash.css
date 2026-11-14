@@ -761,3 +761,17 @@ input[type=color] { width: 44px; height: 32px; border-radius: 4px; border: 1px s
 .editor > .field > .hint { flex-basis: 100%; }
 .editor > .field > .recorder, .editor > .field > .row { flex-basis: 100%; }
 select { height: 32px; padding: 0 28px 0 10px; line-height: 30px; font-size: 13px; color: var(--fg); }
+
+/* ---------------------------------------------------------------- Find a setting */
+.find { position: relative; margin: 0 4px 12px; }
+.find > svg { position: absolute; left: 10px; top: 50%; width: 16px; height: 16px; margin-top: -8px; color: var(--muted); pointer-events: none; }
+.find input { height: 34px; padding-left: 34px; border-radius: 4px; font-size: 13px; }
+.find-list { position: absolute; z-index: 20; left: 0; right: -40px; top: 40px; background: #2c2c2f; border: 1px solid rgba(255, 255, 255, .08); border-radius: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, .5); padding: 4px; display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; }
+.find-list[hidden] { display: none; }
+.find-i { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; border: 0; background: none; color: var(--fg); padding: 8px 10px; border-radius: 4px; cursor: pointer; }
+.find-i b { font-weight: 400; font-size: 14px; }
+.find-i span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.find-i:hover, .find-i.on { background: rgba(255, 255, 255, .07); }
+.find-none { padding: 10px; font-size: 13px; color: var(--muted); }
+@keyframes found { 0%, 60% { box-shadow: inset 0 0 0 2px var(--accent); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
+.found { animation: found 1.8s ease-out; }

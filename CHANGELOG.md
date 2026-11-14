@@ -13,6 +13,20 @@ The PhoneDesk window now looks and works like Windows 11 Settings, and the phone
 
 ### Added
 
+- **Find a setting** in the PC window: a search box at the top of the sidebar (or Ctrl+F) finds any setting on any page;
+  pick one and the page opens with that setting highlighted.
+
+  ![Finding the night settings](docs/changelog/1.14.0/dashboard-find.png)
+
+- **Quick toggles widget:** tap tiles for the PC like Windows quick settings: sound, microphone, Wi-Fi, Bluetooth and dark
+  mode, each showing whether it is on. Choose which tiles it shows. A tile the PC can't control is shown dimmed.
+- **Month calendar widget:** this month at a glance, today marked, with a dot for each event on a day (from the
+  calendar in Phone display). Weeks can start on Monday or Sunday.
+- **Weather details:** the Weather widget can show the next hours (with the chance of rain) and a line with how warm it
+  feels, the chance of rain, the wind, sunrise and sunset. The 5-day forecast shows the chance of rain on wet days.
+
+  ![The new widgets in the Windows style](docs/changelog/1.14.0/phone-new-widgets.png)
+
 - **Windows widget style for the phone.** In Phone display, under Widget style, pick Windows: pages sit on a deep blue
   desktop with a soft blue bloom, and widgets are dark Mica-style cards with small corners and a thin light edge, in
   Windows blue, with the page dots in a small taskbar-style bar. Weather shows its place, the temperature, the sky and

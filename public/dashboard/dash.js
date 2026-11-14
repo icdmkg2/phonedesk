@@ -1502,4 +1502,72 @@
   setInterval(() => { if (!document.hidden) refresh(); }, 3000);
   setInterval(() => { if (!document.hidden) loadActivity(); }, 6000);
   window.addEventListener('beforeunload', () => { if (scDirty) saveShortcuts(); });
+
+  // ---------------------------------------------------------------- Find a setting (the search box in the sidebar)
+  // Every settings row, group heading and card title on every page, matched on its name and description; picking one
+  // opens its page, scrolls to it and flashes it. Ctrl+F jumps to the box.
+  const find = $('find'), findList = $('find-list');
+  let findIndex = null, findSel = 0, findHits = [];
+  function buildFindIndex() {
+    const out = [];
+    const pageName = (id) => { const b = document.querySelector('.nav[data-view="' + id + '"]'); if (!b) return ''; const c = b.cloneNode(true); c.querySelectorAll('.count').forEach((x) => x.remove()); return c.textContent.replace(/\s+/g, ' ').trim(); };
+    $$('.view').forEach((v) => {
+      const view = v.id.slice(2), page = pageName(view);
+      if (!page) return;
+      out.push({ title: page, desc: '', page, view, el: null, text: page.toLowerCase() });
+      v.querySelectorAll('.srow, .card, .group-h').forEach((el) => {
+        let title = '', desc = '';
+        if (el.classList.contains('group-h')) title = el.firstChild ? el.firstChild.textContent : el.textContent;
+        else if (el.classList.contains('srow')) { const t = el.querySelector('.srow-t b'), d = el.querySelector('.srow-t > span'); title = t ? t.textContent : ''; desc = d ? d.textContent : ''; }
+        else { const h = el.querySelector('h2, h3'); title = h ? h.textContent : el.getAttribute('aria-label') || ''; }
+        title = title.replace(/\s+/g, ' ').trim(); desc = desc.replace(/\s+/g, ' ').trim();
+        if (!title || title.length > 60) return;
+        out.push({ title, desc, page, view, el, text: (title + ' ' + desc + ' ' + page).toLowerCase() });
+      });
+    });
+    return out;
+  }
+  function findClose() { findList.hidden = true; find.setAttribute('aria-expanded', 'false'); }
+  function findRender() {
+    const q = find.value.trim().toLowerCase();
+    if (!q) { findClose(); return; }
+    if (!findIndex) findIndex = buildFindIndex();
+    const words = q.split(/\s+/), seen = new Set();
+    findHits = findIndex.filter((x) => words.every((w) => x.text.includes(w)))
+      .map((x) => ({ x, score: (x.title.toLowerCase().startsWith(q) ? 0 : x.title.toLowerCase().includes(q) ? 1 : 2) - (x.el ? 0 : 0.5) }))
+      .sort((a, b) => a.score - b.score).map((h) => h.x)
+      .filter((x) => { const k = x.view + '|' + x.title; if (seen.has(k)) return false; seen.add(k); return true; })
+      .slice(0, 8);
+    findSel = 0;
+    findList.innerHTML = findHits.length
+      ? findHits.map((h, i) => '<button type="button" role="option" class="find-i' + (i === findSel ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(h.title) + '</b><span>' + esc(h.el ? h.page + (h.desc ? ' · ' + h.desc : '') : 'Page') + '</span></button>').join('')
+      : '<div class="find-none">No setting matches “' + esc(find.value.trim()) + '”</div>';
+    findList.hidden = false; find.setAttribute('aria-expanded', 'true');
+  }
+  function findGo(h) {
+    if (!h) return;
+    const nav = document.querySelector('.nav[data-view="' + h.view + '"]');
+    if (nav) nav.click();
+    find.value = ''; findClose();
+    if (h.el) setTimeout(() => {
+      h.el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      h.el.classList.remove('found'); void h.el.offsetWidth; h.el.classList.add('found');
+      const ctl = h.el.querySelector('input, select, button');
+      if (ctl) ctl.focus({ preventScroll: true });
+    }, 60);
+  }
+  find.addEventListener('focus', () => { findIndex = null; });
+  find.addEventListener('input', findRender);
+  find.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!findHits.length) return;
+      findSel = (findSel + (e.key === 'ArrowDown' ? 1 : findHits.length - 1)) % findHits.length;
+      findList.querySelectorAll('.find-i').forEach((b, i) => b.classList.toggle('on', i === findSel));
+    } else if (e.key === 'Enter') { e.preventDefault(); findGo(findHits[findSel]); }
+    else if (e.key === 'Escape') { find.value = ''; findClose(); }
+  });
+  findList.addEventListener('mousedown', (e) => { const b = e.target.closest('.find-i'); if (b) { e.preventDefault(); findGo(findHits[+b.dataset.i]); } });
+  find.addEventListener('blur', () => setTimeout(findClose, 150));
+  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); find.focus(); find.select(); } });
 })();

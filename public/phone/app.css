@@ -1317,3 +1317,54 @@ body.look-win .w-bar i, body.look-win .dv-b i { background: var(--wn) !important
 .wn-z strong { font-size: 1.55em; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .wg.wn { display: flex !important; flex-direction: column !important; align-items: stretch !important; grid-template-columns: none !important; }
 body.look-win .wg, body.look-win .screen:not(.page) { --accent: var(--wn); }
+
+/* weather extras: a details line and the next hours (every style) */
+.wx-det { display: flex; flex-wrap: wrap; gap: .25em .9em; margin-top: .55em; font-size: .78em; color: var(--fg2); }
+.wx-sun { display: inline-flex; align-items: center; gap: .25em; }
+.wx-sun svg { width: 1.2em; height: 1.2em; color: #ffcc4d; }
+.wx-hours { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .2em; margin-top: .6em; padding-top: .55em; border-top: 1px solid var(--line); }
+.wx-h { display: flex; flex-direction: column; align-items: center; gap: .15em; font-size: .78em; min-width: 0; }
+.wx-h span { color: var(--fg2); white-space: nowrap; }
+.wx-h svg { width: 1.8em; height: 1.8em; }
+.wx-h b { font-weight: 600; }
+.wx-h i { font-style: normal; font-size: .85em; color: #5ac8fa; min-height: 1.1em; }
+.fc-r { font-size: .75em; color: #5ac8fa; }
+.wg-weather:has(.wx-hours), .wg-weather:has(.wx-det) { justify-content: flex-start; }
+
+/* Month calendar */
+.wg-month { justify-content: flex-start; gap: .5em; }
+.mo-h { font-weight: 700; font-size: 1.05em; }
+.mo-g { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto repeat(var(--rows), minmax(0, 1fr)); text-align: center; min-height: 0; }
+.mo-wd { font-size: .72em; color: var(--fg3); font-weight: 600; padding-bottom: .3em; }
+.mo-d { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; font-size: .86em; }
+.mo-d b { font-weight: 500; width: 1.9em; height: 1.9em; line-height: 1.9em; border-radius: 50%; font-variant-numeric: tabular-nums; }
+.mo-d.out b { color: var(--fg3); opacity: .55; }
+.mo-d.today b { background: var(--accent); color: #fff; font-weight: 700; }
+.mo-d i { display: flex; gap: .15em; height: .35em; margin-top: .05em; }
+.mo-d u { width: .3em; height: .3em; border-radius: 50%; background: var(--fg2); text-decoration: none; }
+.mo-d.today u { background: var(--accent); }
+body.look-ios .wg-month .mo-h { color: #ff453a; text-transform: uppercase; font-size: .8em; letter-spacing: .04em; }
+body.look-ios .mo-d.today b { background: #ff453a; }
+body.look-ios .mo-d.today u { background: #ff453a; }
+body.look-win .mo-d b { border-radius: 50%; }
+body.look-win .mo-d.today b { background: var(--wn); color: #000; }
+body.look-win .wg-month .mo-h { font-weight: 600; }
+
+/* Quick toggles */
+.wg-toggles { display: grid; gap: .5em; padding: .6em; align-content: stretch; }
+.qt { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: .15em; min-width: 0; min-height: 0; padding: .6em .75em; border: 0; border-radius: calc(var(--radius) * .7); background: rgba(127, 127, 127, .16); color: var(--fg); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, transform .1s; }
+.qt:active { transform: scale(.97); }
+.qt svg { width: 1.5em; height: 1.5em; margin-bottom: .2em; }
+.qt b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.qt span { font-size: .8em; color: var(--fg2); }
+.qt.on { background: var(--accent); color: #fff; }
+.qt.on span { color: rgba(255, 255, 255, .85); }
+.qt.na { opacity: .45; cursor: default; }
+body.look-ios .qt { border-radius: 1.1em; background: rgba(255, 255, 255, .14); gap: .1em; }
+body.look-ios .qt svg { width: 2.1em; height: 2.1em; padding: .45em; border-radius: 50%; background: rgba(255, 255, 255, .2); margin-bottom: .35em; }
+body.look-ios .qt.on { background: rgba(255, 255, 255, .92); color: #111; }
+body.look-ios .qt.on svg { background: #0a84ff; color: #fff; }
+body.look-ios .qt.on span { color: rgba(0, 0, 0, .55); }
+body.look-win .qt { border-radius: 6px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .07); }
+body.look-win .qt.on { background: var(--wn); color: #000; border-color: transparent; }
+body.look-win .qt.on span { color: rgba(0, 0, 0, .7); }
