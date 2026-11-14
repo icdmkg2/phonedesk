@@ -274,6 +274,36 @@ async function t(name, fn) {
       await api('config', { pages: before.pages, screens: before.screens, notes: [] });
     });
 
+    await t('a player that keeps reporting 0:00 while playing (Firefox, issue #14) does not hold the song at the start', async () => {
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript(() => {
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (JSON.parse(e.data).t === 'media') e.stopImmediatePropagation(); } catch (x) {} } });
+            this.addEventListener('open', () => {
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+              const media = (pos) => ({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Zen', status: 'Playing', position: pos, duration: 200, updated: Date.now() } });
+              // like Firefox: "0:00, as of now" every half second while the song plays...
+              let n = 0;
+              const iv = setInterval(() => { d(media(0)); if (++n === 9) { clearInterval(iv); window.__real = true; d(media(60)); } }, 500);
+            });
+          }
+        };
+      });
+      await ctx.addInitScript(() => localStorage.setItem('pd.screen', JSON.stringify('media')));
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/phone/'); await sleep(4200);
+      const secs = (t) => { const [m, s] = t.split(':').map(Number); return m * 60 + s; };
+      const early = secs(await pg.locator('#m-pos').innerText());
+      assert.ok(early >= 2, 'the song moves on while the player keeps saying 0:00 (shows ' + early + 's)');
+      // ...and a real position (after a pause or a seek on the PC) is still followed
+      await sleep(1500);
+      const later = secs(await pg.locator('#m-pos').innerText());
+      assert.ok(later >= 60 && later <= 63, 'a real position is followed (shows ' + later + 's)');
+      await ctx.close();
+    });
     await t('the new widgets work: weather with the next hours, the month calendar, and quick toggles that tell the PC', async () => {
       const w = require('../server/widgets');
       const page = w.sanitizePages([{ name: 'New', widgets: [

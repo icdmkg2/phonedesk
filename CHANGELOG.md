@@ -51,6 +51,11 @@ The PhoneDesk window now looks and works like Windows 11 Settings, and the phone
 
 ### Fixed
 
+- **The song position and the lyrics no longer stay stuck at 0:00 with Firefox** (and Firefox-based browsers like Zen)
+  playing YouTube Music or another site ([#14](https://github.com/icdmkg2/phonedesk/issues/14)). Firefox keeps telling
+  Windows the song is at 0:00 while it plays and only sends the real position after a pause or a seek; PhoneDesk now
+  keeps its own clock running through those reports instead of following them back to the start, and ignores a sudden
+  jump back to 0:00 in the middle of a song. A real seek, previous or next still moves it at once.
 - The music note shown when a song has no album cover is redrawn as one solid note; it looked broken, with thin
   disconnected lines and seams on the newer styles.
 - The pill that names the music app on the phone always has an icon now: the app's own icon from Windows, or a music
