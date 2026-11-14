@@ -244,4 +244,19 @@ for (const f of ['index.html', 'changelog.html', 'addons.html', path.join('docs'
   }
 }
 if (missing.length) { console.error('Missing files:\n  ' + missing.join('\n  ')); process.exit(1); }
+
+// Stylesheets and scripts get ?v=<their content hash>: browsers keep /assets/ for a week, and a page from a new release
+// with last week's stylesheet looks completely broken. A changed file gets a new address; an unchanged one stays cached.
+const crypto = require('crypto');
+const hashes = {};
+for (const f of ['index.html', 'changelog.html', 'addons.html', path.join('docs', 'addons.html')]) {
+  const file = path.join(OUT, f);
+  const html = fs.readFileSync(file, 'utf8').replace(/((?:src|href)=")([^"#?]+\.(?:css|js))(")/g, (all, a, rel, z) => {
+    if (/^https?:/.test(rel)) return all;
+    const abs = path.join(OUT, path.dirname(f), rel);
+    if (!(abs in hashes)) hashes[abs] = crypto.createHash('sha1').update(fs.readFileSync(abs)).digest('hex').slice(0, 10);
+    return a + rel + '?v=' + hashes[abs] + z;
+  });
+  fs.writeFileSync(file, html);
+}
 console.log(`Built site/dist for PhoneDesk ${version} (${all.length} versions)`);
