@@ -7,20 +7,35 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.14.2] — 2026-11-17
+
+Spicy Lyrics first for every song, better picks from LRCLIB, and Spotify seeks to the start work again.
+
+### Changed
+
+- **Spicy Lyrics is asked first for every song, LRCLIB after it.** This also holds when a browser gave only the song's
+  title. When the full spelling finds nothing, Spicy Lyrics is tried with the song's first artist and with the title as
+  the player gave it (three requests at most). If Spicy Lyrics was down or rate-limited when a song began, PhoneDesk asks
+  it again a little later (twice at most) and swaps its lyrics in; a wrong key is not retried.
+- **LRCLIB: the best copy of the song, not the first.** LRCLIB keeps many copies of a popular song, timed by different
+  people. PhoneDesk now looks at all of them, keeps the timed ones of the same length that don't run past the end of the
+  song, and takes the copy that most other copies agree with (the one from the playing album when it agrees), so a copy
+  timed seconds early or late no longer wins. Timed lyrics from another copy beat a plain-text exact match, and a song
+  with several artists (“A, B”) is found under the first one.
+
+### Fixed
+
+- **Restarting a song, pressing previous or dragging the bar to the start is followed again in Spotify and other
+  players.** Version 1.14.1 ignored a position that snapped back to 0:00 in the middle of a song, to work around Firefox
+  and Zen; it did so for every player, so in Spotify the lyrics and the bar stayed at the old place after such a seek.
+  The workaround is now only for Firefox-based browsers.
+
 ## [1.14.1] — 2026-11-14
 
 Synced lyrics and the song position keep time with Firefox and with music videos, and Zen shows its own name.
 
 ### Added
 
-- **Better lyrics from LRCLIB, and Spicy Lyrics always first.** Spicy Lyrics is asked first for every song (also when a
-  browser gave only the title); LRCLIB follows when it has nothing, or can't be reached. If Spicy Lyrics was down or
-  rate-limited when a song began, PhoneDesk asks it again a little later and swaps its lyrics in. Spicy Lyrics is tried
-  with the song's first artist and with the title as the player gave it when the full spelling finds nothing.
-  For LRCLIB, PhoneDesk now looks at every copy of the song instead of the first: it keeps the timed ones of the same
-  length that don't run past the end of the song, and takes the copy that most other copies agree with (the one from
-  the playing album when it agrees), so a copy timed seconds early or late no longer wins. Timed lyrics from another
-  copy beat a plain-text exact match, and a song with several artists (“A, B”) is found under the first one.
 - **Lyrics catch up by themselves after a skip** in Zen, Firefox and similar browsers: these only say where a song is
   after a pause, so when you skip within a song PhoneDesk pauses and plays it for a split second and the lyrics land in
   the right place. On by default; turn it off in Phone display, under Music (“Keep lyrics in time after a skip”), and
@@ -71,8 +86,7 @@ Synced lyrics and the song position keep time with Firefox and with music videos
   playing YouTube Music or another site ([#14](https://github.com/icdmkg2/phonedesk/issues/14)). Firefox keeps telling
   Windows the song is at 0:00 while it plays and only sends the real position after a pause or a seek; PhoneDesk now
   keeps its own clock running through those reports instead of following them back to the start, and ignores a sudden
-  jump back to 0:00 in the middle of a song. This is only done for Firefox-based browsers: in Spotify and other players
-  a seek, a restart of the song or previous is followed at once.
+  jump back to 0:00 in the middle of a song. A real seek, previous or next still moves it at once.
 
 ## [1.14.0] — 2026-11-14
 
