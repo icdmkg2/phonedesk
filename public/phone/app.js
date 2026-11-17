@@ -2187,6 +2187,7 @@
   }
   setInterval(schedTick, 15000);
 
+  var lastEstimate = false;
   function applyConfig(c) {
     var prevShortcuts = JSON.stringify(state.config.shortcuts), prevScreens = JSON.stringify(state.config.screens) + state.config.nowStyle;
     state.config = c;
@@ -2203,6 +2204,7 @@
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
     toggle(document.body, 'look-ios', c.look === 'ios');
     toggle(document.body, 'look-win', c.look === 'windows');
+    if (lastEstimate !== (c.estimateLyrics === true)) { lastEstimate = c.estimateLyrics === true; if (lyr) setTimeout(function () { setLyrics(lyr); }, 0); } // the switch changed
     var meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', c.theme === 'light' ? '#f4f5f7' : c.theme === 'black' ? '#000000' : '#0e0f12');
     currentTint = '';
@@ -2511,16 +2513,21 @@
   }
   function setLyrics(d) {
     renderCredit(d);
-    // Plain lyrics (no timestamps): spread the lines over the song by their length so they still scroll and light up.
-    // Approximate; the Earlier/Later buttons fine-tune it.
-    if (d && !d.synced && !d.instrumental && d.lines && d.lines.length > 2 && state.media.active && state.media.duration > 30) {
+    // Lyrics with no timestamps are shown as plain text you scroll, unless "Estimate timing" is on: then the lines are
+    // spread over the song by their length (a guess, often seconds off; the Earlier/Later buttons fine-tune it).
+    var est = state.config.estimateLyrics === true;
+    if (d && d.estimated && !est) { d.estimated = false; d.synced = false; d.lines.forEach(function (l) { l.t = -1; }); }
+    if (est && d && !d.synced && !d.instrumental && d.lines && d.lines.length > 2 && state.media.active && state.media.duration > 30) {
       var dur = state.media.duration, t0 = Math.min(12, dur * 0.07), t1 = dur * 0.93, tot = 0, acc = 0;
       var wts = d.lines.map(function (l) { return l.text ? l.text.length + 8 : 6; });
       wts.forEach(function (x) { tot += x; });
       d.lines.forEach(function (l, i) { l.t = t0 + (t1 - t0) * acc / tot; acc += wts[i]; });
       d.synced = true; d.estimated = true;
     }
-    $('ly-est').hidden = !(d && d.estimated);
+    var plain = !!(d && !d.synced && !d.instrumental && d.lines && d.lines.length > 0);
+    $('ly-est').hidden = !(d && (d.estimated || plain));
+    setText($('ly-est'), d && d.estimated ? 'Estimated timing' : 'No timing for this song');
+    toggle(document.body, 'ly-plain', plain);
     lyr = d;
     lyrIndex = -2;
     syncKinetic();
@@ -2573,7 +2580,7 @@
     setText($('ly-t'), m.active ? (m.title || '') : '');
     lyShowOffset();
     setText($('ly-a'), m.active ? (m.artist || '') : '');
-    if (lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
+    if (state.config.estimateLyrics === true && lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
     setText($('ly-song'), m.active ? (m.title || '') + (m.artist ? ' — ' + m.artist : '') : '');
     var ic = m.active ? (m.site === 'youtube' ? VIDEO_ICON : m.appIcon ? '<img src="' + pcUrl(m.appIcon) + '" alt="">' : m.app ? NOTE_ICON : '') : '';
     if ($('ly-ic').getAttribute('data-ic') !== ic) { $('ly-ic').setAttribute('data-ic', ic); $('ly-ic').innerHTML = ic; }

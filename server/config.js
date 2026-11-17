@@ -108,6 +108,8 @@ function sanitize(c) {
   out.autoUsb = c.autoUsb !== false;
   // after a skip in a Firefox-based browser, pause and play it at once so the phone learns the real place in the song
   out.autoResync = c.autoResync !== false;
+  // lyrics with no timestamps: spread over the song as a guess (often seconds off), or shown as plain text you scroll
+  out.estimateLyrics = c.estimateLyrics === true;
   out.clock24 = c.clock24 !== false;
   out.theme = ['dark', 'black', 'light'].includes(c.theme) ? c.theme : 'dark';
   out.accent = typeof c.accent === 'string' && /^(auto|#[0-9a-f]{6})$/i.test(c.accent) ? c.accent : 'auto';
@@ -135,6 +137,7 @@ function sanitize(c) {
   out.seenVersion = /^\d+\.\d+\.\d+$/.test(c.seenVersion || '') ? c.seenVersion : '';
   out.lyricsLines = ['off', 'curve', 'straight', 'glass'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
   out.spicyKey = /^sl_[sp]k_[A-Za-z0-9_-]{10,200}$/.test(String(c.spicyKey || '').trim()) ? String(c.spicyKey).trim() : '';
+  out.spicyKeyBad = !!String(c.spicyKey || '').trim() && !out.spicyKey; // something was saved but it does not look like a key
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';
   out.screens = Array.isArray(c.screens) ? [...new Set(c.screens.filter(isScreen))] : DEFAULTS.screens.slice();
   out.pages = widgets.sanitizePages(c.pages);

@@ -1392,3 +1392,9 @@ body.look-win .nbanner .nb-time { background: var(--wn); }
 body.look-ios .toast, body.look-win .toast { background: rgba(245, 245, 247, .96); color: #111; }
 body.look-ios .nbanner .nb-app, body.look-ios .nbanner .nb-body { opacity: .72; }
 body.look-win .nbanner .nb-ic { color: var(--wn); }
+
+/* lyrics with no timing: plain text you scroll, every line the same, nothing pretending to be in time */
+body.ly-plain .ly-view { overflow-y: auto; overflow-x: hidden; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+body.ly-plain .ly-list { position: static; transform: none !important; padding: 8px 0 24px; }
+body.ly-plain .ly-line, body.ly-plain .ly-line.near1, body.ly-plain .ly-line.near2, body.ly-plain .ly-line.past { opacity: .9; transform: none; color: var(--fg); cursor: default; font-weight: 700; }
+body.ly-plain .ly-est { color: var(--fg2); }

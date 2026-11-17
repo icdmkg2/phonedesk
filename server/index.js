@@ -166,6 +166,7 @@ let fillArtist = null; // { key, artist }: an artist found for a song whose play
 let lyricsNoLength = false; // the current song's lyrics were looked up before its length was known
 let lyricsSeq = 0;
 let spicyRetry = { key: '', n: 0, timer: null };
+state.lyricsWhy = null; // { title, artist, winner, trace: [what each source said], at }
 function findLyrics(m, key, isRetry) {
   lyricsNoLength = !(m.duration > 0);
   const seq = ++lyricsSeq;
@@ -202,6 +203,11 @@ function findLyrics(m, key, isRetry) {
     if (!l && state.lyrics && state.lyrics.key === key && !state.lyrics.none) return;
     state.lyrics = l ? Object.assign({ key }, l) : { key, none: true, lines: [] };
     delete state.lyrics.retryMs; // for the server only
+    // why this source: what Spicy Lyrics and LRCLIB each said (Activity, and Connection → Spicy Lyrics)
+    const trace = (l && l.trace) || lyrics.lastTrace();
+    const winner = l && l.credit ? l.credit.provider : 'none';
+    state.lyricsWhy = { title: m.title || '', artist: m.artist || '', winner, trace: trace.slice(), at: Date.now() };
+    log.event('info', 'Lyrics for “' + (m.title || '') + '”' + (m.artist ? ' by ' + m.artist : '') + ': ' + (l ? winner : 'none found') + '. ' + trace.join('. '));
     broadcast({ t: 'lyrics', d: state.lyrics });
   });
 }
@@ -423,6 +429,7 @@ async function handleApi(req, res, url) {
         clients: [...clients].filter((c) => c.role === 'phone').map((c) => c.info),
         bridge: bridge.status(),
         lyrics: state.lyrics && state.lyrics.lines && state.lyrics.lines.length ? { credit: state.lyrics.credit || null, wordSynced: !!state.lyrics.wordSynced, synced: !!state.lyrics.synced } : null,
+        lyricsWhy: state.lyricsWhy || null,
         adb: adb.status(),
         media: state.media,
         volume: state.volume,
@@ -721,6 +728,7 @@ function publicConfig() {
     photos: photoList().length,
     doubleTapPlay: c.doubleTapPlay,
     autoResync: c.autoResync,
+    estimateLyrics: c.estimateLyrics,
     look: c.look,
     nowStyle: c.nowStyle,
     lyricsMode: c.lyricsMode,
