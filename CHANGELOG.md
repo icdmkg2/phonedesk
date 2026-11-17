@@ -7,6 +7,29 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.14.2] — 2026-11-17
+
+Spicy Lyrics first for every song, better picks from LRCLIB, and Spotify seeks to the start work again.
+
+### Changed
+
+- **Spicy Lyrics is asked first for every song, LRCLIB after it.** This also holds when a browser gave only the song's
+  title. When the full spelling finds nothing, Spicy Lyrics is tried with the song's first artist and with the title as
+  the player gave it (three requests at most). If Spicy Lyrics was down or rate-limited when a song began, PhoneDesk asks
+  it again a little later (twice at most) and swaps its lyrics in; a wrong key is not retried.
+- **LRCLIB: the best copy of the song, not the first.** LRCLIB keeps many copies of a popular song, timed by different
+  people. PhoneDesk now looks at all of them, keeps the timed ones of the same length that don't run past the end of the
+  song, and takes the copy that most other copies agree with (the one from the playing album when it agrees), so a copy
+  timed seconds early or late no longer wins. Timed lyrics from another copy beat a plain-text exact match, and a song
+  with several artists (“A, B”) is found under the first one.
+
+### Fixed
+
+- **Restarting a song, pressing previous or dragging the bar to the start is followed again in Spotify and other
+  players.** Version 1.14.1 ignored a position that snapped back to 0:00 in the middle of a song, to work around Firefox
+  and Zen; it did so for every player, so in Spotify the lyrics and the bar stayed at the old place after such a seek.
+  The workaround is now only for Firefox-based browsers.
+
 ## [1.14.1] — 2026-11-14
 
 Synced lyrics and the song position keep time with Firefox and with music videos, and Zen shows its own name.

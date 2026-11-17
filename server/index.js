@@ -101,6 +101,9 @@ bridge.on('message', (m) => {
     const ic = appIcons.get(rawApp);
     m.appIcon = ic ? '/appicon/' + ic.id : '';
     m.game = !!(ic && ic.game);
+    // Firefox and browsers built on it report the song's place unreliably (0:00 while playing, 0:00 after a skip); the
+    // phone only works around that for them, so a real seek to the start in Spotify and the like is followed at once.
+    m.posQuirk = isFirefoxFamily(rawApp);
     m.site = siteOf(rawApp, m.title, m.siteName || (lastBrowserSong && lastBrowserSong.app === rawApp ? lastBrowserSong.siteName : ''));
     delete m.siteName;
     m.app = m.site === 'youtube' ? 'YouTube' : m.site === 'ytmusic' ? 'YouTube Music' : ic && ic.name && ic.name.length <= 24 ? ic.name : prettyApp(rawApp);
@@ -162,11 +165,22 @@ function appToken(raw) {
 let fillArtist = null; // { key, artist }: an artist found for a song whose player gave none
 let lyricsNoLength = false; // the current song's lyrics were looked up before its length was known
 let lyricsSeq = 0;
-function findLyrics(m, key) {
+let spicyRetry = { key: '', n: 0, timer: null };
+function findLyrics(m, key, isRetry) {
   lyricsNoLength = !(m.duration > 0);
   const seq = ++lyricsSeq;
+  if (!isRetry) { clearTimeout(spicyRetry.timer); spicyRetry = { key, n: 0, timer: null }; }
   lyrics.find(m, config.get()).then((l) => {
     if (trackKey !== key) return;
+    // Spicy Lyrics comes first, but it was down or rate-limited when this song began and LRCLIB filled in: ask it again
+    // a little later (at most twice) and swap its lyrics in when it has them
+    if (l && l.retryMs && spicyRetry.key === key && spicyRetry.n < 2) {
+      spicyRetry.n++;
+      spicyRetry.timer = setTimeout(() => { if (trackKey === key && state.media && state.media.active) findLyrics(state.media, key, true); }, l.retryMs);
+      spicyRetry.timer.unref();
+    }
+    // a retry that is still answered by LRCLIB changes nothing (it would only make the lyrics jump)
+    if (isRetry && l && state.lyrics && state.lyrics.key === key && state.lyrics.credit && l.credit && l.credit.source === state.lyrics.credit.source) return;
     // a song without an artist (a browser that gives only the title) gets the one the lyrics were found under
     if (l && l.artist && state.media && state.media.active && !state.media.artist) {
       state.media = Object.assign({}, state.media, { artist: l.artist });
@@ -187,6 +201,7 @@ function findLyrics(m, key) {
     // a second lookup (now with the length) that finds nothing keeps what the first one found
     if (!l && state.lyrics && state.lyrics.key === key && !state.lyrics.none) return;
     state.lyrics = l ? Object.assign({ key }, l) : { key, none: true, lines: [] };
+    delete state.lyrics.retryMs; // for the server only
     broadcast({ t: 'lyrics', d: state.lyrics });
   });
 }
@@ -224,6 +239,10 @@ function onNotification(n) {
 const BROWSERS = /chrome|msedge|firefox|308046b0af4a39cb|6f193ccc56814779|opera|brave|vivaldi|zen|^[0-9a-f]{16}$/i;
 // Some browsers (Chrome with YouTube Music) give Windows the tab title instead of the song: "Song (feat. X) | YouTube
 // Music", no artist; and while paused just "YouTube Music". Make that the song, and keep the song through a pause.
+function isFirefoxFamily(app) {
+  const s = String(app || '').toLowerCase();
+  return /^[0-9a-f]{16}$/.test(s) || /firefox|zen|librewolf|floorp|waterfox|mullvad/.test(s);
+}
 let lastBrowserSong = null; // { app, title, artist, album }
 function tidyBrowserMedia(m) {
   if (!m.active || !BROWSERS.test(String(m.app || ''))) return;

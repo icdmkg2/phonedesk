@@ -33,7 +33,7 @@ async function findTrackId(media, key) {
   if (media.duration > 0) q.set('duration', media.duration.toFixed(3));
   const r = await call('/v1/tracks/search?' + q, key);
   if (r.status === 429 || r.status === 503 || r.status >= 500) { pausedUntil = Date.now() + Math.max(30, r.retryAfter || 60) * 1000; throw new Error(problem(r)); }
-  if (r.status === 401 || r.status === 403) { lastError = problem(r); throw new Error(lastError); }
+  if (r.status === 401 || r.status === 403) { lastError = problem(r); throw Object.assign(new Error(lastError), { auth: true }); }
   if (r.status !== 200 || !r.body || !r.body.Body) return null;
   lastError = '';
   const results = (r.body.Body.results || []).filter((x) => x.tier === 'exact' || x.tier === 'likely');
@@ -99,6 +99,8 @@ function convert(env) {
 
 module.exports = {
   lastError: () => lastError,
+  /** Milliseconds until the API may be asked again (0 when it is fine). */
+  pausedFor: () => Math.max(0, pausedUntil - Date.now()),
   /** Resolves to a lyrics result, or null when the API has none. Throws on key problems, rate limits and outages. */
   async find(media, key) {
     if (!key) return null;
@@ -110,7 +112,7 @@ module.exports = {
     const r = await call('/v1/lyrics/' + encodeURIComponent(id), key);
     if (r.status === 404) return null;
     if (r.status === 429 || r.status === 503 || r.status >= 500) { pausedUntil = Date.now() + Math.max(30, r.retryAfter || 60) * 1000; throw new Error(problem(r)); }
-    if (r.status === 401 || r.status === 403) { lastError = problem(r); throw new Error(lastError); }
+    if (r.status === 401 || r.status === 403) { lastError = problem(r); throw Object.assign(new Error(lastError), { auth: true }); }
     if (r.status !== 200) return null;
     lastError = '';
     return convert(r.body);

@@ -2,7 +2,9 @@
 // LRC parsing (LRCLIB).   node test/lyrics.test.js
 const assert = require('assert');
 process.env.PHONEDESK_DATA = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'pd-lyr-'));
-const { parseLrc } = require('../server/lyrics');
+const lyrics = require('../server/lyrics');
+const { parseLrc } = lyrics;
+const spicy = require('../server/spicylyrics');
 let failed = false;
 function t(name, fn) { try { fn(); console.log('ok   ' + name); } catch (e) { failed = true; console.log('FAIL ' + name + '\n     ' + (e && e.stack || e)); } }
 
@@ -33,5 +35,104 @@ t('a version of a different length (a music video) gives only its words, not wro
   assert.strictEqual(lyrics.pick([song], 230), null, 'half a minute off: not this song');
 });
 
-require('fs').rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
-process.exit(failed ? 1 : 0);
+// ---------------------------------------------------------------- which copy, and in which order (network stubbed)
+let chain = Promise.resolve(); // these share the fake network, so they run one after another
+function ta(name, fn) { chain = chain.then(async () => { try { await fn(); console.log('ok   ' + name); } catch (e) { failed = true; console.log('FAIL ' + name + '\n     ' + (e && e.stack || e)); } }); }
+const lrc = (...times) => times.map((t, i) => '[' + String(Math.floor(t / 60)).padStart(2, '0') + ':' + (t % 60).toFixed(2).padStart(5, '0') + ']line number ' + (i + 1) + ' of the song').join('\n');
+const copy = (id, dur, shift, extra) => Object.assign({ id, duration: dur, albumName: 'Album ' + id, syncedLyrics: lrc(10 + shift, 14 + shift, 18 + shift, 22 + shift, 26 + shift, 30 + shift), plainLyrics: 'x' }, extra || {});
+const realFetch = global.fetch;
+function stubFetch(handler) {
+  const calls = [];
+  global.fetch = async (url) => {
+    calls.push(String(url));
+    const body = handler(String(url));
+    if (body === undefined || body === null) return { status: 404, ok: false, json: async () => null, headers: { get: () => null } };
+    return { status: 200, ok: true, json: async () => body, headers: { get: () => null } };
+  };
+  return calls;
+}
+
+t('the copy most uploaders agree with wins over an outlier, even one from the playing album', () => {
+  const list = [copy(1, 200, 2.1, { albumName: 'Playing Album' }), copy(2, 200, 0), copy(3, 200, 0.2), copy(4, 200, -0.1)];
+  assert.strictEqual(lyrics.bestSynced(list, 200, 'Playing Album').id !== 1, true, 'the copy that is two seconds late loses');
+});
+t('the copy from the playing album wins when it agrees with the others', () => {
+  const list = [copy(1, 200, 0), copy(2, 200, 0.1, { albumName: 'Playing Album' }), copy(3, 200, 0.2)];
+  assert.strictEqual(lyrics.bestSynced(list, 200, 'Playing Album').id, 2);
+});
+t('a copy of the right length beats a shorter one that more copies share', () => {
+  const list = [copy(1, 201, 0), copy(2, 201, 0), copy(3, 201, 0), copy(4, 204, 1.0)];
+  assert.strictEqual(lyrics.bestSynced(list, 203.8, '').id, 4, 'only the 204 s copy is this recording');
+});
+t('a copy whose lines run past the end of the song is not this recording', () => {
+  const longer = copy(1, 200, 0, { syncedLyrics: lrc(10, 20, 30, 150, 260) });
+  assert.strictEqual(lyrics.bestSynced([longer], 200, ''), null);
+});
+t('the first of several artists', () => {
+  assert.strictEqual(lyrics.firstArtist('Calvin Harris, Dua Lipa'), 'Calvin Harris');
+  assert.strictEqual(lyrics.firstArtist('Drake & Future'), 'Drake');
+  assert.strictEqual(lyrics.firstArtist('Adele'), 'Adele');
+});
+
+ta('timed lyrics from another copy beat a plain-only exact match', async () => {
+  const plainExact = { id: 10, duration: 200, albumName: 'Playing Album', plainLyrics: 'a\nb\nc', syncedLyrics: null };
+  stubFetch((u) => (u.includes('/api/get') ? plainExact : u.includes('/api/search') ? [plainExact, copy(11, 201, 0)] : null));
+  const r = await lyrics.lookup('Band', 'Song One', 'Playing Album', 200);
+  global.fetch = realFetch;
+  assert.strictEqual(r.synced, true, 'the timed copy is used, not the plain words');
+});
+ta('a song with several artists is found under the first one', async () => {
+  const calls = stubFetch((u) => {
+    const q = new URL(u).searchParams;
+    if (u.includes('/api/search') && q.get('artist_name') === 'Calvin Harris') return [copy(20, 215, 0)];
+    return u.includes('/api/search') ? [] : null;
+  });
+  const r = await lyrics.lookup('Calvin Harris, Dua Lipa', 'One Kiss', '', 215);
+  global.fetch = realFetch;
+  assert.ok(r && r.synced, 'found with the first artist');
+  assert.ok(calls.some((c) => c.includes('artist_name=Calvin+Harris&')), 'it asked for the first artist');
+});
+
+ta('Spicy Lyrics is asked first, and LRCLIB is not asked when it has the song', async () => {
+  const calls = stubFetch(() => [copy(30, 200, 0)]);
+  const orig = spicy.find; let asked = 0;
+  spicy.find = async () => { asked++; return { synced: true, wordSynced: true, lines: [{ t: 1, text: 'hi' }], source: 'apple_music', credit: { provider: 'Apple Music', source: 'apple_music' } }; };
+  const r = await lyrics.find({ title: 'Spicy Song A', artist: 'Band', album: 'A', duration: 200 }, { spicyKey: 'sl_sk_aaaaaaaaaaaa' });
+  spicy.find = orig; global.fetch = realFetch;
+  assert.strictEqual(asked, 1);
+  assert.strictEqual(r.credit.provider, 'Apple Music');
+  assert.strictEqual(calls.length, 0, 'LRCLIB was not asked');
+});
+ta('LRCLIB follows when Spicy Lyrics has nothing', async () => {
+  stubFetch((u) => (u.includes('/api/search') ? [copy(31, 200, 0)] : copy(31, 200, 0)));
+  const orig = spicy.find; spicy.find = async () => null;
+  const r = await lyrics.find({ title: 'Spicy Song B', artist: 'Band', album: 'B', duration: 200 }, { spicyKey: 'sl_sk_aaaaaaaaaaaa' });
+  spicy.find = orig; global.fetch = realFetch;
+  assert.strictEqual(r.credit.provider, 'LRCLIB');
+  assert.strictEqual(r.retryMs, undefined, 'no retry: Spicy Lyrics simply does not have it');
+});
+ta('Spicy Lyrics is tried with the first artist, then the title exactly as the player gave it', async () => {
+  stubFetch(() => null);
+  const orig = spicy.find; const seen = [];
+  spicy.find = async (m) => { seen.push(m.artist + ' | ' + m.title); return m.artist === 'Calvin Harris, Dua Lipa' && m.title === 'One Kiss (with Dua Lipa)' ? { synced: true, lines: [{ t: 1, text: 'x' }], credit: { provider: 'Spotify', source: 'spotify' } } : null; };
+  const r = await lyrics.find({ title: 'One Kiss (with Dua Lipa)', artist: 'Calvin Harris, Dua Lipa', album: '', duration: 214 }, { spicyKey: 'sl_sk_aaaaaaaaaaaa' });
+  spicy.find = orig; global.fetch = realFetch;
+  assert.ok(r && r.credit.provider === 'Spotify', 'found on a later spelling (' + seen.join(' ; ') + ')');
+  assert.ok(seen.length <= 3, 'no more than three requests');
+});
+ta('LRCLIB fills in when Spicy Lyrics is down, with a hint to ask again; a wrong key gives no hint', async () => {
+  stubFetch((u) => (u.includes('/api/search') ? [copy(32, 200, 0)] : copy(32, 200, 0)));
+  const orig = spicy.find;
+  spicy.find = async () => { throw new Error('HTTP 503'); };
+  const down = await lyrics.find({ title: 'Spicy Song C', artist: 'Band', album: 'C', duration: 200 }, { spicyKey: 'sl_sk_aaaaaaaaaaaa' });
+  spicy.find = async () => { throw Object.assign(new Error('bad key'), { auth: true }); };
+  const bad = await lyrics.find({ title: 'Spicy Song D', artist: 'Band', album: 'D', duration: 200 }, { spicyKey: 'sl_sk_aaaaaaaaaaaa' });
+  spicy.find = orig; global.fetch = realFetch;
+  assert.ok(down.retryMs >= 30000, 'asks again in at least 30 s');
+  assert.strictEqual(bad.retryMs, undefined, 'a wrong key does not fix itself');
+});
+
+chain.then(() => {
+  require('fs').rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
+  process.exit(failed ? 1 : 0);
+});
