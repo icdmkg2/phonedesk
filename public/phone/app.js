@@ -252,9 +252,12 @@
     // The same position again with a newer timestamp means the player isn't moving its position at all (that's the
     // repeated 0:00): keep our clock. A report that snaps back to the start mid-song is ignored too, and so is a stale
     // timestamp that would run past the end.
-    var frozen = m.position === pc.lastPos && m.updated !== pc.lastUpd && Date.now() > jumpOkUntil;
-    var bogusStart = rep < 1.5 && cur > 2.5 && Date.now() > jumpOkUntil && !(m.duration && cur > m.duration - 3);
-    var bogusEnd = m.duration && rep > m.duration + 2;
+    // These rules are only for players known to report the place wrongly (Firefox-based browsers, flagged by the PC).
+    // Everywhere else a report is true: a restart of the song, a seek to the start, previous: all followed at once.
+    var q = m.posQuirk === true;
+    var frozen = q && m.position === pc.lastPos && m.updated !== pc.lastUpd && Date.now() > jumpOkUntil;
+    var bogusStart = q && rep < 1.5 && cur > 2.5 && Date.now() > jumpOkUntil && !(m.duration && cur > m.duration - 3);
+    var bogusEnd = q && m.duration && rep > m.duration + 2;
     var hadPlace = pc.lastPos > 1.5; // the player had told a real place in the song before this report
     pc.lastPos = m.position; pc.lastUpd = m.updated;
     if (!changed && playing && (frozen || bogusStart || bogusEnd)) {

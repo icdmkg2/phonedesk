@@ -284,7 +284,7 @@ async function t(name, fn) {
             this.addEventListener('message', (e) => { if (!e.__mock) { try { if (JSON.parse(e.data).t === 'media') e.stopImmediatePropagation(); } catch (x) {} } });
             this.addEventListener('open', () => {
               const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
-              const media = (pos) => ({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Zen', status: 'Playing', position: pos, duration: 200, updated: Date.now() } });
+              const media = (pos) => ({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Zen', posQuirk: true, status: 'Playing', position: pos, duration: 200, updated: Date.now() } });
               // like Firefox: "0:00, as of now" every half second while the song plays...
               let n = 0;
               const iv = setInterval(() => { d(media(0)); if (++n === 9) { clearInterval(iv); window.__real = true; d(media(60)); } }, 500);
@@ -315,7 +315,7 @@ async function t(name, fn) {
             this.addEventListener('open', () => {
               const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
               const started = Date.now();
-              const media = (dur) => ({ t: 'media', d: { active: true, title: 'New song', artist: 'Band', app: 'Zen', status: 'Playing', position: 0, duration: dur, updated: started } });
+              const media = (dur) => ({ t: 'media', d: { active: true, title: 'New song', artist: 'Band', app: 'Zen', posQuirk: true, status: 'Playing', position: 0, duration: dur, updated: started } });
               d(media(0)); // a new song: playing, at 0:00, no length yet
               setTimeout(() => d(media(0)), 1000);
               setTimeout(() => d(media(215)), 3500); // the length arrives later; the position report is still the old 0:00
@@ -345,7 +345,7 @@ async function t(name, fn) {
             this.addEventListener('message', (e) => { if (!e.__mock) { try { if (JSON.parse(e.data).t === 'media') e.stopImmediatePropagation(); } catch (x) {} } });
             this.addEventListener('open', () => {
               const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
-              const media = (status, pos) => ({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Zen', status, position: pos, duration: 240, updated: Date.now() } });
+              const media = (status, pos) => ({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Zen', posQuirk: true, status, position: pos, duration: 240, updated: Date.now() } });
               // the log from Zen: playing at 0:18, then a skip arrives as "0:00, as of now", then pause and play give the real place
               d(media('Playing', 18));
               setTimeout(() => d(media('Playing', 0)), 3000);
@@ -370,6 +370,35 @@ async function t(name, fn) {
       assert.ok(p >= 95 && p <= 97, 'and the real place is followed (shows ' + p + 's)');
       await ctx.close();
       await api('config', { autoResync: true });
+    });
+    await t('a real seek back to the start in a normal player (Spotify) is followed at once', async () => {
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript(() => {
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (JSON.parse(e.data).t === 'media') e.stopImmediatePropagation(); } catch (x) {} } });
+            this.addEventListener('open', () => {
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+              const media = (pos) => ({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Spotify', status: 'Playing', position: pos, duration: 240, updated: Date.now() } });
+              d(media(100));
+              setTimeout(() => d(media(101.5)), 1500);
+              setTimeout(() => d(media(0.2)), 3000); // the person restarts the song (previous, or the bar dragged to the start)
+            });
+          }
+        };
+      });
+      await ctx.addInitScript(() => localStorage.setItem('pd.screen', JSON.stringify('media')));
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/phone/'); await sleep(2800);
+      const secs = (t) => { const [m, x] = t.split(':').map(Number); return m * 60 + x; };
+      assert.ok(secs(await pg.locator('#m-pos').innerText()) >= 100, 'before the restart it is at 1:40 or so');
+      await sleep(1800);
+      const after = secs(await pg.locator('#m-pos').innerText());
+      assert.ok(after <= 3, 'after the restart it shows the start, not the old place (shows ' + after + 's)');
+      assert.strictEqual(await pg.evaluate(() => !document.getElementById('ly-lost').hidden), false, 'and says nothing about a lost place');
+      await ctx.close();
     });
     await t('the new widgets work: weather with the next hours, the month calendar, and quick toggles that tell the PC', async () => {
       const w = require('../server/widgets');

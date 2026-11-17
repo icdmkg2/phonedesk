@@ -122,6 +122,11 @@ PhoneDesk shows what any app tells Windows' media controls. Some players tell Wi
 | YouTube Music in **Chrome** (or Edge) | ✅ song, cover found online | ✅ when found | Chrome gives Windows the tab title instead of the song (“Song \| YouTube Music”, no artist; “YouTube Music” while paused). PhoneDesk takes the song from the title, keeps it through a pause, and finds the lyrics, the artist and the cover by the title and the song's length. A song that isn't found that way gets no lyrics: there is nothing else to go on. |
 | YouTube in a browser | ✅ (title, cover found online) | When found | Music videos are often longer than the song; lyrics from a version more than 6 s off are shown with estimated timing instead of wrong timings. |
 
+**Where the lyrics come from:** Spicy Lyrics comes first for every song (word-by-word timing; needs the free key in
+*Connection → Spicy Lyrics*), LRCLIB follows when it has nothing or can't be reached. LRCLIB keeps many differently
+timed copies of a popular song; PhoneDesk takes the one most copies agree with, of the same length as the song that is
+playing. Lyrics that have no timing at all are spread over the song as a rough guess, marked “Estimated timing”.
+
 If an app shows up that isn't music (voice chat, a game, a browser playing videos), hide it in *Phone display → Music →
 Hide these apps on the phone*. When two apps play, the one already on the phone stays; a playing app always wins over a
 paused one.

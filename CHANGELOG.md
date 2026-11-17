@@ -13,7 +13,15 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Added
 
-- **Lyrics catch up by themselves after a skip** in Zen, Firefox and similar browsers: these only say where a song is
+- - **Better lyrics from LRCLIB, and Spicy Lyrics always first.** Spicy Lyrics is asked first for every song (also when a
+  browser gave only the title); LRCLIB follows when it has nothing, or can't be reached. If Spicy Lyrics was down or
+  rate-limited when a song began, PhoneDesk asks it again a little later and swaps its lyrics in. Spicy Lyrics is tried
+  with the song's first artist and with the title as the player gave it when the full spelling finds nothing.
+  For LRCLIB, PhoneDesk now looks at every copy of the song instead of the first: it keeps the timed ones of the same
+  length that don't run past the end of the song, and takes the copy that most other copies agree with (the one from
+  the playing album when it agrees), so a copy timed seconds early or late no longer wins. Timed lyrics from another
+  copy beat a plain-text exact match, and a song with several artists (“A, B”) is found under the first one.
+**Lyrics catch up by themselves after a skip** in Zen, Firefox and similar browsers: these only say where a song is
   after a pause, so when you skip within a song PhoneDesk pauses and plays it for a split second and the lyrics land in
   the right place. On by default; turn it off in Phone display, under Music (“Keep lyrics in time after a skip”), and
   the lyrics screen says “Skipped in the song? Pause and play to sync the lyrics” instead.
@@ -63,7 +71,8 @@ Synced lyrics and the song position keep time with Firefox and with music videos
   playing YouTube Music or another site ([#14](https://github.com/icdmkg2/phonedesk/issues/14)). Firefox keeps telling
   Windows the song is at 0:00 while it plays and only sends the real position after a pause or a seek; PhoneDesk now
   keeps its own clock running through those reports instead of following them back to the start, and ignores a sudden
-  jump back to 0:00 in the middle of a song. A real seek, previous or next still moves it at once.
+  jump back to 0:00 in the middle of a song. This is only done for Firefox-based browsers: in Spotify and other players
+  a seek, a restart of the song or previous is followed at once.
 
 ## [1.14.0] — 2026-11-14
 
