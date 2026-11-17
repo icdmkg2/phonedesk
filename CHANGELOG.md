@@ -13,7 +13,7 @@ Synced lyrics and the song position keep time with Firefox and with music videos
 
 ### Added
 
-- - **Better lyrics from LRCLIB, and Spicy Lyrics always first.** Spicy Lyrics is asked first for every song (also when a
+- **Better lyrics from LRCLIB, and Spicy Lyrics always first.** Spicy Lyrics is asked first for every song (also when a
   browser gave only the title); LRCLIB follows when it has nothing, or can't be reached. If Spicy Lyrics was down or
   rate-limited when a song began, PhoneDesk asks it again a little later and swaps its lyrics in. Spicy Lyrics is tried
   with the song's first artist and with the title as the player gave it when the full spelling finds nothing.
@@ -21,7 +21,7 @@ Synced lyrics and the song position keep time with Firefox and with music videos
   length that don't run past the end of the song, and takes the copy that most other copies agree with (the one from
   the playing album when it agrees), so a copy timed seconds early or late no longer wins. Timed lyrics from another
   copy beat a plain-text exact match, and a song with several artists (“A, B”) is found under the first one.
-**Lyrics catch up by themselves after a skip** in Zen, Firefox and similar browsers: these only say where a song is
+- **Lyrics catch up by themselves after a skip** in Zen, Firefox and similar browsers: these only say where a song is
   after a pause, so when you skip within a song PhoneDesk pauses and plays it for a split second and the lyrics land in
   the right place. On by default; turn it off in Phone display, under Music (“Keep lyrics in time after a skip”), and
   the lyrics screen says “Skipped in the song? Pause and play to sync the lyrics” instead.
