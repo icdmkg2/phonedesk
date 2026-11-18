@@ -237,6 +237,7 @@
           </div></div>
         </div>
         <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-timer"/></svg><div class="srow-t"><b>Lyrics timing</b><span>Move the lyrics earlier or later if they are off</span></div><div class="srow-c srow-range"><span class="small muted">Earlier</span><input type="range" id="ds-lyoffset" min="-1500" max="1500" step="50"><span class="small muted">Later</span><span class="small" id="ds-lyoffset-n" style="min-width:56px;text-align:right">0 ms</span></div></div>
+        <label class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-list"/></svg><div class="srow-t"><b>Estimate timing for lyrics without timestamps</b><span>A guess spread over the song, often seconds off. Off: such lyrics show as plain text you can scroll.</span></div><div class="srow-c"><span class="switch"><input type="checkbox" id="ds-estlyr"><span></span></span></div></label>
         <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-font"/></svg><div class="srow-t"><b>Kinetic font</b></div><div class="srow-c"><div class="fonts" id="ds-lyfont">
           <button data-v="serif" style="font-family:Georgia,serif">Aa <small>Serif</small></button>
           <button data-v="sans" style="font-family:Inter,system-ui,sans-serif">Aa <small>Sans</small></button>
@@ -470,6 +471,7 @@
               </ol>
             </details>
             <div class="small muted" id="sl-credit"></div>
+            <div class="why" id="sl-why" hidden></div>
           </div>
         </div>
       </div>

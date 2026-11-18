@@ -400,6 +400,58 @@ async function t(name, fn) {
       assert.strictEqual(await pg.evaluate(() => !document.getElementById('ly-lost').hidden), false, 'and says nothing about a lost place');
       await ctx.close();
     });
+    await t('lyrics without timestamps are plain text you scroll (not a guess) until "Estimate timing" is switched on', async () => {
+      await api('config', { estimateLyrics: false });
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+      await ctx.addInitScript(() => {
+        const P = window.WebSocket;
+        window.WebSocket = class extends P {
+          constructor(u, p) {
+            super(u, p);
+            this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+            this.addEventListener('open', () => {
+              const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+              setTimeout(() => {
+                d({ t: 'media', d: { active: true, title: 'Plain Song', artist: 'Band', app: 'Spotify', status: 'Playing', position: 30, duration: 200, updated: Date.now() } });
+                const lines = Array.from({ length: 40 }, (_, i) => ({ t: -1, text: 'Plain line number ' + (i + 1) + ' of the song' }));
+                d({ t: 'lyrics', d: { key: 'k', synced: false, lines, credit: { provider: 'LRCLIB', source: 'lrclib' } } });
+              }, 50);
+            });
+          }
+        };
+      });
+      const pg = await ctx.newPage();
+      await pg.goto(BASE + '/phone/'); await sleep(1800);
+      await pg.click('#ly-pill'); await sleep(900);
+      assert.ok(await pg.evaluate(() => document.body.classList.contains('ly-plain')), 'plain mode');
+      assert.match(await pg.locator('#ly-est').innerText(), /No timing for this song/);
+      const sc = await pg.evaluate(() => { const v = document.getElementById('ly-view'); v.scrollTop = 200; return [v.scrollHeight > v.clientHeight + 100, v.scrollTop > 100]; });
+      assert.deepStrictEqual(sc, [true, true], 'the list is longer than the view and scrolls');
+      const lit = await pg.evaluate(() => document.querySelectorAll('.ly-line.on').length);
+      assert.strictEqual(lit, 0, 'no line is lit as if it were in time');
+      // switch the estimate on: the lines are spread over the song and light up
+      await api('config', { estimateLyrics: true }); await sleep(1500);
+      assert.ok(await pg.evaluate(() => !document.body.classList.contains('ly-plain')), 'estimated mode');
+      assert.match(await pg.locator('#ly-est').innerText(), /Estimated timing/);
+      await api('config', { estimateLyrics: false }); await sleep(1200);
+      assert.ok(await pg.evaluate(() => document.body.classList.contains('ly-plain')), 'and back to plain text');
+      await ctx.close();
+    });
+    await t('the PC window says which lyrics source won and why', async () => {
+      const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      await dctx.route('**/api/status', async (route) => {
+        const res = await route.fetch(); const j = await res.json();
+        j.lyricsWhy = { title: 'Some Song', artist: 'Some Band', winner: 'LRCLIB', trace: ['Spicy Lyrics: no match for “Some Band – Some Song”: it knows the song, but its closest copy is 213 s and yours is 204 s', 'LRCLIB: timed copy from “Album” (9 copies of this length, 6 agree)'], at: Date.now() };
+        await route.fulfill({ response: res, json: j });
+      });
+      const dp = await dctx.newPage(); await dp.goto(BASE + '/'); await sleep(1500);
+      await dp.evaluate(() => { for (const id of ['onboard', 'whatsnew']) { const o = document.getElementById(id); if (o) o.hidden = true; } });
+      await dp.click('.nav[data-view="connection"]'); await sleep(2500);
+      const txt = await dp.locator('#sl-why').innerText();
+      assert.match(txt, /Last song.*Some Song.*LRCLIB/s);
+      assert.match(txt, /closest copy is 213 s and yours is 204 s/);
+      await dctx.close();
+    });
     await t('the new widgets work: weather with the next hours, the month calendar, and quick toggles that tell the PC', async () => {
       const w = require('../server/widgets');
       const page = w.sanitizePages([{ name: 'New', widgets: [

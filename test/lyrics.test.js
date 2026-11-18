@@ -132,6 +132,52 @@ ta('LRCLIB fills in when Spicy Lyrics is down, with a hint to ask again; a wrong
   assert.strictEqual(bad.retryMs, undefined, 'a wrong key does not fix itself');
 });
 
+// ---------------------------------------------------------------- "why LRCLIB?": what each source said (real Spicy client, fake network)
+const KEY = 'sl_sk_aaaaaaaaaaaa';
+const spicySearch = (results) => (u) => (u.includes('api.spicylyrics.org/v1/tracks/search') ? { Body: { results } } : u.includes('/api/search') ? [copy(40, 200, 0)] : u.includes('/api/get') ? copy(40, 200, 0) : null);
+
+ta('a song Spicy knows only at another length is explained, and not searched again under other spellings', async () => {
+  const calls = stubFetch(spicySearch([{ id: 'abc', tier: 'exact', duration: 213, variants: [] }]));
+  const r = await lyrics.find({ title: 'Why Song A', artist: 'Band, Other', album: 'A', duration: 204 }, { spicyKey: KEY });
+  global.fetch = realFetch;
+  assert.strictEqual(r.credit.provider, 'LRCLIB');
+  const why = r.trace.join(' | ');
+  assert.match(why, /Spicy Lyrics: no match.*it knows the song, but its closest copy is 213 s and yours is 204 s/, why);
+  assert.match(why, /LRCLIB: timed copy/, why);
+  assert.strictEqual(calls.filter((c) => c.includes('/v1/tracks/search')).length, 1, 'a different length stays different: one search');
+});
+ta('a song Spicy does not know is tried under other spellings, and said so', async () => {
+  const calls = stubFetch(spicySearch([]));
+  const r = await lyrics.find({ title: 'Why Song B', artist: 'Band, Other', album: 'B', duration: 200 }, { spicyKey: KEY });
+  global.fetch = realFetch;
+  assert.match(r.trace.join(' | '), /does not know this song/);
+  const n = calls.filter((c) => c.includes('/v1/tracks/search')).length;
+  assert.ok(n >= 2 && n <= 3, 'more than one spelling, three at most (' + n + ')');
+});
+ta('only weak matches are explained too', async () => {
+  stubFetch(spicySearch([{ id: 'zzz', tier: 'possible', duration: 200 }]));
+  const r = await lyrics.find({ title: 'Why Song C', artist: 'Band', album: 'C', duration: 200 }, { spicyKey: KEY });
+  global.fetch = realFetch;
+  assert.match(r.trace.join(' | '), /none a close enough match \(best rated “possible”\)/);
+});
+ta('no key saved, and a key that was thrown away, say so', async () => {
+  stubFetch(spicySearch([]));
+  const none = await lyrics.find({ title: 'Why Song D', artist: 'Band', album: 'D', duration: 200 }, { spicyKey: '' });
+  const bad = await lyrics.find({ title: 'Why Song E', artist: 'Band', album: 'E', duration: 200 }, { spicyKey: '', spicyKeyBad: true });
+  global.fetch = realFetch;
+  assert.match(none.trace[0], /no key is saved/);
+  assert.match(bad.trace[0], /saved key was rejected/);
+});
+ta('when Spicy Lyrics has the song, the trace says so and LRCLIB is not asked', async () => {
+  const body = { Body: { Type: 'Line', source: 'apple_music', Content: [{ StartTime: 1, EndTime: 3, Text: 'hello' }] } };
+  const calls = stubFetch((u) => (u.includes('/v1/tracks/search') ? { Body: { results: [{ id: 'ok1', tier: 'exact', duration: 200, variants: [] }] } } : u.includes('/v1/lyrics/') ? body : null));
+  const r = await lyrics.find({ title: 'Why Song F', artist: 'Band', album: 'F', duration: 200 }, { spicyKey: KEY });
+  global.fetch = realFetch;
+  assert.strictEqual(r.credit.provider, 'Apple Music');
+  assert.match(r.trace.join(' | '), /Spicy Lyrics: found, from Apple Music/);
+  assert.strictEqual(calls.filter((c) => c.includes('lrclib.net')).length, 0);
+});
+
 chain.then(() => {
   require('fs').rmSync(process.env.PHONEDESK_DATA, { recursive: true, force: true });
   process.exit(failed ? 1 : 0);

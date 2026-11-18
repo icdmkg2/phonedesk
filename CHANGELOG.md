@@ -7,6 +7,19 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.14.3] — 2026-11-17
+
+Lyrics without timestamps are plain text again, and the PC window says which lyrics source won and why.
+
+### Changed
+- **Lyrics with no timestamps are no longer guessed.** The "estimated timing" spread the lines evenly over the song and was often seconds off. Such lyrics now show as plain text you can scroll, labelled "No timing for this song". The old guess is still there as a switch: Phone display → Music → "Estimate timing for lyrics without timestamps".
+
+### Added
+- **Why this lyrics source?** Connection → Spicy Lyrics now has a "Last song" box and the Activity log gets a "Lyrics for …" line, naming what Spicy Lyrics and LRCLIB each said (no key saved, key rejected, song unknown, closest copy a different length, rate limit, …).
+
+### Fixed
+- When Spicy Lyrics knows a song but its copy has a different length, PhoneDesk no longer re-searches it under other spellings (fewer requests, less rate limiting).
+
 ## [1.14.2] — 2026-11-17
 
 Spicy Lyrics first for every song, better picks from LRCLIB, and Spotify seeks to the start work again.

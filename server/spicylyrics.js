@@ -9,6 +9,11 @@ const PROVIDERS = { spicy_lyrics: 'Spicy Lyrics', apple_music: 'Apple Music', sp
 
 let pausedUntil = 0;   // after a rate limit or outage, leave the API alone for a while
 let lastError = '';
+// Why the last lookup found nothing: kind is 'nothing' (the API does not know the song), 'weak' (only poor matches),
+// 'duration' (the song is known, but its length differs), 'nolyrics' or 'error'. Shown in the PC window and the log.
+let lastMissInfo = { kind: '', text: '' };
+function miss(kind, text) { lastMissInfo = { kind, text }; return null; }
+const secs = (n) => (Number.isFinite(+n) ? (+n).toFixed(+n % 1 ? 1 : 0) + ' s' : '?');
 
 async function call(path, key) {
   const ctl = new AbortController();
@@ -34,10 +39,13 @@ async function findTrackId(media, key) {
   const r = await call('/v1/tracks/search?' + q, key);
   if (r.status === 429 || r.status === 503 || r.status >= 500) { pausedUntil = Date.now() + Math.max(30, r.retryAfter || 60) * 1000; throw new Error(problem(r)); }
   if (r.status === 401 || r.status === 403) { lastError = problem(r); throw Object.assign(new Error(lastError), { auth: true }); }
-  if (r.status !== 200 || !r.body || !r.body.Body) return null;
+  if (r.status === 404) return miss('nothing', 'Spicy Lyrics does not know this song');
+  if (r.status !== 200 || !r.body || !r.body.Body) return miss('error', 'the search answered HTTP ' + r.status);
   lastError = '';
-  const results = (r.body.Body.results || []).filter((x) => x.tier === 'exact' || x.tier === 'likely');
-  if (!results.length) return null;
+  const all = r.body.Body.results || [];
+  if (!all.length) return miss('nothing', 'Spicy Lyrics does not know this song');
+  const results = all.filter((x) => x.tier === 'exact' || x.tier === 'likely');
+  if (!results.length) return miss('weak', all.length + ' result' + (all.length > 1 ? 's' : '') + ', none a close enough match (best rated “' + all[0].tier + '”)');
   const want = media.duration || 0;
   // Every release of the best matches; the one whose length is closest to what is playing has the right timings.
   const cands = [];
@@ -48,7 +56,7 @@ async function findTrackId(media, key) {
   const diff = (c) => (want > 0 && c.d > 0 ? Math.abs(c.d - want) : 0);
   cands.sort((a, b) => (a.tier === b.tier ? 0 : a.tier === 'exact' ? -1 : 1) || diff(a) - diff(b));
   const best = cands[0];
-  if (want > 0 && best.d > 0 && Math.abs(best.d - want) > 4) return null; // a different cut: its timings would be wrong
+  if (want > 0 && best.d > 0 && Math.abs(best.d - want) > 4) return miss('duration', 'it knows the song, but its closest copy is ' + secs(best.d) + ' and yours is ' + secs(want)); // a different cut: its timings would be wrong
   return best.id;
 }
 
@@ -99,6 +107,7 @@ function convert(env) {
 
 module.exports = {
   lastError: () => lastError,
+  lastMiss: () => lastMissInfo,
   /** Milliseconds until the API may be asked again (0 when it is fine). */
   pausedFor: () => Math.max(0, pausedUntil - Date.now()),
   /** Resolves to a lyrics result, or null when the API has none. Throws on key problems, rate limits and outages. */
@@ -107,15 +116,16 @@ module.exports = {
     if (Date.now() < pausedUntil) throw new Error('Spicy Lyrics is paused for a moment (rate limit)');
     const title = String(media.title || '').trim(), artist = String(media.artist || '').trim();
     if (!title || !artist) return null;
+    lastMissInfo = { kind: '', text: '' };
     const id = await findTrackId({ title, artist, album: String(media.album || '').trim(), duration: media.duration || 0 }, key);
     if (!id) return null;
     const r = await call('/v1/lyrics/' + encodeURIComponent(id), key);
-    if (r.status === 404) return null;
+    if (r.status === 404) return miss('nolyrics', 'it knows the song, but has no lyrics for it');
     if (r.status === 429 || r.status === 503 || r.status >= 500) { pausedUntil = Date.now() + Math.max(30, r.retryAfter || 60) * 1000; throw new Error(problem(r)); }
     if (r.status === 401 || r.status === 403) { lastError = problem(r); throw Object.assign(new Error(lastError), { auth: true }); }
-    if (r.status !== 200) return null;
+    if (r.status !== 200) return miss('error', 'the lyrics answered HTTP ' + r.status);
     lastError = '';
-    return convert(r.body);
+    return convert(r.body) || miss('nolyrics', 'its lyrics came back empty');
   },
   /** For the dashboard's "Check" button. */
   async check(key) {

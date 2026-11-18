@@ -622,6 +622,7 @@
     $('ds-burn').checked = c.burnIn !== false;
     $('ds-batt').checked = c.showBattery !== false;
     $('ds-resync').checked = c.autoResync !== false;
+    $('ds-estlyr').checked = c.estimateLyrics === true;
     $('ds-wx').checked = c.weather !== false;
     $('ds-wx-row').hidden = c.weather === false;
     if (document.activeElement !== $('ds-wx-city')) $('ds-wx-city').value = c.weatherCity || '';
@@ -733,6 +734,7 @@
   function renderSpicy() {
     const c = state.config || {}, s = state.status;
     const on = !!c.spicyKey;
+    renderWhy();
     $('sl-badge').textContent = on ? 'On' : 'Off';
     $('sl-badge').className = 'badge' + (on ? ' usb' : '');
     $('sl-clear').hidden = !on;
@@ -753,6 +755,15 @@
     else setText($('sl-state'), r.error || 'That key was not accepted.');
     renderSpicy();
   });
+  // What each lyrics source said about the song that played last, so "why LRCLIB?" has an answer
+  function renderWhy() {
+    const w = state.status && state.status.lyricsWhy, el = $('sl-why');
+    if (!el) return;
+    if (!w) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = '<b>Last song</b> “' + esc(w.title) + '”' + (w.artist ? ' by ' + esc(w.artist) : '') + ': <b>' + esc(w.winner === 'none' ? 'no lyrics found' : w.winner) + '</b>'
+      + '<ul>' + (w.trace || []).map((t) => '<li>' + esc(t) + '</li>').join('') + '</ul>';
+  }
   $('sl-clear').addEventListener('click', async () => { await saveConfig({ spicyKey: '' }); setText($('sl-state'), 'Removed.'); renderSpicy(); });
 
   function renderConnectionSettings() {
@@ -1613,4 +1624,5 @@
 
   // ---------------------------------------------------------------- Keep lyrics in time after a skip (Firefox-based browsers)
   $('ds-resync').addEventListener('change', (e) => saveConfig({ autoResync: e.target.checked }));
+  $('ds-estlyr').addEventListener('change', (e) => saveConfig({ estimateLyrics: e.target.checked }));
 })();

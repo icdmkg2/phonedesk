@@ -115,11 +115,13 @@ function bestSynced(list, duration, album) {
   for (const x of pool) {
     let score = 0;
     for (const y of pool) if (y !== x && agree(x, y)) score += 1; // copies that time the song the same way
+    x._agreed = score;
     if (want && norm(x.albumName) === want) score += 0.6;          // the album that is playing
     if (duration > 0) score += diff(x) <= 1 ? 0.3 : 0;             // the same length to the second
     score -= diff(x) * 0.05;
     if (score > bestScore) { bestScore = score; best = x; }
   }
+  if (best) best._pool = pool.length;
   return best;
 }
 
@@ -145,9 +147,15 @@ async function lookup(artist, title, album, duration) {
   if (!list.length && first && first !== artist) list = await candidates(first, title, album, duration); // "A, B" -> "A"
   if (!list.length) list = (await getJson('https://lrclib.net/api/search?' + new URLSearchParams({ q: artist + ' ' + title }))) || [];
   const synced = bestSynced(list, duration, album);
-  if (synced) return toResult(synced);
+  if (synced) {
+    const r = toResult(synced);
+    r.note = 'LRCLIB: timed copy from “' + (synced.albumName || 'unknown album') + '” (' + synced._pool + ' copies of this length' + (synced._agreed ? ', ' + synced._agreed + ' agree' : '') + ')';
+    return r;
+  }
   // nothing timed fits this recording: plain words (or another cut's words) with estimated timing, else an instrumental
-  return toResult(pick(list, duration));
+  const found = pick(list, duration), r = toResult(found);
+  if (r) r.note = r.instrumental ? 'LRCLIB: an instrumental' : found && found.syncedLyrics ? 'LRCLIB: only a copy of another length (words only, no timing)' : 'LRCLIB: plain text only, no timing';
+  return r;
 }
 
 // Only a title (YouTube Music in Chrome gives no artist): LRCLIB's search by the title, picked by the song's length,
@@ -173,18 +181,25 @@ function byTitle(title, duration) {
 // Spicy Lyrics finds a song by artist and title; a streaming service's spelling often differs from its catalogue, so a
 // few spellings are tried in turn (kept to three: each is a request): the full artist, then the first of several
 // artists, with the cleaned title and then the title as the player gave it.
-async function spicyFirst(media, artist, title, key) {
+async function spicyFirst(media, artist, title, key, trace) {
   const raw = String(media.title || '').trim(), first = firstArtist(artist);
   const tries = [[artist, title], [first, title], [artist, raw], [first, raw]]
     .filter(([a, t], i, l) => a && t && l.findIndex(([a2, t2]) => a2 === a && t2 === t) === i).slice(0, 3);
   for (const [a, t] of tries) {
     const r = await spicy.find({ title: t, artist: a, album: clean(media.album), duration: media.duration || 0 }, key);
-    if (r) return r;
+    if (r) { trace.push('Spicy Lyrics: found, from ' + ((r.credit && r.credit.provider) || 'Spicy Lyrics')); return r; }
+    const m = spicy.lastMiss();
+    trace.push('Spicy Lyrics: no match for “' + a + ' – ' + t + '”: ' + (m.text || 'nothing found'));
+    // another spelling only helps when the song was not recognised; a different length or missing lyrics stay that way
+    if (['duration', 'nolyrics', 'error'].includes(m.kind)) break;
   }
   return null;
 }
+let lastTraceInfo = [];
 
 module.exports = {
+  /** What each source said about the last song looked up (for the log and the PC window). */
+  lastTrace: () => lastTraceInfo,
   byTitle, // for tests
   parseLrc, pick, bestSynced, firstArtist, lookup, // for tests
   /** Resolves to { synced, lines:[{t,text,...}], credit } or null. Never throws. `cfg` is the PhoneDesk config. */
@@ -209,19 +224,26 @@ module.exports = {
     if (cache.has(key)) return cache.get(key);
     let transient = false, retryMs = 0;
     const run = async () => {
+      const trace = [];
       // 1) Spicy Lyrics, first for every song; 2) LRCLIB when it has nothing or can't be asked right now
       if (cfg && cfg.spicyKey) {
         try {
-          const r = await spicyFirst(media, artist, title, cfg.spicyKey);
-          if (r) return r;
+          const r = await spicyFirst(media, artist, title, cfg.spicyKey, trace);
+          if (r) { r.trace = trace; lastTraceInfo = trace; return r; }
         } catch (e) {
           transient = !e.auth; // a wrong key won't fix itself; an outage or a rate limit will
           retryMs = transient ? Math.min(300000, Math.max(30000, spicy.pausedFor() + 2000)) : 0;
+          trace.push('Spicy Lyrics: ' + e.message + (transient ? ' (will try again)' : ' (check the key)'));
           log.warn('Spicy Lyrics: ' + e.message);
         }
+      } else {
+        trace.push(cfg && cfg.spicyKeyBad ? 'Spicy Lyrics: not used, the saved key was rejected (it should start with sl_sk_ and have no spaces)'
+          : 'Spicy Lyrics: not used, no key is saved on this PC (Connection → Spicy Lyrics)');
       }
       const r = await lookup(artist, title, clean(media.album), media.duration || 0);
-      if (r && transient) r.retryMs = retryMs; // the server asks Spicy Lyrics again then and swaps the lyrics in
+      trace.push(r ? r.note || 'LRCLIB: found' : 'LRCLIB: nothing found');
+      lastTraceInfo = trace;
+      if (r) { r.trace = trace; if (transient) r.retryMs = retryMs; } // the server asks Spicy Lyrics again then and swaps the lyrics in
       return r;
     };
     const p = run().catch((e) => { log.warn('lyrics lookup failed: ' + e.message); cache.delete(key); return null; })
