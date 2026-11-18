@@ -146,6 +146,13 @@ ta('a song Spicy knows only at another length is explained, and not searched aga
   assert.match(why, /LRCLIB: timed copy/, why);
   assert.strictEqual(calls.filter((c) => c.includes('/v1/tracks/search')).length, 1, 'a different length stays different: one search');
 });
+ta('an exact match whose length is a few seconds off (an edition of the same song) is still taken from Spicy', async () => {
+  const body = { Body: { Type: 'Line', source: 'apple_music', Content: [{ StartTime: 1, EndTime: 3, Text: 'hola' }] } };
+  stubFetch((u) => (u.includes('/v1/tracks/search') ? { Body: { results: [{ id: 'ed1', tier: 'exact', duration: 194.4, variants: [] }] } } : u.includes('/v1/lyrics/') ? body : null));
+  const r = await lyrics.find({ title: 'Why Song G', artist: 'Band', album: 'G', duration: 189.6 }, { spicyKey: KEY });
+  global.fetch = realFetch;
+  assert.strictEqual(r.credit.provider, 'Apple Music');
+});
 ta('a song Spicy does not know is tried under other spellings, and said so', async () => {
   const calls = stubFetch(spicySearch([]));
   const r = await lyrics.find({ title: 'Why Song B', artist: 'Band, Other', album: 'B', duration: 200 }, { spicyKey: KEY });

@@ -18,6 +18,7 @@ Lyrics without timestamps are plain text again, and the PC window says which lyr
 - **Why this lyrics source?** Connection → Spicy Lyrics now has a "Last song" box and the Activity log gets a "Lyrics for …" line, naming what Spicy Lyrics and LRCLIB each said (no key saved, key rejected, song unknown, closest copy a different length, rate limit, …).
 
 ### Fixed
+- **Spicy Lyrics is used for more songs.** A song Spicy rates as an exact match is now accepted when its copy is up to 8 s longer or shorter than yours (another edition of the same track); it was 4 s, which sent songs like this to LRCLIB. A "likely" match still has to be within 4 s. If the lines run a little early or late, the Earlier/Later buttons fix it.
 - When Spicy Lyrics knows a song but its copy has a different length, PhoneDesk no longer re-searches it under other spellings (fewer requests, less rate limiting).
 
 ## [1.14.2] — 2026-11-17

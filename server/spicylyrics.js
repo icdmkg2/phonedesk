@@ -56,7 +56,9 @@ async function findTrackId(media, key) {
   const diff = (c) => (want > 0 && c.d > 0 ? Math.abs(c.d - want) : 0);
   cands.sort((a, b) => (a.tier === b.tier ? 0 : a.tier === 'exact' ? -1 : 1) || diff(a) - diff(b));
   const best = cands[0];
-  if (want > 0 && best.d > 0 && Math.abs(best.d - want) > 4) return miss('duration', 'it knows the song, but its closest copy is ' + secs(best.d) + ' and yours is ' + secs(want)); // a different cut: its timings would be wrong
+  // Spicy rates the song itself 'exact': another edition of it is often a few seconds longer (outro, silence), so allow more there.
+  const tol = best.tier === 'exact' ? 8 : 4;
+  if (want > 0 && best.d > 0 && Math.abs(best.d - want) > tol) return miss('duration', 'it knows the song, but its closest copy is ' + secs(best.d) + ' and yours is ' + secs(want)); // a different cut: its timings would be wrong
   return best.id;
 }
 
