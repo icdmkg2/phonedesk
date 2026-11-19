@@ -23,6 +23,8 @@ Spicy Lyrics for more songs, breaks in the singing shown inside the lyrics, and 
 - **PC stats widget:** the "busiest thread" note was cut in half in the Windows style.
 - **Photos widget without a folder** said nothing (a black box); it now says to choose a photo folder. The **Bluetooth devices** widget's "no devices" note is readable in small widgets.
 - **PC window:** Now playing with no cover shows a music note instead of a grey square.
+- **Small phones:** the Clock screen shrinks to fit instead of running into the top edge and the page dots; the Forecast widget shows only the days that fit instead of cutting the last ones off; Shortcuts fit a 320-pixel-tall screen without scrolling.
+- **Tablets:** shortcut labels and icons, the clock's forecast, weather and song line grow with the screen instead of staying phone-sized.
 - **The first lines no longer sit at the top edge.** The lyrics list now moves down as well as up, so the current line, including the first one, is always where you read it, not half under the top fade.
 
 ## [1.14.3] — 2026-11-17

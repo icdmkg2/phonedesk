@@ -519,6 +519,34 @@ async function t(name, fn) {
       }
       await api('config', { look: 'default', pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
     });
+    await t('small phones: the clock fits between the top edge and the dots, the forecast widget shows only days that fit, shortcuts fit', async () => {
+      const W = (type, x, y, w, h, opts) => ({ type, x, y, w, h, opts });
+      await api('config', { pages: [{ id: 'pg-smal', name: 'Small', widgets: [W('forecast', 8, 0, 4, 3), W('clock', 0, 0, 8, 3)] }], screens: ['media', 'clock', 'shortcuts', 'page:pg-smal'] });
+      for (const vp of [[640, 320], [800, 360]]) {
+        const ctx = await browser.newContext({ viewport: { width: vp[0], height: vp[1] } });
+        for (const screen of ['clock', 'page:pg-smal', 'shortcuts']) {
+          await ctx.addInitScript((s) => localStorage.setItem('pd.screen', JSON.stringify(s)), screen);
+          const pg = await ctx.newPage();
+          await pg.goto(BASE + '/phone/'); await sleep(1300);
+          const bad = await pg.evaluate(() => {
+            const out = [], vw = innerWidth, vh = innerHeight, dots = document.getElementById('dots').getBoundingClientRect();
+            document.querySelectorAll('.screen.on *').forEach((e) => {
+              const r = e.getBoundingClientRect(); if (!r.width || !r.height || e.children.length || !e.textContent.trim()) return;
+              let p = e, hid = false; while (p) { const cs = getComputedStyle(p); if (cs.display === 'none' || cs.visibility === 'hidden') { hid = true; break; } p = p.parentElement; } if (hid) return;
+              const clip = e.closest('.wg, .pad-body'); const cr = clip ? clip.getBoundingClientRect() : null;
+              if (r.right > vw + 1 || r.bottom > vh + 1 || r.left < -1 || r.top < -1) out.push('off screen: ' + e.textContent.trim().slice(0, 20));
+              else if (cr && (r.right > cr.right + 1 || r.bottom > cr.bottom + 1)) out.push('outside its box: ' + e.textContent.trim().slice(0, 20));
+              else if (!clip && r.bottom > dots.top - 2 && r.left < dots.right && r.right > dots.left) out.push('on the dots: ' + e.textContent.trim().slice(0, 20));
+            });
+            return out;
+          });
+          assert.deepStrictEqual(bad, [], vp.join('x') + ' ' + screen);
+          await pg.close();
+        }
+        await ctx.close();
+      }
+      await api('config', { pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
+    });
     await t('the PC window says which lyrics source won and why', async () => {
       const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       await dctx.route('**/api/status', async (route) => {

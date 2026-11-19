@@ -661,7 +661,18 @@
       clockEl.date.textContent = dateText(d);
     }
     if (d.getMinutes() !== shiftMin) { shiftMin = d.getMinutes(); nudge(clockEl.box); }
+    fitClock();
   }
+  // On a short screen the time, date, weather, forecast and song line can be taller than the screen (the forecast and
+  // song line have fixed sizes): shrink the whole block so it stays clear of the top edge and the page dots.
+  var clockMain = clockEl.box.querySelector('.c-main'), clockFit = 1;
+  function fitClock() {
+    if (!clockMain || clockMain.offsetParent === null) return;
+    var room = clockEl.box.clientHeight - 30, need = clockMain.offsetHeight;
+    var f = need > room && need > 0 ? Math.max(0.5, room / need) : 1;
+    if (Math.abs(f - clockFit) > 0.01) { clockFit = f; clockMain.style.transform = f < 1 ? 'scale(' + f.toFixed(3) + ')' : ''; }
+  }
+  window.addEventListener('resize', function () { setTimeout(fitClock, 50); });
 
   // Disconnected clock: the phone's own time, corrected by the last known PC offset.
   var offlineLast = '', offlineShift = -1;
@@ -677,6 +688,8 @@
     var m = state.media;
     toggle(clockEl.mini, 'hide', !m.active || !m.title);
     if (m.active) setText(clockEl.miniT, (m.title || '') + (m.artist ? ' — ' + m.artist : ''));
+
+    fitClock();
   }
   setInterval(function () { if (state.screen === 'clock' && document.visibilityState === 'visible') renderClock(); }, 1000);
 
@@ -969,6 +982,7 @@
   }
   function wForecast() {
     var el = wEl('forecast'), last = null;
+    function fcFit() { var k = el.querySelectorAll('.fc-d'); for (var i = 0; i < k.length; i++) k[i].hidden = i >= (el._fit || 5); }
     return {
       el: el,
       update: function () {
@@ -979,8 +993,15 @@
         });
         if (html === last) return; last = html;
         if (html) el.innerHTML = html; else wEmpty(el, 'No forecast yet');
+        fcFit();
       },
-      resize: function (w, h) { var b = wScale(el, w, h, 340, 76, 9, 26); el.classList.toggle('compact', b.h < 52); },
+      // Five days need about 68 ems-at-14px each; when the widget is too narrow for five at a readable size, show fewer.
+      resize: function (w, h) {
+        var iw = Math.max(10, w - 24), ih = Math.max(10, h - 20), five = 14 * Math.min(iw / 340, ih / 76);
+        el._fit = five >= 10 ? 5 : Math.max(2, Math.min(5, Math.floor(iw / (68 * 10 / 14))));
+        var b = wScale(el, w, h, 68 * el._fit, 76, 9, 26); el.classList.toggle('compact', b.h < 52);
+        fcFit();
+      },
     };
   }
   function wAgenda(wd) {
