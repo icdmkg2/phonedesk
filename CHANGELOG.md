@@ -16,6 +16,9 @@ Spicy Lyrics for more songs, breaks in the singing shown inside the lyrics, and 
 - **Spicy Lyrics is used for more songs.** A song Spicy rates as an exact match is now accepted when its copy is up to 8 s longer or shorter than yours (another edition of the same track); it was 4 s, which sent songs like this to LRCLIB. A "likely" match still has to be within 4 s. If the lines run a little early or late, the Earlier/Later buttons fix it.
 
 ### Fixed
+- **No empty pill when nothing plays.** The pill next to the battery that names the player (Spotify, Chrome…) is hidden while nothing is playing, instead of showing as an empty bubble.
+- **iOS style: progress and volume bars are visible again.** Only their knobs showed.
+- **Earlier/Later only when they do something.** They are hidden on the lyrics screen while nothing plays or the song has no timed lyrics, and the screen says "Nothing playing".
 - **The first lines no longer sit at the top edge.** The lyrics list now moves down as well as up, so the current line, including the first one, is always where you read it, not half under the top fade.
 
 ## [1.14.3] — 2026-11-17

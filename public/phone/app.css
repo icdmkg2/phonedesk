@@ -112,7 +112,7 @@ body.theme-light #bg { opacity: .55; }
 
 .progress { padding-top: 2px; }
 .track { position: relative; height: 22px; display: flex; align-items: center; cursor: pointer; }
-.track::before { content: ""; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--line); }
+.track::before { content: ""; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--track, var(--line)); }
 .track .fill {
   position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--fg);
   transform-origin: 0 50%; transform: scaleX(0); will-change: transform;
@@ -136,7 +136,7 @@ body.theme-light #bg { opacity: .55; }
 
 .volume { display: flex; align-items: center; gap: 10px; max-width: 420px; }
 .slider { position: relative; flex: 1; height: 30px; display: flex; align-items: center; }
-.slider::before { content: ""; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--line); }
+.slider::before { content: ""; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--track, var(--line)); }
 .slider .fill { position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--fg2); transform-origin: 0 50%; transform: scaleX(0); }
 .slider .knob { position: absolute; left: -8px; width: 16px; height: 16px; border-radius: 50%; background: var(--fg); transform: translateX(0); }
 .slider.drag .fill { background: var(--accent); }
@@ -1409,3 +1409,10 @@ body.ly-plain .ly-est { color: var(--fg2); }
 .ly-gapdots.ending { opacity: 0; transform: scale(1.25); animation: none; }
 .ly-gapdots i { width: 12px; height: 12px; border-radius: 50%; background: var(--fg); opacity: .25; transition: opacity .3s linear; }
 @keyframes lybreathe { 0%, 100% { transform: scale(.92); } 50% { transform: scale(1.08); } }
+
+/* the source pill (Spotify, Chrome...) is not drawn while nothing plays */
+body .app.empty { display: none !important; }
+/* the iOS style has no hairlines (--line is transparent), but slider and progress tracks still need to show */
+body.look-ios { --track: rgba(255, 255, 255, .2); }
+body.look-ios.theme-light { --track: rgba(0, 0, 0, .14); }
+body.ly-notime .ly-nudge { display: none !important; }

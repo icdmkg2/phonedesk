@@ -478,6 +478,23 @@ async function t(name, fn) {
       assert.ok(first.firstTop > first.h * 0.12, 'the first line is not at the top edge (' + Math.round(first.firstTop) + ')');
       assert.ok(!first.dots, 'no dots while singing');
     });
+    await t('with nothing playing there is no empty source pill and no Earlier/Later; the iOS style still draws slider tracks', async () => {
+      for (const look of ['default', 'ios', 'windows']) {
+        await api('config', { look, nowStyle: 'immersive' });
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1300);
+        assert.strictEqual(await pg.evaluate(() => document.querySelector('.app').offsetWidth), 0, look + ': no empty source pill');
+        if (look === 'ios') {
+          const bg = await pg.evaluate(() => getComputedStyle(document.getElementById('v-slider'), '::before').backgroundColor);
+          assert.notStrictEqual(bg, 'rgba(0, 0, 0, 0)', 'the volume track is visible in the iOS style');
+        }
+        await pg.click('#ly-pill'); await sleep(700);
+        assert.strictEqual(await pg.evaluate(() => document.getElementById('ly-nudge').offsetWidth), 0, look + ': no Earlier/Later with nothing playing');
+        await ctx.close();
+      }
+      await api('config', { look: 'default' });
+    });
     await t('the PC window says which lyrics source won and why', async () => {
       const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       await dctx.route('**/api/status', async (route) => {

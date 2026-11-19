@@ -301,7 +301,9 @@
       setText(el.app, '');
       setAppIcon('');
       setArt('');
+      el.app.parentNode.classList.add('empty');
     } else {
+      el.app.parentNode.classList.toggle('empty', !m.app && !m.game && !m.appIcon && m.site !== 'youtube');
       swapText(el.title, m.title || 'Unknown title');
       swapText(el.artist, m.artist || m.album || '');
       swapText(el.app, (m.game ? 'Game · ' : '') + (m.app || ''));
@@ -2528,6 +2530,8 @@
     $('ly-est').hidden = !(d && (d.estimated || plain));
     setText($('ly-est'), d && d.estimated ? 'Estimated timing' : 'No timing for this song');
     toggle(document.body, 'ly-plain', plain);
+    // Earlier/Later only mean something for timed lyrics of a song that is playing
+    toggle(document.body, 'ly-notime', !(d && d.synced && d.lines && d.lines.length && state.media.active));
     lyr = d;
     lyrIndex = -2; lyGapKey = ''; lyGapEl = null;
     syncKinetic();
@@ -2577,7 +2581,8 @@
       if (art) { img.onload = function () { img.hidden = false; $('ly-noart').hidden = true; }; img.onerror = function () { img.hidden = true; $('ly-noart').hidden = false; }; img.src = art; }
       else { img.removeAttribute('src'); img.hidden = true; $('ly-noart').hidden = false; }
     }
-    setText($('ly-t'), m.active ? (m.title || '') : '');
+    setText($('ly-t'), m.active ? (m.title || '') : 'Nothing playing');
+    toggle(document.body, 'ly-notime', !(m.active && lyr && lyr.synced && lyr.lines && lyr.lines.length));
     lyShowOffset();
     setText($('ly-a'), m.active ? (m.artist || '') : '');
     if (state.config.estimateLyrics === true && lyr && !lyr.synced && !lyr.instrumental && lyr.lines && lyr.lines.length > 2 && m.active && m.duration > 30) setLyrics(lyr);
