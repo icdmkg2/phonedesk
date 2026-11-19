@@ -2529,7 +2529,7 @@
     setText($('ly-est'), d && d.estimated ? 'Estimated timing' : 'No timing for this song');
     toggle(document.body, 'ly-plain', plain);
     lyr = d;
-    lyrIndex = -2;
+    lyrIndex = -2; lyGapKey = ''; lyGapEl = null;
     syncKinetic();
     var list = $('ly-list');
     list.style.transform = 'translateY(0)';
@@ -2606,16 +2606,30 @@
     if (on) setText($('ly-music-t'), txt);
     $('ly-list').classList.toggle('idle', on && !!lyr && !!lyr.lines && lyr.lines.length > 0);
   }
-  // '' while someone is singing, otherwise what the music is doing.
-  function lyIdleLabel(idx, pos) {
+  // A real break in the singing (long intro, instrumental part, outro), or null. Short pauses between lines are not breaks:
+  // the dots only show when there are at least a few seconds of music without words.
+  // { at: line index the dots sit next to, before: true for the intro, from/to: the break in song seconds, label }
+  function lyGapAt(idx, pos) {
     var L = lyr.lines;
-    if (lyr.estimated || !L.length) return '';
-    if (idx < 0) return L[0].t - pos > 2.0 ? 'Intro' : '';
+    if (lyr.estimated || !L.length) return null;
+    if (idx < 0) return L[0].t >= 4 && pos < L[0].t - 0.3 ? { at: 0, before: true, from: 0, to: L[0].t, label: 'Intro' } : null;
     var ln = L[idx], next = L[idx + 1];
-    if (!ln.text) return 'Instrumental';
+    if (!ln.text) return next && next.t - ln.t >= 3 && pos < next.t - 0.3 ? { at: idx, from: ln.t, to: next.t, label: 'Instrumental' } : null;
     var gap = (next ? next.t : ln.t + 999) - ln.t, end = ln.t + (ln.dur > 0 ? ln.dur : lySung(ln.text.length, gap));
-    if (pos > end + 1.2 && (!next || next.t - pos > 2.0)) return next ? 'Instrumental' : 'Outro';
-    return '';
+    if (next) return next.t - end >= 5 && pos > end + 0.3 && pos < next.t - 0.3 ? { at: idx, from: end, to: next.t, label: 'Instrumental' } : null;
+    var songEnd = state.media.duration > end + 4 ? state.media.duration : end + 20;
+    return pos > end + 2 ? { at: idx, from: end, to: songEnd, label: 'Outro' } : null;
+  }
+  function lyIdleLabel(idx, pos) { var g = lyGapAt(idx, pos); return g ? g.label : ''; }
+  // The break dots inside the lyrics list: three dots that breathe and fill in as the break plays out.
+  var lyGapKey = '', lyGapEl = null;
+  function lyGapDots() {
+    if (lyGapEl && lyGapEl.parentNode === $('ly-list')) return lyGapEl;
+    lyGapEl = document.createElement('div');
+    lyGapEl.className = 'ly-gapdots'; lyGapEl.setAttribute('aria-hidden', 'true');
+    lyGapEl.innerHTML = '<i></i><i></i><i></i>';
+    $('ly-list').appendChild(lyGapEl);
+    return lyGapEl;
   }
   function lyIndexAt(pos) {
     var L = lyr.lines, lo = 0, hi = L.length - 1, ans = -1;
@@ -2651,25 +2665,41 @@
     if (document.body.classList.contains('ly-kinetic')) return kinTick(force);
     if (!lyr.synced) { if (force && lines[0]) $('ly-list').style.transform = 'translateY(0)'; return; }
     var pos = currentPos() + lyLead(), idx = lyIndexAt(pos);
-    lyMusic(lyIdleLabel(idx, pos));
-    if (idx !== lyrIndex || force) {
-      var from = Math.max(0, Math.min(lyrIndex, idx) - 3), to = Math.min(lines.length - 1, Math.max(lyrIndex, idx) + 3);
-      if (force) { from = 0; to = lines.length - 1; }
+    if (lyMusicOn) lyMusic(''); // (left over from kinetic mode) breaks show as dots inside the list here
+    var gp = lyGapAt(idx, pos), gk = gp ? (gp.before ? 'b' : 'a') + gp.at : '';
+    var nL = L.length; // the list also holds the break dots after the lines
+    if (idx !== lyrIndex || force || gk !== lyGapKey) {
+      var from = Math.max(0, Math.min(lyrIndex, idx) - 3), to = Math.min(nL - 1, Math.max(lyrIndex, idx) + 3);
+      if (force || gk !== lyGapKey) { from = 0; to = nL - 1; }
       for (var i = from; i <= to; i++) {
         var d = i - idx, cls = 'ly-line' + (L[i].text ? '' : ' gap');
-        if (d === 0) cls += ' on'; else if (d < 0) cls += d === -1 ? ' past near1' : ' past'; else cls += d === 1 ? ' near1' : d === 2 ? ' near2' : '';
+        if (gp && i === gp.at) cls += gp.before ? ' gap-before' : ' gap-after';
+        if (d === 0 && !(gp && !gp.before)) cls += ' on'; else if (d <= 0) cls += d >= -1 ? ' past near1' : ' past'; else cls += d === 1 ? ' near1' : d === 2 ? ' near2' : '';
         if (lines[i].className !== cls) {
           var becameActive = d === 0 && lines[i].className.indexOf(' on') < 0;
           lines[i].className = cls;
           if (becameActive && lines[i]._w) { lines[i]._cur = -2; for (var k = 0; k < lines[i]._w.length; k++) lines[i]._w[k].classList.remove('lit'); }
         }
       }
-      lyrIndex = idx;
-      var cur = lines[Math.max(0, idx)], view = $('ly-view');
-      if (cur) {
-        var y = cur.offsetTop - view.clientHeight * 0.42 + cur.offsetHeight / 2;
-        $('ly-list').style.transform = 'translate3d(0,' + (-Math.max(0, y)) + 'px,0)';
+      lyrIndex = idx; lyGapKey = gk;
+      var cur = lines[Math.max(0, idx)], view = $('ly-view'), dots = lyGapDots(), y;
+      dots.classList.toggle('show', !!gp);
+      if (gp) {
+        var host = lines[gp.at], gh = host ? parseFloat(getComputedStyle(host)[gp.before ? 'marginTop' : 'marginBottom']) || 0 : 0;
+        var top = host ? (gp.before ? host.offsetTop - gh : host.offsetTop + host.offsetHeight) : 0;
+        dots.style.top = top + 'px'; dots.style.height = gh + 'px';
+        y = top + gh / 2 - view.clientHeight * 0.42;
+      } else if (cur) {
+        y = cur.offsetTop - view.clientHeight * 0.42 + cur.offsetHeight / 2;
       }
+      // y may be negative: the list then moves down, so the first line also sits where you read, not under the top edge
+      if (y !== undefined) $('ly-list').style.transform = 'translate3d(0,' + (-y).toFixed(1) + 'px,0)';
+    }
+    if (gp && lyGapEl) {
+      var gpp = Math.max(0, Math.min(1, (pos - gp.from) / Math.max(0.5, gp.to - gp.from)));
+      var dd = lyGapEl.children;
+      for (var di = 0; di < dd.length; di++) dd[di].style.opacity = (0.25 + 0.75 * Math.max(0, Math.min(1, gpp * 3 - di))).toFixed(2);
+      lyGapEl.classList.toggle('ending', gp.to - pos < 0.9);
     }
     // Word-by-word fill across the current line, paced by how long the line is sung (estimated from its length).
     if (idx >= 0) {

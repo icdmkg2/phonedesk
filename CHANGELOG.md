@@ -9,10 +9,14 @@ was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and orig
 
 ## [1.14.4] — 2026-11-19
 
-Spicy Lyrics is used for songs whose copy is a few seconds longer or shorter than yours.
+Spicy Lyrics for more songs, breaks in the singing shown inside the lyrics, and the first line no longer at the top edge.
 
 ### Changed
+- **Breaks in the singing are part of the lyrics now.** An intro, an instrumental part or an outro shows three dots in the gap between the lines, filling in as the break plays out. The full-screen "Instrumental" picture that faded the lyrics out is gone (Scroll mode), and short pauses between lines no longer count as breaks: the dots need a few seconds of music without words.
 - **Spicy Lyrics is used for more songs.** A song Spicy rates as an exact match is now accepted when its copy is up to 8 s longer or shorter than yours (another edition of the same track); it was 4 s, which sent songs like this to LRCLIB. A "likely" match still has to be within 4 s. If the lines run a little early or late, the Earlier/Later buttons fix it.
+
+### Fixed
+- **The first lines no longer sit at the top edge.** The lyrics list now moves down as well as up, so the current line, including the first one, is always where you read it, not half under the top fade.
 
 ## [1.14.3] — 2026-11-17
 

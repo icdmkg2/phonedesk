@@ -690,7 +690,7 @@ body:not(.ly-kinetic) .ly-music { left: calc(var(--sidew) + 34px); }
 @keyframes lyeq { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
 .ly-music-t { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; opacity: .6; }
 .ly-list { transition: transform .5s cubic-bezier(.25, .8, .25, 1), opacity .5s ease; }
-.ly-list.idle { opacity: .06; }
+body.ly-kinetic .ly-list.idle { opacity: .06; }
 
 /* ---------------------------------------------------------------- lyrics credit (required by the lyrics providers) */
 .ly-credit { margin-top: 8px; font-size: 10.5px; line-height: 1.35; color: var(--fg3); unicode-bidi: plaintext; text-align: left; max-width: 100%; }
@@ -1398,3 +1398,14 @@ body.ly-plain .ly-view { overflow-y: auto; overflow-x: hidden; touch-action: pan
 body.ly-plain .ly-list { position: static; transform: none !important; padding: 8px 0 24px; }
 body.ly-plain .ly-line, body.ly-plain .ly-line.near1, body.ly-plain .ly-line.near2, body.ly-plain .ly-line.past { opacity: .9; transform: none; color: var(--fg); cursor: default; font-weight: 700; }
 body.ly-plain .ly-est { color: var(--fg2); }
+
+/* breaks in the singing: three dots in the gap between two lines (not a screen over the lyrics) */
+.ly-line { transition: color .3s, opacity .3s, margin .45s ease; }
+.ly-line.gap-after { margin-bottom: clamp(44px, calc(var(--ah) * .12), 72px); }
+.ly-line.gap-before { margin-top: clamp(44px, calc(var(--ah) * .12), 72px); }
+.ly-gapdots { position: absolute; left: 0; right: 0; height: 0; display: flex; align-items: center; justify-content: center; gap: 10px;
+  opacity: 0; transform: scale(.6); transition: opacity .35s ease, transform .35s ease; pointer-events: none; }
+.ly-gapdots.show { opacity: 1; transform: none; animation: lybreathe 2.4s ease-in-out infinite; }
+.ly-gapdots.ending { opacity: 0; transform: scale(1.25); animation: none; }
+.ly-gapdots i { width: 12px; height: 12px; border-radius: 50%; background: var(--fg); opacity: .25; transition: opacity .3s linear; }
+@keyframes lybreathe { 0%, 100% { transform: scale(.92); } 50% { transform: scale(1.08); } }

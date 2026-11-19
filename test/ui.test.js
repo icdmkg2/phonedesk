@@ -437,6 +437,47 @@ async function t(name, fn) {
       assert.ok(await pg.evaluate(() => document.body.classList.contains('ly-plain')), 'and back to plain text');
       await ctx.close();
     });
+    await t('a break in the singing shows dots between the lines (the lyrics stay visible), and the first line is not stuck at the top', async () => {
+      await api('config', { lyricsMode: 'scroll' });
+      const at = async (pos) => {
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        await ctx.addInitScript((pos) => {
+          const P = window.WebSocket;
+          window.WebSocket = class extends P {
+            constructor(u, p) {
+              super(u, p);
+              this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+              this.addEventListener('open', () => setTimeout(() => {
+                const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+                d({ t: 'media', d: { active: true, title: 'Gap Song', artist: 'Band', app: 'Spotify', status: 'Playing', position: pos, duration: 200, updated: Date.now() } });
+                const T = [10, 13, 16, 60, 63, 66, 69];
+                d({ t: 'lyrics', d: { key: 'k', synced: true, lines: T.map((t, i) => ({ t, text: 'Line number ' + (i + 1) })), credit: { provider: 'LRCLIB', source: 'lrclib' } } });
+              }, 50));
+            }
+          };
+        }, pos);
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1200);
+        await pg.click('#ly-pill'); await sleep(1300);
+        const r = await pg.evaluate(() => {
+          const v = document.getElementById('ly-view').getBoundingClientRect(), on = document.querySelector('.ly-line.on'), g = document.querySelector('.ly-gapdots');
+          return { opacity: +getComputedStyle(document.getElementById('ly-list')).opacity, overlay: document.getElementById('ly-music').classList.contains('show'),
+            on: on ? on.textContent : null, onTop: on ? on.getBoundingClientRect().top - v.top : null, firstTop: document.querySelector('.ly-line').getBoundingClientRect().top - v.top, h: v.height, dots: !!g && g.classList.contains('show') };
+        });
+        await ctx.close();
+        return r;
+      };
+      const brk = await at(30); // between line 3 (16 s) and line 4 (60 s)
+      assert.ok(brk.dots, 'dots in the break');
+      assert.ok(!brk.overlay && brk.opacity === 1, 'no screen over the lyrics, which stay visible');
+      const intro = await at(1);
+      assert.ok(intro.dots && !intro.overlay, 'dots during the intro');
+      const first = await at(8); // line 1 (10 s) is lit by the time it is measured
+      assert.ok(/^Line number [12]$/.test(first.on || ''), 'line 1 or 2 is lit (' + first.on + ')');
+      assert.ok(first.onTop > first.h * 0.3, 'the lit line sits where you read (' + Math.round(first.onTop) + ' of ' + Math.round(first.h) + ')');
+      assert.ok(first.firstTop > first.h * 0.12, 'the first line is not at the top edge (' + Math.round(first.firstTop) + ')');
+      assert.ok(!first.dots, 'no dots while singing');
+    });
     await t('the PC window says which lyrics source won and why', async () => {
       const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       await dctx.route('**/api/status', async (route) => {
