@@ -495,6 +495,30 @@ async function t(name, fn) {
       }
       await api('config', { look: 'default' });
     });
+    await t('widgets fit their text: toggle names are whole, the CPU note is not cut, empty photos and devices say so', async () => {
+      const W = (type, x, y, w, h, opts) => ({ type, x, y, w, h, opts });
+      await api('config', { pages: [{ id: 'pg-fitt', name: 'Fit', widgets: [W('toggles', 0, 0, 6, 2), W('stats', 6, 0, 3, 3, { metric: 'cpu' }), W('photos', 0, 3, 4, 3), W('devices', 8, 3, 2, 3)] }], screens: ['media', 'page:pg-fitt'] });
+      for (const look of ['default', 'ios', 'windows']) {
+        await api('config', { look });
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        await ctx.addInitScript(() => localStorage.setItem('pd.screen', JSON.stringify('page:pg-fitt')));
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1500);
+        const r = await pg.evaluate(() => {
+          const names = [...document.querySelectorAll('.qt b')].map((b) => ({ t: b.textContent, cut: b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 2 }));
+          const sub = document.querySelector('.wg-stats .st-sub');
+          return { names, subCut: !!sub && sub.offsetHeight > 0 && sub.scrollHeight > sub.clientHeight + 1,
+            photos: (document.querySelector('.wg-photos .w-empty') || {}).textContent || '', devices: parseFloat(getComputedStyle(document.querySelector('.wg-devices')).fontSize) };
+        });
+        await ctx.close();
+        assert.strictEqual(r.names.length, 5, look + ': five toggles');
+        assert.deepStrictEqual(r.names.filter((n) => n.cut).map((n) => n.t), [], look + ': no toggle name is cut');
+        assert.ok(!r.subCut, look + ': the busiest-thread note is not cut');
+        assert.match(r.photos, /Choose a photo folder/, look + ': photos without a folder say so');
+        assert.ok(r.devices >= 10, look + ': the no-devices note is readable (' + r.devices + 'px)');
+      }
+      await api('config', { look: 'default', pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
+    });
     await t('the PC window says which lyrics source won and why', async () => {
       const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       await dctx.route('**/api/status', async (route) => {

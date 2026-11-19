@@ -1337,10 +1337,19 @@
         if (html !== last) { last = html; el.innerHTML = html; }
       },
       resize: function (w, h) {
-        var n = keys.length || 1, cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * w / h / 1.1))));
-        var rows = Math.ceil(n / cols);
-        el.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))'; el.style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
-        el.style.setProperty('--wf', Math.max(9, Math.min(h / rows * .17, w / cols * .12)).toFixed(1) + 'px');
+        // Try every number of columns, with tiles stacked (icon over name over state) or in a row (icon beside them),
+        // and keep the arrangement that allows the biggest text without cutting a name ("Microphone" must fit).
+        var n = keys.length || 1, best = { f: 0, cols: 1, row: false };
+        for (var c = 1; c <= n; c++) {
+          var r = Math.ceil(n / c), th = (h - 12) / r - 6, tw = (w - 12) / c - 6, waste = 1 - 0.04 * (c * r - n);
+          var fs = Math.min(th / 5.4, tw / 7.5) * waste, fr = Math.min(th / 3.1, tw / 11) * waste;
+          if (fs > best.f) best = { f: fs, cols: c, row: false };
+          if (fr > best.f * 1.05) best = { f: fr, cols: c, row: true };
+        }
+        var rows = Math.ceil(n / best.cols);
+        el.style.gridTemplateColumns = 'repeat(' + best.cols + ', minmax(0, 1fr))'; el.style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
+        el.classList.toggle('qt-row', best.row);
+        el.style.setProperty('--wf', Math.max(8, Math.min(best.f / (1 - 0.04 * (best.cols * rows - n)), 22)).toFixed(1) + 'px');
       },
     };
     return api;
@@ -1445,7 +1454,7 @@
 
   // Photo frame: the pictures in a folder on the PC, crossfading.
   function wPhotos(wd) {
-    var o = wd.opts || {}, el = wEl('photos'), every = Math.max(5, Math.min(3600, +o.interval || 30)) * 1000, n = 0, order = [], pos = -1, timer = 0, a = null;
+    var o = wd.opts || {}, el = wEl('photos'), every = Math.max(5, Math.min(3600, +o.interval || 30)) * 1000, n = -1, order = [], pos = -1, timer = 0, a = null;
     el.classList.toggle('contain', o.fit === 'whole picture');
     el.innerHTML = '<img alt="" class="ph-a"><img alt="" class="ph-b">';
     var imgs = el.querySelectorAll('img'), front = 0;
@@ -1526,7 +1535,7 @@
         }).join('') : '<div class="w-empty">No Bluetooth devices connected to the PC</div>';
         if (html !== last) { last = html; el.innerHTML = html; if (el._wh && l.length !== el._n) this.resize(el._wh[0], el._wh[1]); }
       },
-      resize: function (w, h) { el._wh = [w, h]; el._n = btList(wd && wd.opts).length; wScale(el, w, h, 230, 37 * Math.max(1, el._n) + 8, 7, 22); },
+      resize: function (w, h) { el._wh = [w, h]; el._n = btList(wd && wd.opts).length; if (el._n) wScale(el, w, h, 230, 37 * el._n + 8, 7, 22); else wScale(el, w, h, 120, 70, 10, 18); }, // the 'no devices' note wraps, so it can be bigger
     };
   }
 

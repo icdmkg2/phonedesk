@@ -828,3 +828,9 @@ select:focus, select:focus-visible { outline: none; border-bottom: 2px solid var
 /* Connection > Spicy Lyrics: what happened to the last song */
 .why { font-size: 13px; color: var(--fg2); background: rgba(255, 255, 255, .04); border-radius: 6px; padding: 10px 12px; }
 .why ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); display: grid; gap: 2px; }
+
+/* Now playing with no cover (nothing playing, or a player without art): a music note, as on the phone. The cover
+   image, when there is one, sits on top of it. */
+.np-art { position: relative; }
+.np-art::before { content: ""; position: absolute; inset: 0; background: no-repeat center / 44% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%238a8f98' d='M9 17.5V6.6a1 1 0 0 1 .76-.97l9-2.25A1 1 0 0 1 20 4.35V15.5a3 3 0 1 1-2-2.83V8.03l-7 1.75v7.72a3 3 0 1 1-2-2.83z'/%3E%3C/svg%3E"); opacity: .7; }
+.np-art img { position: relative; }

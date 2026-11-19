@@ -19,6 +19,10 @@ Spicy Lyrics for more songs, breaks in the singing shown inside the lyrics, and 
 - **No empty pill when nothing plays.** The pill next to the battery that names the player (Spotify, Chrome…) is hidden while nothing is playing, instead of showing as an empty bubble.
 - **iOS style: progress and volume bars are visible again.** Only their knobs showed.
 - **Earlier/Later only when they do something.** They are hidden on the lyrics screen while nothing plays or the song has no timed lyrics, and the screen says "Nothing playing".
+- **Quick toggles: names are never cut.** The tiles pick their columns and lay out icon and name side by side when the widget is short, so "Microphone" or "Dark mode" no longer shows half-hidden (or not at all in the iOS style).
+- **PC stats widget:** the "busiest thread" note was cut in half in the Windows style.
+- **Photos widget without a folder** said nothing (a black box); it now says to choose a photo folder. The **Bluetooth devices** widget's "no devices" note is readable in small widgets.
+- **PC window:** Now playing with no cover shows a music note instead of a grey square.
 - **The first lines no longer sit at the top edge.** The lyrics list now moves down as well as up, so the current line, including the first one, is always where you read it, not half under the top fade.
 
 ## [1.14.3] — 2026-11-17
