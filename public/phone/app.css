@@ -1472,3 +1472,12 @@ body.art-tint .wg-nowplaying .w-prog i { background: var(--accent); }
 .wn-wide .wn-now { align-self: center; }
 .wn-wide .wn-days { margin: 0; padding: 0 0 0 1.2em; border-top: 0; border-left: 1px solid var(--line); align-self: center; }
 .wn-wide .wn-mini { display: none; }
+
+/* an empty lyric line (a break written into the lyrics) looks like the break dots and fills the same way */
+.ly-line.gap { gap: 10px; }
+.ly-line.gap i { width: 12px; height: 12px; opacity: .25; transition: opacity .3s linear; }
+.ly-line.gap.on i { animation: none; }
+.ly-line.gap.on { animation: lybreathe 2.4s ease-in-out infinite; }
+.ly-line.gap.ending { opacity: 0; transition: opacity .35s ease; }
+/* a hidden pill in the top bar (no weather yet, for example) is really hidden, not an empty bubble */
+.np-top > [hidden], #np-wx[hidden], #c-wx[hidden], #o-wx[hidden] { display: none !important; }

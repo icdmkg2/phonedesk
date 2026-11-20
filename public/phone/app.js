@@ -2717,7 +2717,9 @@
     if (lyr.estimated || !L.length) return null;
     if (idx < 0) return L[0].t >= 4 && pos < L[0].t - 0.3 ? { at: 0, before: true, from: 0, to: L[0].t, label: 'Intro' } : null;
     var ln = L[idx], next = L[idx + 1];
-    if (!ln.text) return next && next.t - ln.t >= 3 && pos < next.t - 0.3 ? { at: idx, from: ln.t, to: next.t, label: 'Instrumental' } : null;
+    // an empty lyric line already draws three dots: it is the indicator itself (inline), no second set is added
+    if (!ln.text) return next && next.t - ln.t >= 3 && pos < next.t - 0.3 ? { at: idx, inline: true, from: ln.t, to: next.t, label: 'Instrumental' } : null;
+    if (next && !next.text) return null; // the empty line that follows is the break indicator
     var gap = (next ? next.t : ln.t + 999) - ln.t, end = ln.t + (ln.dur > 0 ? ln.dur : lySung(ln.text.length, gap));
     if (next) return next.t - end >= 5 && pos > end + 0.3 && pos < next.t - 0.3 ? { at: idx, from: end, to: next.t, label: 'Instrumental' } : null;
     var songEnd = state.media.duration > end + 4 ? state.media.duration : end + 20;
@@ -2776,8 +2778,8 @@
       if (force || gk !== lyGapKey) { from = 0; to = nL - 1; }
       for (var i = from; i <= to; i++) {
         var d = i - idx, cls = 'ly-line' + (L[i].text ? '' : ' gap');
-        if (gp && i === gp.at) cls += gp.before ? ' gap-before' : ' gap-after';
-        if (d === 0 && !(gp && !gp.before)) cls += ' on'; else if (d <= 0) cls += d >= -1 ? ' past near1' : ' past'; else cls += d === 1 ? ' near1' : d === 2 ? ' near2' : '';
+        if (gp && !gp.inline && i === gp.at) cls += gp.before ? ' gap-before' : ' gap-after';
+        if (d === 0 && !(gp && !gp.before && !gp.inline)) cls += ' on'; else if (d <= 0) cls += d >= -1 ? ' past near1' : ' past'; else cls += d === 1 ? ' near1' : d === 2 ? ' near2' : '';
         if (lines[i].className !== cls) {
           var becameActive = d === 0 && lines[i].className.indexOf(' on') < 0;
           lines[i].className = cls;
@@ -2786,8 +2788,8 @@
       }
       lyrIndex = idx; lyGapKey = gk;
       var cur = lines[Math.max(0, idx)], view = $('ly-view'), dots = lyGapDots(), y;
-      dots.classList.toggle('show', !!gp);
-      if (gp) {
+      dots.classList.toggle('show', !!gp && !gp.inline);
+      if (gp && !gp.inline) {
         var host = lines[gp.at], gh = host ? parseFloat(getComputedStyle(host)[gp.before ? 'marginTop' : 'marginBottom']) || 0 : 0;
         var top = host ? (gp.before ? host.offsetTop - gh : host.offsetTop + host.offsetHeight) : 0;
         dots.style.top = top + 'px'; dots.style.height = gh + 'px';
@@ -2798,11 +2800,11 @@
       // y may be negative: the list then moves down, so the first line also sits where you read, not under the top edge
       if (y !== undefined) $('ly-list').style.transform = 'translate3d(0,' + (-y).toFixed(1) + 'px,0)';
     }
-    if (gp && lyGapEl) {
+    if (gp && (gp.inline ? lines[gp.at] : lyGapEl)) {
       var gpp = Math.max(0, Math.min(1, (pos - gp.from) / Math.max(0.5, gp.to - gp.from)));
-      var dd = lyGapEl.children;
+      var gEl = gp.inline ? lines[gp.at] : lyGapEl, dd = gEl.children;
       for (var di = 0; di < dd.length; di++) dd[di].style.opacity = (0.25 + 0.75 * Math.max(0, Math.min(1, gpp * 3 - di))).toFixed(2);
-      lyGapEl.classList.toggle('ending', gp.to - pos < 0.9);
+      gEl.classList.toggle('ending', gp.to - pos < 0.9);
     }
     // Word-by-word fill across the current line, paced by how long the line is sung (estimated from its length).
     if (idx >= 0) {

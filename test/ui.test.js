@@ -616,6 +616,37 @@ async function t(name, fn) {
       await ctx.close();
       await api('config', { look: 'default', pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
     });
+    await t('an empty lyric line is the only break indicator (no second set of dots), and no empty weather pill before the weather loads', async () => {
+      const at = async (pos) => {
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        await ctx.addInitScript((pos) => {
+          const P = window.WebSocket;
+          window.WebSocket = class extends P {
+            constructor(u, p) {
+              super(u, p);
+              this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics', 'weather'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+              this.addEventListener('open', () => setTimeout(() => {
+                const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+                d({ t: 'weather', d: null });
+                d({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Spotify', status: 'Playing', position: pos, duration: 200, updated: Date.now() } });
+                d({ t: 'lyrics', d: { key: 'k', synced: true, lines: [{ t: 5, text: 'one' }, { t: 9, text: 'two' }, { t: 20, text: '' }, { t: 40, text: 'three' }, { t: 44, text: 'four' }], credit: { provider: 'LRCLIB', source: 'lrclib' } } });
+              }, 50));
+            }
+          };
+        }, pos);
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1100);
+        const pill = await pg.evaluate(() => document.getElementById('np-wx').getBoundingClientRect().width);
+        await pg.click('#ly-pill'); await sleep(1100);
+        const r = await pg.evaluate(() => ({ extra: !!document.querySelector('.ly-gapdots.show'), margins: document.querySelectorAll('.gap-after, .gap-before').length, lineOn: !!document.querySelector('.ly-line.gap.on') }));
+        await ctx.close();
+        return Object.assign(r, { pill });
+      };
+      const before = await at(12), during = await at(26);
+      assert.ok(!before.extra && before.margins === 0, 'no extra dots before the empty line: ' + JSON.stringify(before));
+      assert.ok(!during.extra && during.margins === 0 && during.lineOn, 'the empty line itself is the indicator: ' + JSON.stringify(during));
+      assert.strictEqual(during.pill, 0, 'no empty weather pill');
+    });
     await t('the PC window says which lyrics source won and why', async () => {
       const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       await dctx.route('**/api/status', async (route) => {
