@@ -7,6 +7,14 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.15.1] — 2026-11-20
+
+Fixes the break dots showing twice.
+
+### Fixed
+- **Break dots showed twice.** When the lyrics themselves mark a break with an empty line (many do), that line's own dots and the new break dots both showed, one under the other. Now the empty line is the only indicator, and it fills in as the break plays out like the others.
+- **Empty pill next to the time** on Now playing before the weather has loaded (or with weather turned off).
+
 ## [1.15.0] — 2026-11-20
 
 Translations and romanizations under the lyrics, colours from the album cover, seeking from anywhere, and many visual fixes.
