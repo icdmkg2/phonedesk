@@ -134,6 +134,33 @@ ta('LRCLIB fills in when Spicy Lyrics is down, with a hint to ask again; a wrong
 
 // ---------------------------------------------------------------- "why LRCLIB?": what each source said (real Spicy client, fake network)
 const KEY = 'sl_sk_aaaaaaaaaaaa';
+// ---------------------------------------------------------------- translations and romanisations (shapes from the API's OpenAPI spec)
+t('Spicy line lyrics keep a translation and a romanisation per line', () => {
+  const r = spicy.convert({ Body: { Type: 'Line', source: 'musixmatch', Content: [
+    { Type: 'Vocal', Text: '君の名は', StartTime: 1, EndTime: 3, TranslatedText: 'Your name', TransliteratedText: 'kimi no na wa' },
+    { Type: 'Vocal', Text: 'hello', StartTime: 4, EndTime: 5 },
+  ] } });
+  assert.strictEqual(r.lines[0].tr, 'Your name');
+  assert.strictEqual(r.lines[0].ro, 'kimi no na wa');
+  assert.ok(!r.lines[1].tr && !r.lines[1].ro);
+  assert.ok(r.hasTr && r.hasRo);
+});
+t('a syllable-synced line with the romanisation only on its syllables is joined into one line', () => {
+  const r = spicy.convert({ Body: { Type: 'Syllable', source: 'apple_music', Content: [{ Type: 'Vocal', Lead: { StartTime: 1, EndTime: 3, Syllables: [
+    { Text: '사', StartTime: 1, EndTime: 1.5, IsPartOfWord: true, TransliteratedText: 'sa', TransliteratedIsPartOfWord: true },
+    { Text: '랑', StartTime: 1.5, EndTime: 2, IsPartOfWord: false, TransliteratedText: 'rang', TransliteratedIsPartOfWord: false },
+    { Text: '해', StartTime: 2, EndTime: 3, IsPartOfWord: false, TransliteratedText: 'hae' },
+  ] } }] } });
+  assert.strictEqual(r.lines[0].ro, 'sarang hae');
+  assert.ok(r.hasRo && !r.hasTr);
+});
+t('untimed Spicy lyrics come in Lines (not Content) and are no longer dropped', () => {
+  const r = spicy.convert({ Body: { Type: 'Static', source: 'musixmatch', Lines: [{ Text: 'one' }, { Text: 'two', TranslatedText: 'deux' }] } });
+  assert.ok(r && !r.synced);
+  assert.deepStrictEqual(r.lines.map((l) => l.text), ['one', 'two']);
+  assert.strictEqual(r.lines[1].tr, 'deux');
+});
+
 const spicySearch = (results) => (u) => (u.includes('api.spicylyrics.org/v1/tracks/search') ? { Body: { results } } : u.includes('/api/search') ? [copy(40, 200, 0)] : u.includes('/api/get') ? copy(40, 200, 0) : null);
 
 ta('a song Spicy knows only at another length is explained, and not searched again under other spellings', async () => {

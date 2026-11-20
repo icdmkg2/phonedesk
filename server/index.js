@@ -734,6 +734,7 @@ function publicConfig() {
     lyricsMode: c.lyricsMode,
     lyricsFont: c.lyricsFont,
     lyricsLines: c.lyricsLines,
+    lyricsExtra: c.lyricsExtra,
     lyricsOffset: c.lyricsOffset,
     clockFace: c.clockFace,
     clockForecast: c.clockForecast,
@@ -762,6 +763,14 @@ function broadcast(msg, role) {
   for (const c of clients) if (!role || c.role === role) sendTo(c.ws, data);
 }
 
+// A phone (or a browser tab) that keeps dropping and coming back is one Activity line with a count, not dozens.
+function connGroup(client) {
+  const dev = client.info.device;
+  return {
+    group: 'conn:' + dev + '|' + client.info.ip,
+    merged: (n, msg) => `${dev}: connected and disconnected ${n} times in the last minutes · now ${msg.slice(dev.length + 1)}`,
+  };
+}
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
   const role = url.searchParams.get('role') === 'dashboard' ? 'dashboard' : 'phone';
@@ -779,7 +788,7 @@ wss.on('connection', (ws, req) => {
   };
   clients.add(client);
   if (role === 'phone') {
-    log.event('phone', `${client.info.device} connected over ${client.info.via}`);
+    log.event('phone', `${client.info.device} connected over ${client.info.via}`, connGroup(client));
     pushAdbBattery(client);
     // On Wi-Fi: try a network ADB link (only works if the phone has it switched on).
     if (client.info.via === 'Wi-Fi' && config.get().autoUsb) adb.tryWifi(client.info.ip);
@@ -817,7 +826,7 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     clients.delete(client);
     if (role === 'phone') {
-      log.event('phone', `${client.info.device} disconnected`);
+      log.event('phone', `${client.info.device} disconnected`, connGroup(client));
       broadcast({ t: 'clients' }, 'dashboard');
     }
   });

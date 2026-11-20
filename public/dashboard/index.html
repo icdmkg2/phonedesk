@@ -145,6 +145,7 @@
             <button class="icon-btn" data-cmd="next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
           </div>
         </div>
+        <div class="srow np-seek-row" id="np-seek-row" hidden><span class="small np-time" id="np-pos">0:00</span><input type="range" id="np-seek" min="0" max="1000" step="1" value="0" aria-label="Position in the song"><span class="small np-time" id="np-dur">0:00</span></div>
         <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-vol"/></svg><div class="srow-t"><b>Volume</b></div><div class="srow-c srow-range"><input type="range" id="np-vol" min="0" max="100" step="1" aria-label="Volume"><span class="small" id="np-vol-n" style="min-width:28px;text-align:right">0</span></div></div>
       </div>
 
@@ -237,6 +238,7 @@
           </div></div>
         </div>
         <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-timer"/></svg><div class="srow-t"><b>Lyrics timing</b><span>Move the lyrics earlier or later if they are off</span></div><div class="srow-c srow-range"><span class="small muted">Earlier</span><input type="range" id="ds-lyoffset" min="-1500" max="1500" step="50"><span class="small muted">Later</span><span class="small" id="ds-lyoffset-n" style="min-width:56px;text-align:right">0 ms</span></div></div>
+        <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-list"/></svg><div class="srow-t"><b>Line under each lyric</b><span>A translation or a romanization (Latin letters), when Spicy Lyrics has one for the song</span></div><div class="srow-c"><select id="ds-lyextra" aria-label="Line under each lyric"><option value="off">Off</option><option value="translation">Translation</option><option value="romanization">Romanization</option></select></div></div>
         <label class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-list"/></svg><div class="srow-t"><b>Estimate timing for lyrics without timestamps</b><span>A guess spread over the song, often seconds off. Off: such lyrics show as plain text you can scroll.</span></div><div class="srow-c"><span class="switch"><input type="checkbox" id="ds-estlyr"><span></span></span></div></label>
         <div class="srow"><svg class="srow-ic" aria-hidden="true"><use href="#i-font"/></svg><div class="srow-t"><b>Kinetic font</b></div><div class="srow-c"><div class="fonts" id="ds-lyfont">
           <button data-v="serif" style="font-family:Georgia,serif">Aa <small>Serif</small></button>

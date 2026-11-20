@@ -7,15 +7,23 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
-## [1.14.4] — 2026-11-19
+## [1.15.0] — 2026-11-20
 
-Spicy Lyrics for more songs, breaks in the singing shown inside the lyrics, and the first line no longer at the top edge.
+Translations and romanizations under the lyrics, colours from the album cover, seeking from anywhere, and many visual fixes.
+
+### Added
+- **A line under each lyric: translation or romanization.** Spicy Lyrics carries both for many songs (Japanese, Korean, Arabic…). Choose in Phone display → Music → "Line under each lyric": Off, Translation or Romanization.
+- **Seek from the Now playing widget and the PC window.** Tap or drag the widget's progress line (it has a taller touch area than it looks), or drag the new position bar under Now playing in the PC window's Overview.
 
 ### Changed
+- **Colours from the album cover are stronger and truer.** PhoneDesk now picks the cover's two strongest colours instead of averaging every pixel (an orange-on-maroon cover used to turn brown), paints the background with both, and colours the progress and volume bars. A black-and-white cover stays grey instead of turning red.
+- **Activity is no longer flooded by reconnects.** A phone or browser tab that keeps connecting and disconnecting is one line with a count ("connected and disconnected 12 times · now connected over Wi-Fi") instead of dozens.
+- **Windows-style Weather widget fills its card.** Wide, short widgets show the temperature with a line of Feels, Rain and Wind; very wide strips show the next four days beside the temperature. Before, the content sat in the top-left corner.
 - **Breaks in the singing are part of the lyrics now.** An intro, an instrumental part or an outro shows three dots in the gap between the lines, filling in as the break plays out. The full-screen "Instrumental" picture that faded the lyrics out is gone (Scroll mode), and short pauses between lines no longer count as breaks: the dots need a few seconds of music without words.
 - **Spicy Lyrics is used for more songs.** A song Spicy rates as an exact match is now accepted when its copy is up to 8 s longer or shorter than yours (another edition of the same track); it was 4 s, which sent songs like this to LRCLIB. A "likely" match still has to be within 4 s. If the lines run a little early or late, the Earlier/Later buttons fix it.
 
 ### Fixed
+- **Untimed Spicy Lyrics were dropped.** Lyrics without timing come from Spicy Lyrics in a different field, which PhoneDesk did not read, so such songs fell back to LRCLIB.
 - **No empty pill when nothing plays.** The pill next to the battery that names the player (Spotify, Chrome…) is hidden while nothing is playing, instead of showing as an empty bubble.
 - **iOS style: progress and volume bars are visible again.** Only their knobs showed.
 - **Earlier/Later only when they do something.** They are hidden on the lyrics screen while nothing plays or the song has no timed lyrics, and the screen says "Nothing playing".

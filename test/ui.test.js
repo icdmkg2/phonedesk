@@ -547,6 +547,75 @@ async function t(name, fn) {
       }
       await api('config', { pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
     });
+    await t('1.15: translation line under lyrics, colours from the cover, seeking from the Now playing widget and the PC window, Windows weather fills its card', async () => {
+      // a 32x32 cover, top half orange and bottom half maroon (or black and white), as a PNG made here
+      const zlib = require('zlib');
+      const png = (top, bottom) => {
+        const crcT = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crcT[n] = c >>> 0; }
+        const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcT[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+        const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+        const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(32, 0); ihdr.writeUInt32BE(32, 4); ihdr[8] = 8; ihdr[9] = 2;
+        const raw = Buffer.alloc(32 * (1 + 32 * 3));
+        for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) { const c = y < 16 ? top : bottom; raw.set(c, y * 97 + 1 + x * 3); }
+        return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+      };
+      const covers = { warm: png([240, 120, 30], [120, 30, 60]), mono: png([235, 235, 235], [15, 15, 15]) };
+      const open = async (cover, extra) => {
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        await ctx.route('**/testcover/*', (route) => route.fulfill({ contentType: 'image/png', body: covers[route.request().url().split('/').pop()] }));
+        await ctx.addInitScript(([cover, extra]) => {
+          if (extra && extra.screen) localStorage.setItem('pd.screen', JSON.stringify(extra.screen));
+          const P = window.WebSocket;
+          window.WebSocket = class extends P {
+            constructor(u, p) {
+              super(u, p);
+              const o = this.send.bind(this); this.send = (d) => { (window.__sent = window.__sent || []).push(d); return o(d); };
+              this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+              this.addEventListener('open', () => setTimeout(() => {
+                const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+                d({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Spotify', status: 'Playing', position: 20, duration: 200, updated: Date.now(), art: '/testcover/' + cover } });
+                d({ t: 'lyrics', d: { key: 'k', synced: true, lines: [{ t: 1, text: '君の名は', tr: 'Your name', ro: 'kimi no na wa' }, { t: 60, text: 'two' }], credit: { provider: 'Apple Music', source: 'spicy' } } });
+              }, 60));
+            }
+          };
+        }, [cover, extra || null]);
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1500);
+        return { ctx, pg };
+      };
+      // translation line
+      await api('config', { lyricsExtra: 'translation', look: 'default', nowStyle: 'immersive' });
+      let { ctx, pg } = await open('warm');
+      await pg.click('#ly-pill'); await sleep(800);
+      assert.strictEqual(await pg.evaluate(() => (document.querySelector('.ly-line .ly-sub') || {}).textContent), 'Your name');
+      await api('config', { lyricsExtra: 'romanization' }); await sleep(1200);
+      assert.strictEqual(await pg.evaluate(() => (document.querySelector('.ly-line .ly-sub') || {}).textContent), 'kimi no na wa');
+      await api('config', { lyricsExtra: 'off' }); await sleep(1200);
+      assert.strictEqual(await pg.evaluate(() => document.querySelectorAll('.ly-sub').length), 0);
+      // colours: two distinct colours from a two-colour cover, the progress fill in the cover's colour
+      const tints = await pg.evaluate(() => ({ on: document.body.classList.contains('art-tint'), t1: getComputedStyle(document.documentElement).getPropertyValue('--tint').trim(), t2: getComputedStyle(document.documentElement).getPropertyValue('--tint2').trim() }));
+      assert.ok(tints.on, 'tinted from the cover');
+      assert.notStrictEqual(tints.t1, tints.t2, 'a second colour from the cover');
+      const [r, g, b] = tints.t1.split(',').map(Number);
+      assert.ok(r > g && r > b, 'the main colour is warm: ' + tints.t1);
+      await ctx.close();
+      ({ ctx, pg } = await open('mono'));
+      const mono = (await pg.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--tint').trim())).split(',').map(Number);
+      assert.ok(Math.max(...mono) - Math.min(...mono) < 12, 'a black-and-white cover stays grey: ' + mono.join(','));
+      await ctx.close();
+      // the Now playing widget seeks; Windows weather fills its card
+      const W = (type, x, y, w, h, opts) => ({ type, x, y, w, h, opts });
+      await api('config', { look: 'windows', pages: [{ id: 'pg-ntst', name: 'N', widgets: [W('nowplaying', 0, 0, 8, 4), W('weather', 8, 0, 4, 3), W('weather', 0, 4, 6, 2)] }], screens: ['media', 'page:pg-ntst'] });
+      ({ ctx, pg } = await open('warm', { screen: 'page:pg-ntst' }));
+      const bar = await pg.locator('.wg-nowplaying .w-prog').boundingBox();
+      await pg.mouse.click(bar.x + bar.width * 0.5, bar.y + bar.height / 2); await sleep(300);
+      const seek = await pg.evaluate(() => (window.__sent || []).map((s) => JSON.parse(s)).find((m) => m.a === 'seek'));
+      assert.ok(seek && Math.abs(seek.v - 100) < 6, 'the widget seeks to the middle: ' + JSON.stringify(seek));
+      const wx = await pg.evaluate(() => [...document.querySelectorAll('.wg-weather')].map((w) => w.className.includes('wn-wide') ? 'wide:' + !!w.querySelector('.wn-days') : 'card:' + (w.querySelector('.wn-mini') ? getComputedStyle(w.querySelector('.wn-mini')).display : 'none')));
+      if (wx.join() !== 'card:none,wide:true') assert.ok(wx.includes('wide:true'), 'the wide weather shows its days: ' + wx.join());
+      await ctx.close();
+      await api('config', { look: 'default', pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
+    });
     await t('the PC window says which lyrics source won and why', async () => {
       const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       await dctx.route('**/api/status', async (route) => {

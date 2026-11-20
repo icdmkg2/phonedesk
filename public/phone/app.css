@@ -1435,3 +1435,40 @@ body.ly-notime .ly-nudge { display: none !important; }
 #s-clock .wx { font-size: calc(min(calc(var(--ah) * .055), 22px) + max(0px, (var(--ah) - 600px) * .04)); }
 #s-clock .mini { font-size: calc(14px + max(0px, (var(--ah) - 600px) * .03)); }
 .pad-h { font-size: calc(11px + max(0px, (var(--ah) - 600px) * .02)); }
+
+/* translation / romanisation under a lyric line */
+.ly-line .ly-sub { display: block; font-size: .6em; font-weight: 500; line-height: 1.25; margin-top: .2em; opacity: .8; letter-spacing: 0; }
+.ly-line.on .ly-sub { opacity: .85; }
+
+/* colours from the album cover: the second colour paints the other corner, a little stronger than the old single tint,
+   and the progress and volume fills take the cover's colour (the knobs stay white) */
+body.art-tint #bg {
+  background:
+    radial-gradient(120% 90% at 15% 20%, rgba(var(--tint), .4), transparent 60%),
+    radial-gradient(90% 80% at 100% 100%, rgba(var(--tint2, var(--tint)), .28), transparent 70%);
+}
+body.art-tint.ns-imm.scr-media #bg {
+  background:
+    radial-gradient(60% 80% at 18% 30%, rgba(var(--tint), .62), transparent 65%),
+    radial-gradient(55% 75% at 88% 85%, rgba(var(--tint2, var(--tint)), .5), transparent 65%),
+    linear-gradient(180deg, transparent 25%, rgba(0, 0, 0, .45));
+}
+body.art-tint .track .fill, body.art-tint #v-fill { background: var(--accent); }
+
+/* Now playing widget: the progress line can be tapped or dragged to seek; the touch area is taller than the line */
+.wg-nowplaying .w-prog { position: relative; overflow: visible; cursor: pointer; touch-action: none; }
+.wg-nowplaying .w-prog::before { content: ""; position: absolute; left: 0; right: 0; top: -12px; bottom: -12px; }
+.wg-nowplaying .w-prog i { border-radius: inherit; }
+.wg-nowplaying .w-prog.drag { height: .45em; }
+body.art-tint .wg-nowplaying .w-prog i { background: var(--accent); }
+
+/* Windows weather, wide and short: the head on top, the temperature in the middle, a line of details at the bottom */
+.wn-mini { display: none; gap: .9em; font-size: .85em; color: var(--fg2); padding-top: .5em; border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; }
+.wn-short .wn-mini { display: flex; margin-top: auto; }
+.wn-short .wn-now { flex: 1; }
+/* Windows weather as a wide strip: head on top, then the temperature on the left and four days on the right */
+.wg.wn.wn-wide { display: grid !important; grid-template-columns: auto minmax(0, 1fr) !important; grid-template-rows: auto 1fr; column-gap: 1.4em; row-gap: .4em; }
+.wn-wide .wn-h { grid-column: 1 / -1; }
+.wn-wide .wn-now { align-self: center; }
+.wn-wide .wn-days { margin: 0; padding: 0 0 0 1.2em; border-top: 0; border-left: 1px solid var(--line); align-self: center; }
+.wn-wide .wn-mini { display: none; }

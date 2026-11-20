@@ -64,8 +64,30 @@ async function findTrackId(media, key) {
 
 function person(p) { return p && p.username ? { name: p.username, url: p.url || '' } : null; }
 
+// Translation and romanisation of a line, when the source carries them (TranslatedText / TransliteratedText). A
+// syllable-synced line may carry its romanisation only per syllable: then it is joined with TransliteratedIsPartOfWord.
+const str = (x) => (typeof x === 'string' && x.trim() ? x.trim() : '');
+function extras(el, syllables) {
+  const out = {};
+  const tr = str(el && el.TranslatedText);
+  let ro = str(el && el.TransliteratedText);
+  if (!ro && Array.isArray(syllables) && syllables.some((y) => str(y.TransliteratedText))) {
+    ro = syllables.map((y) => String(y.TransliteratedText || y.Text || '') + ((y.TransliteratedIsPartOfWord != null ? y.TransliteratedIsPartOfWord : y.IsPartOfWord) ? '' : ' ')).join('').replace(/\s+/g, ' ').trim();
+  }
+  if (tr) out.tr = tr;
+  if (ro) out.ro = ro;
+  return out;
+}
+function flags(res) {
+  if (res.lines.some((l) => l.tr)) res.hasTr = true;
+  if (res.lines.some((l) => l.ro)) res.hasRo = true;
+  return res;
+}
+
 function convert(env) {
   const b = env && env.Body;
+  // Static (untimed) lyrics carry their lines in Lines, the timed ones in Content
+  if (b && b.Type === 'Static' && Array.isArray(b.Lines) && !Array.isArray(b.Content)) b.Content = b.Lines;
   if (!b || !Array.isArray(b.Content) || !b.Content.length) return null;
   const credit = { provider: PROVIDERS[b.source] || 'Spicy Lyrics', source: b.source || '' };
   if (b.source === 'spicy_lyrics' && b.UploadAttribution) {
@@ -92,22 +114,23 @@ function convert(env) {
       if (!w.length) continue;
       const t = Number.isFinite(lead.StartTime) ? lead.StartTime : w[0].t;
       const e = Number.isFinite(lead.EndTime) ? lead.EndTime : w[w.length - 1].e;
-      lines.push({ t, e, dur: Math.max(0.3, e - t), text: w.map((x) => x.text).join(' '), words: w, opp: !!line.OppositeAligned });
+      lines.push(Object.assign({ t, e, dur: Math.max(0.3, e - t), text: w.map((x) => x.text).join(' '), words: w, opp: !!line.OppositeAligned }, extras(lead, lead.Syllables)));
     }
     if (!lines.length) return null;
-    return { synced: true, wordSynced: true, lines, source: credit.source, credit };
+    return flags({ synced: true, wordSynced: true, lines, source: credit.source, credit });
   }
   if (b.Type === 'Line') {
     const lines = b.Content.filter((x) => x && typeof x.Text === 'string' && Number.isFinite(x.StartTime))
-      .map((x) => ({ t: x.StartTime, e: x.EndTime, dur: Number.isFinite(x.EndTime) ? Math.max(0.3, x.EndTime - x.StartTime) : 0, text: x.Text.trim(), opp: !!x.OppositeAligned }));
+      .map((x) => Object.assign({ t: x.StartTime, e: x.EndTime, dur: Number.isFinite(x.EndTime) ? Math.max(0.3, x.EndTime - x.StartTime) : 0, text: x.Text.trim(), opp: !!x.OppositeAligned }, extras(x)));
     if (!lines.length) return null;
-    return { synced: true, lines, source: credit.source, credit };
+    return flags({ synced: true, lines, source: credit.source, credit });
   }
-  const lines = b.Content.map((x) => ({ t: -1, text: String((x && (x.Text || x.text)) || '').trim() }));
-  return lines.some((x) => x.text) ? { synced: false, lines, source: credit.source, credit } : null;
+  const lines = b.Content.map((x) => Object.assign({ t: -1, text: String((x && (x.Text || x.text)) || '').trim() }, extras(x)));
+  return lines.some((x) => x.text) ? flags({ synced: false, lines, source: credit.source, credit }) : null;
 }
 
 module.exports = {
+  convert, // (for tests)
   lastError: () => lastError,
   lastMiss: () => lastMissInfo,
   /** Milliseconds until the API may be asked again (0 when it is fine). */

@@ -41,6 +41,7 @@ const DEFAULTS = {
   spicyKey: '',
   lyricsOffset: 0,
   lyricsLines: 'off',
+  lyricsExtra: 'off',           // a second, smaller line under each lyric: 'off', 'translation' or 'romanization' (when Spicy Lyrics has one)
   clockFace: 'digital',        // 'digital' | 'analog' | 'big'
   clockForecast: true,         // 5-day forecast under the clock
   calendarUrl: '',             // private iCal address (secret: never sent to phones)
@@ -136,6 +137,7 @@ function sanitize(c) {
   out.burnIn = c.burnIn !== false;
   out.seenVersion = /^\d+\.\d+\.\d+$/.test(c.seenVersion || '') ? c.seenVersion : '';
   out.lyricsLines = ['off', 'curve', 'straight', 'glass'].includes(c.lyricsLines) ? c.lyricsLines : 'off';
+  out.lyricsExtra = ['off', 'translation', 'romanization'].includes(c.lyricsExtra) ? c.lyricsExtra : 'off';
   out.spicyKey = /^sl_[sp]k_[A-Za-z0-9_-]{10,200}$/.test(String(c.spicyKey || '').trim()) ? String(c.spicyKey).trim() : '';
   out.spicyKeyBad = !!String(c.spicyKey || '').trim() && !out.spicyKey; // something was saved but it does not look like a key
   out.lyricsFont = ['serif', 'sans', 'condensed', 'mono', 'script'].includes(c.lyricsFont) ? c.lyricsFont : 'serif';

@@ -70,4 +70,21 @@ test('calendar: busy days start at the first of the month', () => {
   assert.strictEqual(b['2026-11-02'], 1);
 });
 
+test('activity: a phone that keeps reconnecting is one line with a count; other events stay their own lines', () => {
+  const log = require('../server/log');
+  const quiet = console.log; console.log = () => {};
+  const g = { group: 'conn:Test phone|1.2.3.4', merged: (n, msg) => 'Test phone: ' + n + ' times · now ' + msg.slice('Test phone '.length) };
+  const before = log.activity().length;
+  log.event('phone', 'Test phone connected over Wi-Fi', g);
+  log.event('phone', 'Test phone disconnected', g);
+  log.event('shortcut', 'Ran Lock PC');
+  log.event('phone', 'Test phone connected over Wi-Fi', g);
+  log.event('phone', 'Test phone disconnected', g);
+  console.log = quiet;
+  const a = log.activity().slice(before);
+  assert.strictEqual(a.length, 2, a.map((x) => x.msg).join(' | '));
+  assert.strictEqual(a[0].msg, 'Ran Lock PC');
+  assert.strictEqual(a[1].msg, 'Test phone: 4 times · now disconnected', 'merged, newest, with the last state');
+});
+
 if (failed) { console.log(failed + ' failed'); process.exit(1); }

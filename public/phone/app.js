@@ -515,25 +515,51 @@
   /* ============================================================ accent color from album art */
   var DEFAULT_TINT = [91, 140, 255];
   var canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 16;
+  canvas.width = canvas.height = 24;
+  // The cover's two strongest colours: pixels go into 12 hue buckets weighted by how colourful and bright they are, the
+  // best bucket is the main colour and the best one at least 60 degrees away the second (averaging every pixel instead
+  // turned an orange-on-maroon cover into brown). A grey cover keeps one soft colour.
+  function palette(d) {
+    var B = [], i, k;
+    for (k = 0; k < 12; k++) B.push({ w: 0, r: 0, g: 0, b: 0 });
+    var grey = { w: 0, r: 0, g: 0, b: 0 };
+    for (i = 0; i < d.length; i += 4) {
+      var r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), c = mx - mn;
+      if (d[i + 3] < 128) continue;
+      if (c < 28 || mx < 40) { grey.w += 1; grey.r += r; grey.g += g; grey.b += b; continue; }
+      var h = mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4;
+      var w = (c / 255) * (0.35 + mx / 255);
+      var bk = B[Math.floor(h * 2) % 12];
+      bk.w += w; bk.r += r * w; bk.g += g * w; bk.b += b * w;
+    }
+    var order = B.map(function (x, j) { return j; }).sort(function (x, y) { return B[y].w - B[x].w; });
+    var top = B[order[0]], total = 0;
+    B.forEach(function (x) { total += x.w; });
+    if (!top.w || top.w < 2) return grey.w ? [[grey.r / grey.w, grey.g / grey.w, grey.b / grey.w], null, true] : null;
+    var c1 = [top.r / top.w, top.g / top.w, top.b / top.w], c2 = null;
+    for (k = 1; k < 12; k++) {
+      var j = order[k], dist = Math.min(Math.abs(j - order[0]), 12 - Math.abs(j - order[0]));
+      if (!B[j].w || B[j].w < total * 0.08) continue;
+      var cand = [B[j].r / B[j].w, B[j].g / B[j].w, B[j].b / B[j].w];
+      var apart = Math.abs(cand[0] - c1[0]) + Math.abs(cand[1] - c1[1]) + Math.abs(cand[2] - c1[2]); // e.g. orange on maroon
+      if (dist >= 2 || (dist >= 1 && apart > 150)) { c2 = cand; break; }
+    }
+    return c2 ? [c1, c2] : [c1];
+  }
   function applyAccent(img) {
     if (state.config.accent && state.config.accent !== 'auto') return setAccent(hexToRgb(state.config.accent));
     if (!img) return setAccent(DEFAULT_TINT);
     try {
       var ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, 16, 16);
-      var d = ctx.getImageData(0, 0, 16, 16).data, r = 0, g = 0, b = 0, wsum = 0;
-      for (var i = 0; i < d.length; i += 4) {
-        var mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
-        var w = (mx - mn) / 255 + 0.05; // favour colourful pixels over grey/black
-        r += d[i] * w; g += d[i + 1] * w; b += d[i + 2] * w; wsum += w;
-      }
-      setAccent(readable([r / wsum, g / wsum, b / wsum]));
+      ctx.drawImage(img, 0, 0, 24, 24);
+      var pal = palette(ctx.getImageData(0, 0, 24, 24).data);
+      if (!pal) return setAccent(DEFAULT_TINT);
+      setAccent(readable(pal[0], pal[2]), pal[1] ? readable(pal[1]) : null, true);
     } catch (e) { setAccent(DEFAULT_TINT); }
   }
   function hexToRgb(h) { var n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
   // Push the colour into a lightness band that stays legible on the theme background.
-  function readable(rgb) {
+  function readable(rgb, neutral) {
     var r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
     var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, h = 0, s = 0;
     if (mx !== mn) {
@@ -544,18 +570,20 @@
     }
     var light = document.body.classList.contains('theme-light');
     l = light ? Math.min(Math.max(l, 0.32), 0.45) : Math.min(Math.max(l, 0.58), 0.7);
-    s = Math.max(s, 0.45);
+    s = neutral ? 0 : Math.max(s, 0.45); // a black-and-white cover stays grey (no hue to boost: it came out red)
     function hue(p, q, t) { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; }
     var q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
     return [hue(p, q, h + 1 / 3) * 255, hue(p, q, h) * 255, hue(p, q, h - 1 / 3) * 255].map(Math.round);
   }
   var currentTint = '';
-  function setAccent(rgb) {
-    var key = rgb.join(',');
-    if (key === currentTint) return;
-    currentTint = key;
+  function setAccent(rgb, rgb2, fromArt) {
+    var key = rgb.join(','), key2 = (rgb2 || rgb).join(',');
+    toggle(document.body, 'art-tint', !!fromArt);
+    if (key + '|' + key2 === currentTint) return;
+    currentTint = key + '|' + key2;
     var root = document.documentElement.style;
     root.setProperty('--tint', key);
+    root.setProperty('--tint2', key2);
     var bg = $('bg'); bg.classList.remove('bgswap'); void bg.offsetWidth; bg.classList.add('bgswap');
     root.setProperty('--accent', 'rgb(' + key + ')');
   }
@@ -1063,6 +1091,22 @@
     var nextBox = el.querySelector('.w-next'), nextB = nextBox && nextBox.querySelector('b');
     var lastArtUrl = '', lastIcon = null;
     el.addEventListener('click', function (e) { var b = e.target.closest('button[data-a]'); if (b) { buzz(); send({ t: 'cmd', a: b.getAttribute('data-a') }); } });
+    // Tap or drag the progress bar to jump in the song (it has a taller invisible touch area than the line it draws).
+    var prog = el.querySelector('.w-prog'), seekFrac = -1;
+    if (prog) {
+      prog.addEventListener('click', function (e) { e.stopPropagation(); });
+      bindSlider(prog, function (f, done) {
+        var m = state.media;
+        if (!m.active || !(m.duration > 0)) return;
+        seekFrac = done ? -1 : f;
+        bar.style.transition = 'none'; bar.style.transform = 'scaleX(' + f.toFixed(4) + ')';
+        if (done) {
+          m.position = f * m.duration; m.updated = Date.now() + state.clockOffset;
+          cmd('seek', m.position); buzz();
+          setTimeout(function () { bar.style.transition = ''; }, 50);
+        }
+      });
+    }
     return {
       el: el,
       update: function () {
@@ -1085,7 +1129,7 @@
           var sp = state.spotify, nx = m.active && sp && sp.next && /spotify/i.test(m.app || '') ? sp.next : null;
           nextBox.hidden = !nx; if (nx) setText(nextB, nx.title + (nx.artist ? ' · ' + nx.artist : ''));
         }
-        if (bar) { var d = m.active ? m.duration : 0; bar.style.transform = 'scaleX(' + (d > 0 ? Math.min(1, currentPos() / d) : 0).toFixed(4) + ')'; }
+        if (bar && seekFrac < 0) { var d = m.active ? m.duration : 0; bar.style.transform = 'scaleX(' + (d > 0 ? Math.min(1, currentPos() / d) : 0).toFixed(4) + ')'; }
         el.classList.toggle('idle', !m.active);
       },
       resize: function (w, h) {
@@ -1600,6 +1644,14 @@
       return '<div class="wn-day"><span>' + escHtml(i === 0 ? 'Today' : dt.toLocaleDateString(undefined, { weekday: 'short' })) + '</span>' + wxIcon(x.code, true) + '<b>' + x.hi + '°</b><i>' + x.lo + '°</i></div>';
     }).join('');
   }
+  // Feels like, rain and wind in one line, for a Windows weather widget that has no room for the days
+  function wnMini(w) {
+    var bits = [];
+    if (w.feels != null) bits.push('Feels ' + w.feels + '°');
+    if (w.rain != null) bits.push('Rain ' + w.rain + '%');
+    if (w.wind != null) bits.push('Wind ' + (state.config.weatherUnit === 'f' ? Math.round(w.wind * 0.621) + ' mph' : w.wind + ' km/h'));
+    return bits.length ? '<div class="wn-mini">' + bits.map(function (x) { return '<span>' + escHtml(x) + '</span>'; }).join('') + '</div>' : '';
+  }
   function winWeather(wd) {
     var o = (wd && wd.opts) || {}, el = wEl('weather'), last = null;
     el.classList.add('wn');
@@ -1610,11 +1662,18 @@
         var unit = state.config.weatherUnit === 'f' ? 'F' : 'C';
         var html = w ? wnHead('pin', w.city || 'Weather') +
           '<div class="wn-now">' + wxIcon(w.code, w.day) + '<b class="wn-temp">' + w.temp + '<small>°' + unit + '</small></b><div class="wn-cond"><span>' + WX_TEXT(w.code) + '</span><span>H ' + w.hi + '° · L ' + w.lo + '°</span></div></div>' +
-          wxExtras(o, w) + (o.hourly ? '' : '<div class="wn-days">' + wnDays(4) + '</div>') : null;
+          wxExtras(o, w) + (o.hourly || o.details ? '' : wnMini(w)) + (o.hourly ? '' : '<div class="wn-days">' + wnDays(4) + '</div>') : null;
         if (html === last) return; last = html;
         if (html) el.innerHTML = html; else wEmpty(el, 'No weather yet');
       },
-      resize: function (w, h) { wScale(el, w, h, o.hourly ? 320 : 230, (o.hourly ? 112 : 190) + wxExtraH(o), 9, 24); el.classList.toggle('wn-short', !o.hourly && h < w * 0.62); },
+      // Wide and short: no room for the days, so the text is sized for the head, the temperature and a line of
+      // details (it was sized as if the days were there, which left the lower half of the widget empty).
+      resize: function (w, h) {
+        // very wide (a strip): the days go to the right of the temperature instead
+        var wide = !o.hourly && w > h * 2.4, short = !o.hourly && !wide && h < w * 0.62;
+        el.classList.toggle('wn-short', short); el.classList.toggle('wn-wide', wide);
+        wScale(el, w, h, o.hourly ? 320 : wide ? 470 : short ? 260 : 230, (o.hourly ? 112 : wide ? 112 : short ? 128 : 190) + wxExtraH(o), 9, 26);
+      },
     };
   }
   function winForecast() {
@@ -1827,7 +1886,7 @@
   function tapAction(el, tap, hold) {
     el.classList.add('tappable');
     var timer = 0, held = false, sx = 0, sy = 0;
-    function own(e) { return e.target.closest('button, a, input, select, iframe, .slider, .track'); }
+    function own(e) { return e.target.closest('button, a, input, select, iframe, .slider, .track, .w-prog'); }
     if (hold) {
       el.addEventListener('pointerdown', function (e) {
         if (own(e) || document.body.classList.contains('editing')) return;
@@ -1906,7 +1965,7 @@
   (function () {
     var lastAt = 0, lx = 0, ly = 0;
     $('screens').addEventListener('pointerup', function (e) {
-      if (!state.config.doubleTapPlay || document.body.classList.contains('editing') || e.target.closest('button, a, input, select, .slider, .track, .key, .tappable, iframe')) { lastAt = 0; return; }
+      if (!state.config.doubleTapPlay || document.body.classList.contains('editing') || e.target.closest('button, a, input, select, .slider, .track, .w-prog, .key, .tappable, iframe')) { lastAt = 0; return; }
       var now = Date.now();
       if (now - lastAt < 320 && Math.abs(e.clientX - lx) < 30 && Math.abs(e.clientY - ly) < 30) { lastAt = 0; buzz(); send({ t: 'cmd', a: 'toggle' }); toast(isPlaying() ? 'Pause' : 'Play'); return; }
       lastAt = now; lx = e.clientX; ly = e.clientY;
@@ -1954,7 +2013,7 @@
       if (ed) return edDown(e);
       if (PREVIEW || state.screen.indexOf('page:') !== 0) return;
       var onWidget = e.target.closest('.wg'), id = state.screen.slice(5);
-      if (onWidget && (onWidget.classList.contains('tappable') || e.target.closest('button, a, input, select, .slider, .track, .key, iframe'))) return;
+      if (onWidget && (onWidget.classList.contains('tappable') || e.target.closest('button, a, input, select, .slider, .track, .w-prog, .key, iframe'))) return;
       hx = e.clientX; hy = e.clientY; cancelHold();
       hold = setTimeout(function () { hold = 0; startEdit(id); }, onWidget ? 900 : 600);
     });
@@ -2168,7 +2227,7 @@
     // Pointer events are kept for a mouse or a pen.
     var lastTouch = 0;
     function down(e, x, y) {
-      if (document.body.classList.contains('editing') || e.target.closest('.slider, .track, .ly-pill, .ly-close, .ly-nudge')) { active = false; return; }
+      if (document.body.classList.contains('editing') || e.target.closest('.slider, .track, .w-prog, .ly-pill, .ly-close, .ly-nudge')) { active = false; return; }
       var p = pt({ clientX: x, clientY: y }); active = true; sx = p.x; sy = p.y; st = Date.now();
     }
     function up(x, y) {
@@ -2219,7 +2278,7 @@
   }
   setInterval(schedTick, 15000);
 
-  var lastEstimate = false;
+  var lastEstimate = false, lastExtra = 'off';
   function applyConfig(c) {
     var prevShortcuts = JSON.stringify(state.config.shortcuts), prevScreens = JSON.stringify(state.config.screens) + state.config.nowStyle;
     state.config = c;
@@ -2236,6 +2295,7 @@
     document.body.className = document.body.className.replace(/theme-\w+/, '') + ' theme-' + (c.theme || 'dark');
     toggle(document.body, 'look-ios', c.look === 'ios');
     toggle(document.body, 'look-win', c.look === 'windows');
+    if (lastExtra !== (c.lyricsExtra || 'off')) { lastExtra = c.lyricsExtra || 'off'; if (lyr) setTimeout(function () { setLyrics(lyr); }, 0); } // translation / romanisation line changed
     if (lastEstimate !== (c.estimateLyrics === true)) { lastEstimate = c.estimateLyrics === true; if (lyr) setTimeout(function () { setLyrics(lyr); }, 0); } // the switch changed
     var meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', c.theme === 'light' ? '#f4f5f7' : c.theme === 'black' ? '#000000' : '#0e0f12');
@@ -2577,7 +2637,7 @@
     }
     $('ly-msg').hidden = true;
     lyMusicOn = true; lyMusicTxt = '#'; lyMusic('');
-    var frag = document.createDocumentFragment();
+    var frag = document.createDocumentFragment(), extra = state.config.lyricsExtra || 'off';
     d.lines.forEach(function (l) {
       var div = document.createElement('div');
       div.className = 'ly-line' + (l.text ? '' : ' gap');
@@ -2595,6 +2655,14 @@
         if (lyWordsTimed(l, words.length)) wf = l.words.map(function (w) { return Math.max(0, Math.min(0.98, (w.t - l.t) / l.dur)); });
         else wf = words.map(function () { return 0; });
         div._w = spans; div._wf = wf; div._cur = -2;
+        // the translation or romanisation, in a smaller line under it (Spicy Lyrics has them for some songs)
+        var xt = extra === 'translation' ? l.tr : extra === 'romanization' ? l.ro : '';
+        if (xt && xt !== l.text) {
+          var sub = document.createElement('div');
+          sub.className = 'ly-sub'; sub.textContent = xt;
+          sub.dir = isRtl(xt) ? 'rtl' : 'ltr';
+          div.appendChild(sub);
+        }
       }
       else div.innerHTML = '<i></i><i></i><i></i>';
       frag.appendChild(div);
