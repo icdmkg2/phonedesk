@@ -437,6 +437,185 @@ async function t(name, fn) {
       assert.ok(await pg.evaluate(() => document.body.classList.contains('ly-plain')), 'and back to plain text');
       await ctx.close();
     });
+    await t('a break in the singing shows dots between the lines (the lyrics stay visible), and the first line is not stuck at the top', async () => {
+      await api('config', { lyricsMode: 'scroll' });
+      const at = async (pos) => {
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        await ctx.addInitScript((pos) => {
+          const P = window.WebSocket;
+          window.WebSocket = class extends P {
+            constructor(u, p) {
+              super(u, p);
+              this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+              this.addEventListener('open', () => setTimeout(() => {
+                const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+                d({ t: 'media', d: { active: true, title: 'Gap Song', artist: 'Band', app: 'Spotify', status: 'Playing', position: pos, duration: 200, updated: Date.now() } });
+                const T = [10, 13, 16, 60, 63, 66, 69];
+                d({ t: 'lyrics', d: { key: 'k', synced: true, lines: T.map((t, i) => ({ t, text: 'Line number ' + (i + 1) })), credit: { provider: 'LRCLIB', source: 'lrclib' } } });
+              }, 50));
+            }
+          };
+        }, pos);
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1200);
+        await pg.click('#ly-pill'); await sleep(1300);
+        const r = await pg.evaluate(() => {
+          const v = document.getElementById('ly-view').getBoundingClientRect(), on = document.querySelector('.ly-line.on'), g = document.querySelector('.ly-gapdots');
+          return { opacity: +getComputedStyle(document.getElementById('ly-list')).opacity, overlay: document.getElementById('ly-music').classList.contains('show'),
+            on: on ? on.textContent : null, onTop: on ? on.getBoundingClientRect().top - v.top : null, firstTop: document.querySelector('.ly-line').getBoundingClientRect().top - v.top, h: v.height, dots: !!g && g.classList.contains('show') };
+        });
+        await ctx.close();
+        return r;
+      };
+      const brk = await at(30); // between line 3 (16 s) and line 4 (60 s)
+      assert.ok(brk.dots, 'dots in the break');
+      assert.ok(!brk.overlay && brk.opacity === 1, 'no screen over the lyrics, which stay visible');
+      const intro = await at(1);
+      assert.ok(intro.dots && !intro.overlay, 'dots during the intro');
+      const first = await at(8); // line 1 (10 s) is lit by the time it is measured
+      assert.ok(/^Line number [12]$/.test(first.on || ''), 'line 1 or 2 is lit (' + first.on + ')');
+      assert.ok(first.onTop > first.h * 0.3, 'the lit line sits where you read (' + Math.round(first.onTop) + ' of ' + Math.round(first.h) + ')');
+      assert.ok(first.firstTop > first.h * 0.12, 'the first line is not at the top edge (' + Math.round(first.firstTop) + ')');
+      assert.ok(!first.dots, 'no dots while singing');
+    });
+    await t('with nothing playing there is no empty source pill and no Earlier/Later; the iOS style still draws slider tracks', async () => {
+      for (const look of ['default', 'ios', 'windows']) {
+        await api('config', { look, nowStyle: 'immersive' });
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1300);
+        assert.strictEqual(await pg.evaluate(() => document.querySelector('.app').offsetWidth), 0, look + ': no empty source pill');
+        if (look === 'ios') {
+          const bg = await pg.evaluate(() => getComputedStyle(document.getElementById('v-slider'), '::before').backgroundColor);
+          assert.notStrictEqual(bg, 'rgba(0, 0, 0, 0)', 'the volume track is visible in the iOS style');
+        }
+        await pg.click('#ly-pill'); await sleep(700);
+        assert.strictEqual(await pg.evaluate(() => document.getElementById('ly-nudge').offsetWidth), 0, look + ': no Earlier/Later with nothing playing');
+        await ctx.close();
+      }
+      await api('config', { look: 'default' });
+    });
+    await t('widgets fit their text: toggle names are whole, the CPU note is not cut, empty photos and devices say so', async () => {
+      const W = (type, x, y, w, h, opts) => ({ type, x, y, w, h, opts });
+      await api('config', { pages: [{ id: 'pg-fitt', name: 'Fit', widgets: [W('toggles', 0, 0, 6, 2), W('stats', 6, 0, 3, 3, { metric: 'cpu' }), W('photos', 0, 3, 4, 3), W('devices', 8, 3, 2, 3)] }], screens: ['media', 'page:pg-fitt'] });
+      for (const look of ['default', 'ios', 'windows']) {
+        await api('config', { look });
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        await ctx.addInitScript(() => localStorage.setItem('pd.screen', JSON.stringify('page:pg-fitt')));
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1500);
+        const r = await pg.evaluate(() => {
+          const names = [...document.querySelectorAll('.qt b')].map((b) => ({ t: b.textContent, cut: b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 2 }));
+          const sub = document.querySelector('.wg-stats .st-sub');
+          return { names, subCut: !!sub && sub.offsetHeight > 0 && sub.scrollHeight > sub.clientHeight + 1,
+            photos: (document.querySelector('.wg-photos .w-empty') || {}).textContent || '', devices: parseFloat(getComputedStyle(document.querySelector('.wg-devices')).fontSize) };
+        });
+        await ctx.close();
+        assert.strictEqual(r.names.length, 5, look + ': five toggles');
+        assert.deepStrictEqual(r.names.filter((n) => n.cut).map((n) => n.t), [], look + ': no toggle name is cut');
+        assert.ok(!r.subCut, look + ': the busiest-thread note is not cut');
+        assert.match(r.photos, /Choose a photo folder/, look + ': photos without a folder say so');
+        assert.ok(r.devices >= 10, look + ': the no-devices note is readable (' + r.devices + 'px)');
+      }
+      await api('config', { look: 'default', pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
+    });
+    await t('small phones: the clock fits between the top edge and the dots, the forecast widget shows only days that fit, shortcuts fit', async () => {
+      const W = (type, x, y, w, h, opts) => ({ type, x, y, w, h, opts });
+      await api('config', { pages: [{ id: 'pg-smal', name: 'Small', widgets: [W('forecast', 8, 0, 4, 3), W('clock', 0, 0, 8, 3)] }], screens: ['media', 'clock', 'shortcuts', 'page:pg-smal'] });
+      for (const vp of [[640, 320], [800, 360]]) {
+        const ctx = await browser.newContext({ viewport: { width: vp[0], height: vp[1] } });
+        for (const screen of ['clock', 'page:pg-smal', 'shortcuts']) {
+          await ctx.addInitScript((s) => localStorage.setItem('pd.screen', JSON.stringify(s)), screen);
+          const pg = await ctx.newPage();
+          await pg.goto(BASE + '/phone/'); await sleep(1300);
+          const bad = await pg.evaluate(() => {
+            const out = [], vw = innerWidth, vh = innerHeight, dots = document.getElementById('dots').getBoundingClientRect();
+            document.querySelectorAll('.screen.on *').forEach((e) => {
+              const r = e.getBoundingClientRect(); if (!r.width || !r.height || e.children.length || !e.textContent.trim()) return;
+              let p = e, hid = false; while (p) { const cs = getComputedStyle(p); if (cs.display === 'none' || cs.visibility === 'hidden') { hid = true; break; } p = p.parentElement; } if (hid) return;
+              const clip = e.closest('.wg, .pad-body'); const cr = clip ? clip.getBoundingClientRect() : null;
+              if (r.right > vw + 1 || r.bottom > vh + 1 || r.left < -1 || r.top < -1) out.push('off screen: ' + e.textContent.trim().slice(0, 20));
+              else if (cr && (r.right > cr.right + 1 || r.bottom > cr.bottom + 1)) out.push('outside its box: ' + e.textContent.trim().slice(0, 20));
+              else if (!clip && r.bottom > dots.top - 2 && r.left < dots.right && r.right > dots.left) out.push('on the dots: ' + e.textContent.trim().slice(0, 20));
+            });
+            return out;
+          });
+          assert.deepStrictEqual(bad, [], vp.join('x') + ' ' + screen);
+          await pg.close();
+        }
+        await ctx.close();
+      }
+      await api('config', { pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
+    });
+    await t('1.15: translation line under lyrics, colours from the cover, seeking from the Now playing widget and the PC window, Windows weather fills its card', async () => {
+      // a 32x32 cover, top half orange and bottom half maroon (or black and white), as a PNG made here
+      const zlib = require('zlib');
+      const png = (top, bottom) => {
+        const crcT = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crcT[n] = c >>> 0; }
+        const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcT[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+        const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+        const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(32, 0); ihdr.writeUInt32BE(32, 4); ihdr[8] = 8; ihdr[9] = 2;
+        const raw = Buffer.alloc(32 * (1 + 32 * 3));
+        for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) { const c = y < 16 ? top : bottom; raw.set(c, y * 97 + 1 + x * 3); }
+        return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+      };
+      const covers = { warm: png([240, 120, 30], [120, 30, 60]), mono: png([235, 235, 235], [15, 15, 15]) };
+      const open = async (cover, extra) => {
+        const ctx = await browser.newContext({ viewport: { width: 960, height: 444 } });
+        await ctx.route('**/testcover/*', (route) => route.fulfill({ contentType: 'image/png', body: covers[route.request().url().split('/').pop()] }));
+        await ctx.addInitScript(([cover, extra]) => {
+          if (extra && extra.screen) localStorage.setItem('pd.screen', JSON.stringify(extra.screen));
+          const P = window.WebSocket;
+          window.WebSocket = class extends P {
+            constructor(u, p) {
+              super(u, p);
+              const o = this.send.bind(this); this.send = (d) => { (window.__sent = window.__sent || []).push(d); return o(d); };
+              this.addEventListener('message', (e) => { if (!e.__mock) { try { if (['media', 'lyrics'].includes(JSON.parse(e.data).t)) e.stopImmediatePropagation(); } catch (x) {} } });
+              this.addEventListener('open', () => setTimeout(() => {
+                const d = (m) => { const ev = new MessageEvent('message', { data: JSON.stringify(m) }); ev.__mock = true; this.dispatchEvent(ev); };
+                d({ t: 'media', d: { active: true, title: 'Song', artist: 'Band', app: 'Spotify', status: 'Playing', position: 20, duration: 200, updated: Date.now(), art: '/testcover/' + cover } });
+                d({ t: 'lyrics', d: { key: 'k', synced: true, lines: [{ t: 1, text: '君の名は', tr: 'Your name', ro: 'kimi no na wa' }, { t: 60, text: 'two' }], credit: { provider: 'Apple Music', source: 'spicy' } } });
+              }, 60));
+            }
+          };
+        }, [cover, extra || null]);
+        const pg = await ctx.newPage();
+        await pg.goto(BASE + '/phone/'); await sleep(1500);
+        return { ctx, pg };
+      };
+      // translation line
+      await api('config', { lyricsExtra: 'translation', look: 'default', nowStyle: 'immersive' });
+      let { ctx, pg } = await open('warm');
+      await pg.click('#ly-pill'); await sleep(800);
+      assert.strictEqual(await pg.evaluate(() => (document.querySelector('.ly-line .ly-sub') || {}).textContent), 'Your name');
+      await api('config', { lyricsExtra: 'romanization' }); await sleep(1200);
+      assert.strictEqual(await pg.evaluate(() => (document.querySelector('.ly-line .ly-sub') || {}).textContent), 'kimi no na wa');
+      await api('config', { lyricsExtra: 'off' }); await sleep(1200);
+      assert.strictEqual(await pg.evaluate(() => document.querySelectorAll('.ly-sub').length), 0);
+      // colours: two distinct colours from a two-colour cover, the progress fill in the cover's colour
+      const tints = await pg.evaluate(() => ({ on: document.body.classList.contains('art-tint'), t1: getComputedStyle(document.documentElement).getPropertyValue('--tint').trim(), t2: getComputedStyle(document.documentElement).getPropertyValue('--tint2').trim() }));
+      assert.ok(tints.on, 'tinted from the cover');
+      assert.notStrictEqual(tints.t1, tints.t2, 'a second colour from the cover');
+      const [r, g, b] = tints.t1.split(',').map(Number);
+      assert.ok(r > g && r > b, 'the main colour is warm: ' + tints.t1);
+      await ctx.close();
+      ({ ctx, pg } = await open('mono'));
+      const mono = (await pg.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--tint').trim())).split(',').map(Number);
+      assert.ok(Math.max(...mono) - Math.min(...mono) < 12, 'a black-and-white cover stays grey: ' + mono.join(','));
+      await ctx.close();
+      // the Now playing widget seeks; Windows weather fills its card
+      const W = (type, x, y, w, h, opts) => ({ type, x, y, w, h, opts });
+      await api('config', { look: 'windows', pages: [{ id: 'pg-ntst', name: 'N', widgets: [W('nowplaying', 0, 0, 8, 4), W('weather', 8, 0, 4, 3), W('weather', 0, 4, 6, 2)] }], screens: ['media', 'page:pg-ntst'] });
+      ({ ctx, pg } = await open('warm', { screen: 'page:pg-ntst' }));
+      const bar = await pg.locator('.wg-nowplaying .w-prog').boundingBox();
+      await pg.mouse.click(bar.x + bar.width * 0.5, bar.y + bar.height / 2); await sleep(300);
+      const seek = await pg.evaluate(() => (window.__sent || []).map((s) => JSON.parse(s)).find((m) => m.a === 'seek'));
+      assert.ok(seek && Math.abs(seek.v - 100) < 6, 'the widget seeks to the middle: ' + JSON.stringify(seek));
+      const wx = await pg.evaluate(() => [...document.querySelectorAll('.wg-weather')].map((w) => w.className.includes('wn-wide') ? 'wide:' + !!w.querySelector('.wn-days') : 'card:' + (w.querySelector('.wn-mini') ? getComputedStyle(w.querySelector('.wn-mini')).display : 'none')));
+      if (wx.join() !== 'card:none,wide:true') assert.ok(wx.includes('wide:true'), 'the wide weather shows its days: ' + wx.join());
+      await ctx.close();
+      await api('config', { look: 'default', pages: [], screens: ['media', 'lyrics', 'mixer', 'clock', 'stats', 'shortcuts'] });
+    });
     await t('the PC window says which lyrics source won and why', async () => {
       const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       await dctx.route('**/api/status', async (route) => {

@@ -301,7 +301,37 @@
     const wall = m.active && m.art ? 'url("' + m.art.replace(/"/g, '%22') + '")' : '';
     if (document.body.dataset.wall !== wall) { document.body.dataset.wall = wall; document.body.style.setProperty('--art', wall || 'none'); document.body.classList.toggle('has-art', !!wall); }
     $('np-play').setAttribute('href', m.active && m.status === 'Playing' ? '#i-pause' : '#i-play');
+    renderSeek();
   }
+  // Where the song is, from the last position the PC reported (it keeps counting while it plays); drag to jump.
+  let seekDrag = false;
+  const mmss = (s) => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function mediaPos() {
+    const m = state.media;
+    if (!m || !m.active) return 0;
+    const p = (m.position || 0) + (m.status === 'Playing' && m.updated ? (Date.now() - m.updated) / 1000 : 0);
+    return m.duration > 0 ? Math.min(p, m.duration) : p;
+  }
+  function renderSeek() {
+    const m = state.media, row = $('np-seek-row');
+    const on = !!(m && m.active && m.duration > 0);
+    if (row.hidden === on) row.hidden = !on;
+    if (!on || seekDrag) return;
+    const p = mediaPos();
+    $('np-seek').value = Math.round((p / m.duration) * 1000);
+    setText($('np-pos'), mmss(p)); setText($('np-dur'), mmss(m.duration));
+  }
+  setInterval(() => { if (!document.hidden) renderSeek(); }, 1000);
+  $('np-seek').addEventListener('input', (e) => { seekDrag = true; const m = state.media; if (m && m.duration > 0) setText($('np-pos'), mmss((e.target.value / 1000) * m.duration)); });
+  $('np-seek').addEventListener('change', (e) => {
+    const m = state.media;
+    if (m && m.duration > 0) {
+      const v = (e.target.value / 1000) * m.duration;
+      send({ t: 'cmd', a: 'seek', v });
+      m.position = v; m.updated = Date.now();
+    }
+    setTimeout(() => { seekDrag = false; }, 400);
+  });
   let volDrag = false;
   function renderVolume() {
     if (volDrag) return;
@@ -623,6 +653,7 @@
     $('ds-batt').checked = c.showBattery !== false;
     $('ds-resync').checked = c.autoResync !== false;
     $('ds-estlyr').checked = c.estimateLyrics === true;
+    $('ds-lyextra').value = c.lyricsExtra || 'off';
     $('ds-wx').checked = c.weather !== false;
     $('ds-wx-row').hidden = c.weather === false;
     if (document.activeElement !== $('ds-wx-city')) $('ds-wx-city').value = c.weatherCity || '';
@@ -1625,4 +1656,5 @@
   // ---------------------------------------------------------------- Keep lyrics in time after a skip (Firefox-based browsers)
   $('ds-resync').addEventListener('change', (e) => saveConfig({ autoResync: e.target.checked }));
   $('ds-estlyr').addEventListener('change', (e) => saveConfig({ estimateLyrics: e.target.checked }));
+  $('ds-lyextra').addEventListener('change', (e) => saveConfig({ lyricsExtra: e.target.value }));
 })();

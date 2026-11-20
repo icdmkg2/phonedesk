@@ -134,6 +134,33 @@ ta('LRCLIB fills in when Spicy Lyrics is down, with a hint to ask again; a wrong
 
 // ---------------------------------------------------------------- "why LRCLIB?": what each source said (real Spicy client, fake network)
 const KEY = 'sl_sk_aaaaaaaaaaaa';
+// ---------------------------------------------------------------- translations and romanisations (shapes from the API's OpenAPI spec)
+t('Spicy line lyrics keep a translation and a romanisation per line', () => {
+  const r = spicy.convert({ Body: { Type: 'Line', source: 'musixmatch', Content: [
+    { Type: 'Vocal', Text: '君の名は', StartTime: 1, EndTime: 3, TranslatedText: 'Your name', TransliteratedText: 'kimi no na wa' },
+    { Type: 'Vocal', Text: 'hello', StartTime: 4, EndTime: 5 },
+  ] } });
+  assert.strictEqual(r.lines[0].tr, 'Your name');
+  assert.strictEqual(r.lines[0].ro, 'kimi no na wa');
+  assert.ok(!r.lines[1].tr && !r.lines[1].ro);
+  assert.ok(r.hasTr && r.hasRo);
+});
+t('a syllable-synced line with the romanisation only on its syllables is joined into one line', () => {
+  const r = spicy.convert({ Body: { Type: 'Syllable', source: 'apple_music', Content: [{ Type: 'Vocal', Lead: { StartTime: 1, EndTime: 3, Syllables: [
+    { Text: '사', StartTime: 1, EndTime: 1.5, IsPartOfWord: true, TransliteratedText: 'sa', TransliteratedIsPartOfWord: true },
+    { Text: '랑', StartTime: 1.5, EndTime: 2, IsPartOfWord: false, TransliteratedText: 'rang', TransliteratedIsPartOfWord: false },
+    { Text: '해', StartTime: 2, EndTime: 3, IsPartOfWord: false, TransliteratedText: 'hae' },
+  ] } }] } });
+  assert.strictEqual(r.lines[0].ro, 'sarang hae');
+  assert.ok(r.hasRo && !r.hasTr);
+});
+t('untimed Spicy lyrics come in Lines (not Content) and are no longer dropped', () => {
+  const r = spicy.convert({ Body: { Type: 'Static', source: 'musixmatch', Lines: [{ Text: 'one' }, { Text: 'two', TranslatedText: 'deux' }] } });
+  assert.ok(r && !r.synced);
+  assert.deepStrictEqual(r.lines.map((l) => l.text), ['one', 'two']);
+  assert.strictEqual(r.lines[1].tr, 'deux');
+});
+
 const spicySearch = (results) => (u) => (u.includes('api.spicylyrics.org/v1/tracks/search') ? { Body: { results } } : u.includes('/api/search') ? [copy(40, 200, 0)] : u.includes('/api/get') ? copy(40, 200, 0) : null);
 
 ta('a song Spicy knows only at another length is explained, and not searched again under other spellings', async () => {
@@ -145,6 +172,13 @@ ta('a song Spicy knows only at another length is explained, and not searched aga
   assert.match(why, /Spicy Lyrics: no match.*it knows the song, but its closest copy is 213 s and yours is 204 s/, why);
   assert.match(why, /LRCLIB: timed copy/, why);
   assert.strictEqual(calls.filter((c) => c.includes('/v1/tracks/search')).length, 1, 'a different length stays different: one search');
+});
+ta('an exact match whose length is a few seconds off (an edition of the same song) is still taken from Spicy', async () => {
+  const body = { Body: { Type: 'Line', source: 'apple_music', Content: [{ StartTime: 1, EndTime: 3, Text: 'hola' }] } };
+  stubFetch((u) => (u.includes('/v1/tracks/search') ? { Body: { results: [{ id: 'ed1', tier: 'exact', duration: 194.4, variants: [] }] } } : u.includes('/v1/lyrics/') ? body : null));
+  const r = await lyrics.find({ title: 'Why Song G', artist: 'Band', album: 'G', duration: 189.6 }, { spicyKey: KEY });
+  global.fetch = realFetch;
+  assert.strictEqual(r.credit.provider, 'Apple Music');
 });
 ta('a song Spicy does not know is tried under other spellings, and said so', async () => {
   const calls = stubFetch(spicySearch([]));
