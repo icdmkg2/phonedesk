@@ -7,6 +7,13 @@ the same notes are shown. Releases are published from this file by `.github/work
 Screenshots of interface changes are in [`docs/changelog/`](docs/changelog/). They were taken from each version as it
 was released, with a made-up song (*Paper Lanterns* by *Harbor Lights*) and original placeholder lyrics.
 
+## [1.15.2] — 2026-11-22
+
+Spicy Lyrics now finds songs whose artist is spelled in Cyrillic.
+
+### Fixed
+- **Lyrics missing when the artist is in Cyrillic.** With an artist like "Егор Крид", Spicy Lyrics' search finds the right song but rates it "other artist", which PhoneDesk threw away, so the song fell back to LRCLIB (often with no timings under the Cyrillic name). Such a result is now accepted when its title is identical and its length is within 3 s of yours; covers and different songs are still rejected.
+
 ## [1.15.1] — 2026-11-20
 
 Fixes the break dots showing twice.
