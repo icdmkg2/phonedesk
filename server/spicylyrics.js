@@ -44,9 +44,13 @@ async function findTrackId(media, key) {
   lastError = '';
   const all = r.body.Body.results || [];
   if (!all.length) return miss('nothing', 'Spicy Lyrics does not know this song');
-  const results = all.filter((x) => x.tier === 'exact' || x.tier === 'likely');
-  if (!results.length) return miss('weak', all.length + ' result' + (all.length > 1 ? 's' : '') + ', none a close enough match (best rated “' + all[0].tier + '”)');
   const want = media.duration || 0;
+  const norm = (s) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const sameSong = (x) => norm(x.name || x.title) === norm(media.title) && want > 0 && x.duration > 0 && Math.abs(x.duration - want) <= 3;
+  // 'other_artist' is what the API says when the artist is spelled differently (e.g. Cyrillic "Егор Крид" vs "Egor Kreed").
+  // Trust it only when the title is identical and the length matches, so a cover or a different song is not picked.
+  const results = all.filter((x) => x.tier === 'exact' || x.tier === 'likely' || (x.tier === 'other_artist' && sameSong(x)));
+  if (!results.length) return miss('weak', all.length + ' result' + (all.length > 1 ? 's' : '') + ', none a close enough match (best rated “' + all[0].tier + '”)');
   // Every release of the best matches; the one whose length is closest to what is playing has the right timings.
   const cands = [];
   for (const x of results.slice(0, 3)) {
